@@ -37,8 +37,11 @@ system.beforeEvents.startup.subscribe((event) => {
           message: "该命令只能由玩家执行",
         };
       }
-      const dimension = world.getDimension(TEMPLATE_DIMENSION_ID);
-      player.teleport(TEMPLATE_SPAWN, { dimension });
+      // 命令回调运行在 restricted execution 模式,须用 system.run 延迟到正常上下文
+      system.run(() => {
+        const dimension = world.getDimension(TEMPLATE_DIMENSION_ID);
+        player.teleport(TEMPLATE_SPAWN, { dimension });
+      });
       return {
         status: CustomCommandStatus.Success,
         message: `已传送至模板维度 ${TEMPLATE_DIMENSION_ID}`,

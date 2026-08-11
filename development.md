@@ -74,6 +74,7 @@ bearcade:gomoku_template
 模板维度自身创建常加载区域 `bearcade:ta_<gamename>_template` 并保留,保证随时可读取。
 
 - 开发期建议注册一个自定义命令进入模板维度制作场地(示例:gomoku 包提供 `/bearcade:gomoku`,传送至 `bearcade:gomoku_template`)。
+- **restricted execution 陷阱**:自定义命令回调运行在受限上下文,直接调用 `teleport`、`getDimension` 等原生 API 会抛 `cannot be used in restricted execution`;回调内须先用 `system.run(...)` / `runTimeout(...)` 延迟到正常上下文再执行原生调用。
 
 **API 注意事项**:
 

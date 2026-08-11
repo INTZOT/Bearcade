@@ -38,8 +38,10 @@ system.beforeEvents.startup.subscribe((event) => {
           message: "\u8BE5\u547D\u4EE4\u53EA\u80FD\u7531\u73A9\u5BB6\u6267\u884C"
         };
       }
-      const dimension = world.getDimension(TEMPLATE_DIMENSION_ID);
-      player.teleport(TEMPLATE_SPAWN, { dimension });
+      system.run(() => {
+        const dimension = world.getDimension(TEMPLATE_DIMENSION_ID);
+        player.teleport(TEMPLATE_SPAWN, { dimension });
+      });
       return {
         status: CustomCommandStatus.Success,
         message: `\u5DF2\u4F20\u9001\u81F3\u6A21\u677F\u7EF4\u5EA6 ${TEMPLATE_DIMENSION_ID}`
