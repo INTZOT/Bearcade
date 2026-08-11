@@ -70,20 +70,16 @@ function showNotice(player: Player, text: string): void {
     });
 }
 
-function statusText(room: RoomInfo): string {
-  if (room.stale) return "§8数据过期§r";
-  switch (room.status) {
-    case "initializing":
-      return "§7初始化中§r";
-    case "idle":
-      return "§a空闲中§r";
-    case "running":
-      return "§c运行中§r";
-  }
-}
-
+// 注意:DDUI 按钮文本不解析 § 颜色码,状态只能用纯文本/符号表达
 function roomLabel(entry: GameEntry, room: RoomInfo): string {
-  return `房间 ${room.id}  ${statusText(room)}  ${room.players}/${entry.maxPlayers} 人`;
+  const status = room.stale
+    ? "数据过期"
+    : room.status === "initializing"
+      ? "初始化中"
+      : room.status === "idle"
+        ? "空闲中"
+        : "运行中";
+  return `房间 ${room.id} [${status}] ${room.players}/${entry.maxPlayers} 人`;
 }
 
 export function openMainMenu(player: Player): void {

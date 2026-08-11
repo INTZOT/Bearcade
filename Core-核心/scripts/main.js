@@ -281,19 +281,9 @@ function showNotice(player, text) {
     console.warn("[Bearcade Core] \u63D0\u793A\u6846\u663E\u793A\u5931\u8D25", error);
   });
 }
-function statusText(room) {
-  if (room.stale) return "\xA78\u6570\u636E\u8FC7\u671F\xA7r";
-  switch (room.status) {
-    case "initializing":
-      return "\xA77\u521D\u59CB\u5316\u4E2D\xA7r";
-    case "idle":
-      return "\xA7a\u7A7A\u95F2\u4E2D\xA7r";
-    case "running":
-      return "\xA7c\u8FD0\u884C\u4E2D\xA7r";
-  }
-}
 function roomLabel(entry, room) {
-  return `\u623F\u95F4 ${room.id}  ${statusText(room)}  ${room.players}/${entry.maxPlayers} \u4EBA`;
+  const status = room.stale ? "\u6570\u636E\u8FC7\u671F" : room.status === "initializing" ? "\u521D\u59CB\u5316\u4E2D" : room.status === "idle" ? "\u7A7A\u95F2\u4E2D" : "\u8FD0\u884C\u4E2D";
+  return `\u623F\u95F4 ${room.id} [${status}] ${room.players}/${entry.maxPlayers} \u4EBA`;
 }
 function openMainMenu(player) {
   closeForm(player.id);
