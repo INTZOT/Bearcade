@@ -12,6 +12,8 @@ import {
   TEMPLATE_SPAWN,
   roomDimensionId,
 } from "./config";
+import { initRooms } from "./rooms";
+import { sendGameRegister, sendRoomStatus } from "./ipc";
 
 system.beforeEvents.startup.subscribe((event) => {
   // 注册房间维度 bearcade:gomoku_1 ~ bearcade:gomoku_8
@@ -52,4 +54,11 @@ system.beforeEvents.startup.subscribe((event) => {
   console.warn(
     `[Bearcade Gomoku] 已注册 ${GAME_ID} 房间维度 1~${ROOM_COUNT} 与模板维度`,
   );
+});
+
+world.afterEvents.worldLoad.subscribe(() => {
+  sendGameRegister();
+  void initRooms();
+  // 5 秒心跳兜底上报
+  system.runInterval(() => sendRoomStatus(), 100);
 });
