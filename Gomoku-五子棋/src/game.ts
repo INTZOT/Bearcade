@@ -3,9 +3,9 @@ import {
   world,
   ItemStack,
   EntityComponentTypes,
-  type Block,
   type EntityInventoryComponent,
   type Player,
+  type PlayerPlaceBlockBeforeEvent,
 } from "@minecraft/server";
 import {
   BOARD_Y,
@@ -18,8 +18,6 @@ import {
   STONE_WHITE,
   START_POS_BLACK,
   START_POS_WHITE,
-  TOKEN_BLACK,
-  TOKEN_WHITE,
   roomDimensionId,
 } from "./config";
 import { isRoomReady, resetRoomsFromTemplate } from "./rooms";
@@ -100,23 +98,10 @@ function clearTokens(roomId: number): void {
       const item = container.getItem(slot);
       if (
         item &&
-        (item.typeId === TOKEN_BLACK || item.typeId === TOKEN_WHITE)
+        (item.typeId === STONE_BLACK || item.typeId === STONE_WHITE)
       ) {
         container.setItem(slot, undefined);
       }
-    }
-  }
-}
-
-function consumeToken(player: Player, color: Color): void {
-  const container = inventoryOf(player)?.container;
-  if (!container) return;
-  const token = color === "black" ? TOKEN_BLACK : TOKEN_WHITE;
-  for (let slot = 0; slot < container.size; slot++) {
-    const item = container.getItem(slot);
-    if (item && item.typeId === token) {
-      container.setItem(slot, undefined);
-      return;
     }
   }
 }
@@ -126,7 +111,7 @@ function giveTurn(roomId: number, player: Player, color: Color): void {
   const container = inventoryOf(player)?.container;
   if (container) {
     container.addItem(
-      new ItemStack(color === "black" ? TOKEN_BLACK : TOKEN_WHITE, 1),
+      new ItemStack(color === "black" ? STONE_BLACK : STONE_WHITE, 1),
     );
   }
   const name = color === "black" ? "黑" : "白";
@@ -214,58 +199,87 @@ function isBoardFull(board: Cell[][]): boolean {
   return board.every((row) => row.every((cell) => cell !== null));
 }
 
-function handleInteract(player: Player, block: Block): void {
-  const roomId = roomIdFromDimension(block.dimension.id);
+function handlePlace(event: PlayerPlaceBlockBeforeEvent): void {
+  const player = event.player;
+  const roomId = roomIdFromDimension(event.block.dimension.id);
   if (!roomId) return;
   const state = getState(roomId);
-  if (state.phase !== "running") return;
+  if (state.phase !== "running") {
+    event.cancel = true;
+    return;
+  }
 
-  const { x, y, z } = block.location;
-  if (y !== BOARD_Y || !inGrid(x, z)) return;
+  const { x, y, z } = event.block.location;
+  if (y !== BOARD_Y + 1 || !inGrid(x, z)) {
+    event.cancel = true;
+    system.run(() => {
+      player.sendMessage("§c棋子只能放在棋盘格上");
+    });
+    return;
+  }
   const cx = x - GRID_MIN;
   const cz = z - GRID_MIN;
-  if (state.board[cx][cz]) return;
+  if (state.board[cx][cz]) {
+    event.cancel = true;
+    system.run(() => {
+      player.sendMessage("§c该位置已有棋子");
+    });
+    return;
+  }
   if (state.players[state.turn] !== player.id) {
-    player.sendMessage("§c还没轮到你落子");
+    event.cancel = true;
+    system.run(() => {
+      player.sendMessage("§c还没轮到你落子");
+    });
     return;
   }
 
   const color = state.turn;
-  // 压力板棋子放在棋盘格上方一格,不覆盖棋盘方块
-  const target = block.dimension.getBlock({
-    x: block.location.x,
-    y: block.location.y + 1,
-    z: block.location.z,
-  });
-  target?.setType(color === "black" ? STONE_BLACK : STONE_WHITE);
-  state.board[cx][cz] = color;
-  consumeToken(player, color);
-  player.sendMessage(
-    `§7落子:${color === "black" ? "黑" : "白"} (${x}, ${z})`,
-  );
-
-  if (checkWin(state.board, cx, cz, color)) {
-    const winnerText = color === "black" ? "黑方" : "白方";
-    announce(roomId, `§e${winnerText}五连,对局结束`);
-    endGame(roomId, color);
+  const expectedType = color === "black" ? STONE_BLACK : STONE_WHITE;
+  if (event.permutationToPlace.type.id !== expectedType) {
+    event.cancel = true;
+    system.run(() => {
+      player.sendMessage("§c请放置你手中的对应颜色棋子");
+    });
     return;
   }
-  if (isBoardFull(state.board)) {
-    announce(roomId, "§e棋盘已满,平局");
-    endGame(roomId, "draw");
+
+  // 校验通过:放行放置,同步更新棋盘(内存状态),提示/结算延迟到正常上下文
+  state.board[cx][cz] = color;
+  const won = checkWin(state.board, cx, cz, color);
+  const full = !won && isBoardFull(state.board);
+  system.run(() => {
+    player.sendMessage(
+      `§7落子:${color === "black" ? "黑" : "白"} (${x}, ${z})`,
+    );
+  });
+
+  if (won || full) {
+    const winnerText = color === "black" ? "黑方" : "白方";
+    system.run(() => {
+      if (won) {
+        announce(roomId, `§e${winnerText}五连,对局结束`);
+        endGame(roomId, color);
+      } else {
+        announce(roomId, "§e棋盘已满,平局");
+        endGame(roomId, "draw");
+      }
+    });
     return;
   }
 
   state.turn = state.turn === "black" ? "white" : "black";
   const nextColor = state.turn;
-  const nextPlayer = roomPlayers(roomId).find(
-    (p) => p.id === state.players[nextColor],
-  );
-  if (nextPlayer) giveTurn(roomId, nextPlayer, nextColor);
-  announce(
-    roomId,
-    `轮到${nextColor === "black" ? "黑方" : "白方"}落子`,
-  );
+  system.run(() => {
+    const nextPlayer = roomPlayers(roomId).find(
+      (p) => p.id === state.players[nextColor],
+    );
+    if (nextPlayer) giveTurn(roomId, nextPlayer, nextColor);
+    announce(
+      roomId,
+      `轮到${nextColor === "black" ? "黑方" : "白方"}落子`,
+    );
+  });
 }
 
 function endGame(roomId: number, result: Color | "draw" | "force"): void {
@@ -370,19 +384,12 @@ export function forceStopInDimension(dimensionId: string): boolean {
 }
 
 export function initGame(): void {
-  world.afterEvents.playerInteractWithBlock.subscribe((event) => {
-    handleInteract(event.player, event.block);
-  });
-
-  // 房间维度内禁止破坏/放置方块,只允许通过落子交互
+  // 房间维度内禁止破坏方块
   world.beforeEvents.playerBreakBlock.subscribe((event) => {
     if (roomIdFromDimension(event.block.dimension.id)) {
       event.cancel = true;
     }
   });
-  world.beforeEvents.playerPlaceBlock.subscribe((event) => {
-    if (roomIdFromDimension(event.block.dimension.id)) {
-      event.cancel = true;
-    }
-  });
+  // 放置方块即落子:合法棋步放行,其余一律取消
+  world.beforeEvents.playerPlaceBlock.subscribe(handlePlace);
 }

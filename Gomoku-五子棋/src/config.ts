@@ -32,8 +32,6 @@ export const GRID_MIN = -7;
 export const GRID_MAX = 7; // 15×15 棋盘
 export const STONE_BLACK = "minecraft:polished_blackstone_pressure_plate";
 export const STONE_WHITE = "minecraft:heavy_weighted_pressure_plate";
-export const TOKEN_BLACK = "minecraft:black_dye";
-export const TOKEN_WHITE = "minecraft:white_dye";
 export const START_POS_BLACK = { x: 0, y: 66, z: -1 };
 export const START_POS_WHITE = { x: 0, y: 66, z: 1 };
 

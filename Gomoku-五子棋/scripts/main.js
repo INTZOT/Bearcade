@@ -27,8 +27,6 @@ var GRID_MIN = -7;
 var GRID_MAX = 7;
 var STONE_BLACK = "minecraft:polished_blackstone_pressure_plate";
 var STONE_WHITE = "minecraft:heavy_weighted_pressure_plate";
-var TOKEN_BLACK = "minecraft:black_dye";
-var TOKEN_WHITE = "minecraft:white_dye";
 var START_POS_BLACK = { x: 0, y: 66, z: -1 };
 var START_POS_WHITE = { x: 0, y: 66, z: 1 };
 var DIMENSION_NAMESPACE = "bearcade";
@@ -195,21 +193,9 @@ function clearTokens(roomId) {
     if (!container) continue;
     for (let slot = 0; slot < container.size; slot++) {
       const item = container.getItem(slot);
-      if (item && (item.typeId === TOKEN_BLACK || item.typeId === TOKEN_WHITE)) {
+      if (item && (item.typeId === STONE_BLACK || item.typeId === STONE_WHITE)) {
         container.setItem(slot, void 0);
       }
-    }
-  }
-}
-function consumeToken(player, color) {
-  const container = inventoryOf(player)?.container;
-  if (!container) return;
-  const token = color === "black" ? TOKEN_BLACK : TOKEN_WHITE;
-  for (let slot = 0; slot < container.size; slot++) {
-    const item = container.getItem(slot);
-    if (item && item.typeId === token) {
-      container.setItem(slot, void 0);
-      return;
     }
   }
 }
@@ -218,7 +204,7 @@ function giveTurn(roomId, player, color) {
   const container = inventoryOf(player)?.container;
   if (container) {
     container.addItem(
-      new ItemStack(color === "black" ? TOKEN_BLACK : TOKEN_WHITE, 1)
+      new ItemStack(color === "black" ? STONE_BLACK : STONE_WHITE, 1)
     );
   }
   const name = color === "black" ? "\u9ED1" : "\u767D";
@@ -287,53 +273,81 @@ function checkWin(board, cx, cz, color) {
 function isBoardFull(board) {
   return board.every((row) => row.every((cell) => cell !== null));
 }
-function handleInteract(player, block) {
-  const roomId = roomIdFromDimension(block.dimension.id);
+function handlePlace(event) {
+  const player = event.player;
+  const roomId = roomIdFromDimension(event.block.dimension.id);
   if (!roomId) return;
   const state = getState(roomId);
-  if (state.phase !== "running") return;
-  const { x, y, z } = block.location;
-  if (y !== BOARD_Y || !inGrid(x, z)) return;
+  if (state.phase !== "running") {
+    event.cancel = true;
+    return;
+  }
+  const { x, y, z } = event.block.location;
+  if (y !== BOARD_Y + 1 || !inGrid(x, z)) {
+    event.cancel = true;
+    system.run(() => {
+      player.sendMessage("\xA7c\u68CB\u5B50\u53EA\u80FD\u653E\u5728\u68CB\u76D8\u683C\u4E0A");
+    });
+    return;
+  }
   const cx = x - GRID_MIN;
   const cz = z - GRID_MIN;
-  if (state.board[cx][cz]) return;
+  if (state.board[cx][cz]) {
+    event.cancel = true;
+    system.run(() => {
+      player.sendMessage("\xA7c\u8BE5\u4F4D\u7F6E\u5DF2\u6709\u68CB\u5B50");
+    });
+    return;
+  }
   if (state.players[state.turn] !== player.id) {
-    player.sendMessage("\xA7c\u8FD8\u6CA1\u8F6E\u5230\u4F60\u843D\u5B50");
+    event.cancel = true;
+    system.run(() => {
+      player.sendMessage("\xA7c\u8FD8\u6CA1\u8F6E\u5230\u4F60\u843D\u5B50");
+    });
     return;
   }
   const color = state.turn;
-  const target = block.dimension.getBlock({
-    x: block.location.x,
-    y: block.location.y + 1,
-    z: block.location.z
-  });
-  target?.setType(color === "black" ? STONE_BLACK : STONE_WHITE);
-  state.board[cx][cz] = color;
-  consumeToken(player, color);
-  player.sendMessage(
-    `\xA77\u843D\u5B50:${color === "black" ? "\u9ED1" : "\u767D"} (${x}, ${z})`
-  );
-  if (checkWin(state.board, cx, cz, color)) {
-    const winnerText = color === "black" ? "\u9ED1\u65B9" : "\u767D\u65B9";
-    announce(roomId, `\xA7e${winnerText}\u4E94\u8FDE,\u5BF9\u5C40\u7ED3\u675F`);
-    endGame(roomId, color);
+  const expectedType = color === "black" ? STONE_BLACK : STONE_WHITE;
+  if (event.permutationToPlace.type.id !== expectedType) {
+    event.cancel = true;
+    system.run(() => {
+      player.sendMessage("\xA7c\u8BF7\u653E\u7F6E\u4F60\u624B\u4E2D\u7684\u5BF9\u5E94\u989C\u8272\u68CB\u5B50");
+    });
     return;
   }
-  if (isBoardFull(state.board)) {
-    announce(roomId, "\xA7e\u68CB\u76D8\u5DF2\u6EE1,\u5E73\u5C40");
-    endGame(roomId, "draw");
+  state.board[cx][cz] = color;
+  const won = checkWin(state.board, cx, cz, color);
+  const full = !won && isBoardFull(state.board);
+  system.run(() => {
+    player.sendMessage(
+      `\xA77\u843D\u5B50:${color === "black" ? "\u9ED1" : "\u767D"} (${x}, ${z})`
+    );
+  });
+  if (won || full) {
+    const winnerText = color === "black" ? "\u9ED1\u65B9" : "\u767D\u65B9";
+    system.run(() => {
+      if (won) {
+        announce(roomId, `\xA7e${winnerText}\u4E94\u8FDE,\u5BF9\u5C40\u7ED3\u675F`);
+        endGame(roomId, color);
+      } else {
+        announce(roomId, "\xA7e\u68CB\u76D8\u5DF2\u6EE1,\u5E73\u5C40");
+        endGame(roomId, "draw");
+      }
+    });
     return;
   }
   state.turn = state.turn === "black" ? "white" : "black";
   const nextColor = state.turn;
-  const nextPlayer = roomPlayers(roomId).find(
-    (p) => p.id === state.players[nextColor]
-  );
-  if (nextPlayer) giveTurn(roomId, nextPlayer, nextColor);
-  announce(
-    roomId,
-    `\u8F6E\u5230${nextColor === "black" ? "\u9ED1\u65B9" : "\u767D\u65B9"}\u843D\u5B50`
-  );
+  system.run(() => {
+    const nextPlayer = roomPlayers(roomId).find(
+      (p) => p.id === state.players[nextColor]
+    );
+    if (nextPlayer) giveTurn(roomId, nextPlayer, nextColor);
+    announce(
+      roomId,
+      `\u8F6E\u5230${nextColor === "black" ? "\u9ED1\u65B9" : "\u767D\u65B9"}\u843D\u5B50`
+    );
+  });
 }
 function endGame(roomId, result) {
   const state = getState(roomId);
@@ -416,19 +430,12 @@ function forceStopInDimension(dimensionId) {
   return true;
 }
 function initGame() {
-  world2.afterEvents.playerInteractWithBlock.subscribe((event) => {
-    handleInteract(event.player, event.block);
-  });
   world2.beforeEvents.playerBreakBlock.subscribe((event) => {
     if (roomIdFromDimension(event.block.dimension.id)) {
       event.cancel = true;
     }
   });
-  world2.beforeEvents.playerPlaceBlock.subscribe((event) => {
-    if (roomIdFromDimension(event.block.dimension.id)) {
-      event.cancel = true;
-    }
-  });
+  world2.beforeEvents.playerPlaceBlock.subscribe(handlePlace);
 }
 
 // Gomoku-五子棋/src/ipc.ts
