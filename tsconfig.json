@@ -12,5 +12,9 @@
     "resolveJsonModule": true,
     "types": []
   },
-  "include": ["Core-核心/src/**/*.ts", "Gomoku-五子棋/src/**/*.ts"]
+  "include": [
+    "Core-核心/src/**/*.ts",
+    "Gomoku-五子棋/src/**/*.ts",
+    "Template-小游戏模板/src/**/*.ts"
+  ]
 }

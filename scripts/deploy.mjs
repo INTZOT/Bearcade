@@ -10,9 +10,11 @@ const DEFAULT_TARGET =
   "D:\\Apps\\Levilauncher\\versions\\1.26.42.01\\Minecraft Bedrock\\Users\\Shared\\games\\com.mojang\\development_behavior_packs";
 
 const targetRoot = path.resolve(process.env.MC_DEV_PACKS ?? DEFAULT_TARGET);
+const onlyIds = process.argv.slice(2);
 mkdirSync(targetRoot, { recursive: true });
 
 for (const pack of config.packs) {
+  if (onlyIds.length > 0 && !onlyIds.includes(pack.id)) continue;
   const src = path.join(root, pack.dir);
   const targetDir = path.join(targetRoot, pack.dir);
 

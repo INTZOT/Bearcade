@@ -437,21 +437,12 @@ function handleSpawn(registry, event) {
 function initLobby(registry) {
   world3.afterEvents.itemUse.subscribe((event) => {
     const { source: player, itemStack } = event;
-    console.warn(
-      `[Bearcade Core][itemUse] type=${itemStack.typeId} dim=${player.dimension.id} player=${player.name}`
-    );
-    if (itemStack.typeId === CLOCK_ITEM) {
-      if (player.dimension.id !== LOBBY_DIMENSION_ID) {
-        console.warn(
-          `[Bearcade Core][itemUse] \u65F6\u949F\u4F7F\u7528\u4F46\u4E0D\u5728\u5927\u5385\u7EF4\u5EA6,\u5FFD\u7565`
-        );
-        return;
-      }
-      try {
-        openMainMenu(player);
-      } catch (error) {
-        console.warn("[Bearcade Core][itemUse] \u6253\u5F00\u4E3B\u83DC\u5355\u5931\u8D25", error);
-      }
+    if (itemStack.typeId !== CLOCK_ITEM) return;
+    if (player.dimension.id !== LOBBY_DIMENSION_ID) return;
+    try {
+      openMainMenu(player);
+    } catch (error) {
+      console.warn("[Bearcade Core] \u6253\u5F00\u4E3B\u83DC\u5355\u5931\u8D25", error);
     }
   });
   world3.afterEvents.playerDimensionChange.subscribe((event) => {

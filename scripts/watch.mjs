@@ -1,7 +1,12 @@
 import { watch } from "node:fs/promises";
 import { spawn } from "node:child_process";
 
-const targets = ["config", "Core-核心/src"];
+const targets = [
+  "config",
+  "Core-核心/src",
+  "Gomoku-五子棋/src",
+  "Template-小游戏模板/src",
+];
 
 async function rebuild() {
   await new Promise((resolve) => {

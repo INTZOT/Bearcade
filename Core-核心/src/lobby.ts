@@ -70,21 +70,12 @@ function handleSpawn(
 export function initLobby(registry: GameRegistry): void {
   world.afterEvents.itemUse.subscribe((event) => {
     const { source: player, itemStack } = event;
-    console.warn(
-      `[Bearcade Core][itemUse] type=${itemStack.typeId} dim=${player.dimension.id} player=${player.name}`,
-    );
-    if (itemStack.typeId === CLOCK_ITEM) {
-      if (player.dimension.id !== LOBBY_DIMENSION_ID) {
-        console.warn(
-          `[Bearcade Core][itemUse] 时钟使用但不在大厅维度,忽略`,
-        );
-        return;
-      }
-      try {
-        openMainMenu(player);
-      } catch (error) {
-        console.warn("[Bearcade Core][itemUse] 打开主菜单失败", error);
-      }
+    if (itemStack.typeId !== CLOCK_ITEM) return;
+    if (player.dimension.id !== LOBBY_DIMENSION_ID) return;
+    try {
+      openMainMenu(player);
+    } catch (error) {
+      console.warn("[Bearcade Core] 打开主菜单失败", error);
     }
   });
 
