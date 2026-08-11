@@ -13,6 +13,7 @@
 - **玩法与对局流程不做统一规范**:房间内部如何准备、开局、结算、设计规则,由开发者自行发挥。
 - 小游戏包必须满足三条强制契约:**注册游戏信息**(§5.2)、**向 Core 发信**(§3.4)、**对局结束后将玩家传送回大厅**(§4.4)。
 - 每个小游戏包**必须提供手动强制中止并重置的兜底机制**(如 `/bearcade:<gamename>_stop` 命令),便于运营与测试。
+- 每个小游戏包**必须提供进入模板维度的开发命令**(规范命名 `/bearcade:<gamename>`),便于制作与修改场地。
 
 ## 2. 包目录规范
 
@@ -74,7 +75,7 @@ bearcade:gomoku_template
 
 模板维度自身创建常加载区域 `bearcade:ta_<gamename>_template` 并保留,保证随时可读取。
 
-- 开发期建议注册一个自定义命令进入模板维度制作场地(示例:gomoku 包提供 `/bearcade:gomoku`,传送至 `bearcade:gomoku_template`)。
+- **强制要求**:每个小游戏包必须注册进入模板维度的命令(规范命名 `/bearcade:<gamename>`),执行后传送到 `bearcade:<gamename>_template`;命令回调运行在 restricted execution 模式,传送须经 `system.run` 延迟。
 - **restricted execution 陷阱**:自定义命令回调运行在受限上下文,直接调用 `teleport`、`getDimension` 等原生 API 会抛 `cannot be used in restricted execution`;回调内须先用 `system.run(...)` / `runTimeout(...)` 延迟到正常上下文再执行原生调用。
 
 **API 注意事项**:
@@ -327,3 +328,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-11 | 首个小游戏 Gomoku 全流程验证通过,Core + Gomoku 系统可正常运行 |
 | 2026-08-11 | 清理调试日志;新增可分发小游戏模板包(Template-小游戏模板)与 `npm run distribute` 开发套件 |
 | 2026-08-11 | 开发规范新增强制要求:小游戏包必须提供手动强制中止并重置的兜底机制(规范命令 `/bearcade:<gamename>_stop`) |
+| 2026-08-11 | 开发规范新增强制要求:小游戏包必须提供进入模板维度的开发命令(规范命令 `/bearcade:<gamename>`) |
