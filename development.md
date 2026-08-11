@@ -73,6 +73,8 @@ bearcade:gomoku_template
 
 模板维度自身创建常加载区域 `bearcade:ta_<gamename>_template` 并保留,保证随时可读取。
 
+- 开发期建议注册一个自定义命令进入模板维度制作场地(示例:gomoku 包提供 `/bearcade:gomoku`,传送至 `bearcade:gomoku_template`)。
+
 **API 注意事项**:
 
 - 房间维度通过 `world.getDimension("bearcade:gamename_n")` 获取,维度不存在时调用抛错,初始化时必须处理;
@@ -161,6 +163,7 @@ Core 只负责以下内容:
 ### 4.3 大厅与菜单协作
 
 - 主世界(overworld)是大厅维度,由 Core 管理,小游戏包不得占用大厅维度进行对局;
+- 注意:当前 ScriptAPI 的 `Dimension.id` 返回**完整命名空间 ID**(如主世界为 `minecraft:overworld`),游戏包判断大厅/房间维度时必须以完整 ID 为准(`bearcade:gamename_n` 本身就是完整 ID);
 - 玩家进入主世界(进服或从房间返回)时,Core 自动发放「钟」物品:放入快捷栏第 1 格,并设置 `ItemLockMode.slot` 锁定(等价于 `minecraft:item_lock` 的 `lock_in_slot`),不可移动、不可丢弃;已有钟则不重复发放;
 - 玩家在大厅使用「钟」物品后,Core 展示一级主菜单:基于 `@minecraft/server-ui` 的 **CustomForm(DDUI 数据驱动 UI)**,校验失败等反馈使用 MessageBox / MessageFormData;
 - 菜单路径:一级菜单 →「游戏列表」→ 二级菜单(游戏列表)→ 选择游戏 → 三级菜单(房间列表);

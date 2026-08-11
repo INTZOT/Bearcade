@@ -1,5 +1,6 @@
 export const IPC_CHANNEL = "bearcade:ipc";
 export const REGISTRY_KEY = "bearcade:registry";
+export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 
 export type RoomStatus = "initializing" | "idle" | "running";
 

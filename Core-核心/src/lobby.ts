@@ -10,6 +10,7 @@ import {
 } from "@minecraft/server";
 import type { GameRegistry } from "./registry";
 import { openMainMenu } from "./ui";
+import { LOBBY_DIMENSION_ID } from "./types";
 
 export const CLOCK_ITEM = "minecraft:clock";
 export const HOTBAR_SLOT = 0;
@@ -40,7 +41,7 @@ function handleDimensionChange(
   registry: GameRegistry,
   event: PlayerDimensionChangeAfterEvent,
 ): void {
-  if (event.toDimension.id === "overworld") {
+  if (event.toDimension.id === LOBBY_DIMENSION_ID) {
     registry.unbindPlayer(event.player.id);
     ensureClock(event.player);
     return;
@@ -61,18 +62,29 @@ function handleSpawn(
   registry: GameRegistry,
   event: PlayerSpawnAfterEvent,
 ): void {
-  if (event.player.dimension.id === "overworld") {
+  if (event.player.dimension.id === LOBBY_DIMENSION_ID) {
     ensureClock(event.player);
   }
 }
 
 export function initLobby(registry: GameRegistry): void {
   world.afterEvents.itemUse.subscribe((event) => {
-    if (
-      event.itemStack.typeId === CLOCK_ITEM &&
-      event.source.dimension.id === "overworld"
-    ) {
-      openMainMenu(event.source);
+    const { source: player, itemStack } = event;
+    console.warn(
+      `[Bearcade Core][itemUse] type=${itemStack.typeId} dim=${player.dimension.id} player=${player.name}`,
+    );
+    if (itemStack.typeId === CLOCK_ITEM) {
+      if (player.dimension.id !== LOBBY_DIMENSION_ID) {
+        console.warn(
+          `[Bearcade Core][itemUse] 时钟使用但不在大厅维度,忽略`,
+        );
+        return;
+      }
+      try {
+        openMainMenu(player);
+      } catch (error) {
+        console.warn("[Bearcade Core][itemUse] 打开主菜单失败", error);
+      }
     }
   });
 
@@ -91,7 +103,7 @@ export function initLobby(registry: GameRegistry): void {
 
 export function ensureClockForAll(): void {
   for (const player of world.getAllPlayers()) {
-    if (player.dimension.id === "overworld") {
+    if (player.dimension.id === LOBBY_DIMENSION_ID) {
       ensureClock(player);
     }
   }

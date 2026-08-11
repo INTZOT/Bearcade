@@ -14,6 +14,20 @@
         { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
       ],
       "packDependencies": []
+    },
+    {
+      "id": "gomoku",
+      "dir": "Gomoku-五子棋",
+      "name": "Bearcade Gomoku",
+      "description": "Bearcade 五子棋小游戏包(当前阶段:房间与模板维度注册)",
+      "headerUuid": "cae46db7-ef95-477a-841c-5c29d38eefe5",
+      "moduleUuid": "91f71048-555d-4beb-8460-759401953142",
+      "version": [0, 1, 0],
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" }
+      ],
+      "packDependencies": ["core"]
     }
   ]
 }

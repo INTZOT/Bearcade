@@ -40,12 +40,12 @@ function closeForm(playerId: string): void {
 function trackForm(playerId: string, form: CustomForm): void {
   closeForm(playerId);
   openForms.set(playerId, form);
-  form
-    .show()
-    .catch((error) => {
+  try {
+    const shown = form.show();
+    shown.catch((error) => {
       console.warn("[Bearcade Core] 表单显示失败", error);
-    })
-    .finally(() => {
+    });
+    shown.finally(() => {
       if (openForms.get(playerId) === form) {
         openForms.delete(playerId);
       }
@@ -54,6 +54,10 @@ function trackForm(playerId: string, form: CustomForm): void {
         roomViews.delete(playerId);
       }
     });
+  } catch (error) {
+    console.warn("[Bearcade Core] 表单 show() 同步抛出", error);
+    openForms.delete(playerId);
+  }
 }
 
 function showNotice(player: Player, text: string): void {

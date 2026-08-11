@@ -7,6 +7,7 @@ import { world } from "@minecraft/server";
 // Core-核心/src/types.ts
 var IPC_CHANNEL = "bearcade:ipc";
 var REGISTRY_KEY = "bearcade:registry";
+var LOBBY_DIMENSION_ID = "minecraft:overworld";
 
 // Core-核心/src/registry.ts
 var STALE_MS = 15e3;
@@ -256,17 +257,24 @@ function closeForm(playerId) {
 function trackForm(playerId, form) {
   closeForm(playerId);
   openForms.set(playerId, form);
-  form.show().catch((error) => {
-    console.warn("[Bearcade Core] \u8868\u5355\u663E\u793A\u5931\u8D25", error);
-  }).finally(() => {
-    if (openForms.get(playerId) === form) {
-      openForms.delete(playerId);
-    }
-    const view = roomViews.get(playerId);
-    if (view && view.form === form) {
-      roomViews.delete(playerId);
-    }
-  });
+  try {
+    const shown = form.show();
+    shown.catch((error) => {
+      console.warn("[Bearcade Core] \u8868\u5355\u663E\u793A\u5931\u8D25", error);
+    });
+    shown.finally(() => {
+      if (openForms.get(playerId) === form) {
+        openForms.delete(playerId);
+      }
+      const view = roomViews.get(playerId);
+      if (view && view.form === form) {
+        roomViews.delete(playerId);
+      }
+    });
+  } catch (error) {
+    console.warn("[Bearcade Core] \u8868\u5355 show() \u540C\u6B65\u629B\u51FA", error);
+    openForms.delete(playerId);
+  }
 }
 function showNotice(player, text) {
   new MessageBox(player, "Bearcade").body(text).button1("\u786E\u5B9A").show().catch((error) => {
@@ -420,7 +428,7 @@ function ensureClock(player) {
   inventory.container.setItem(HOTBAR_SLOT, clock);
 }
 function handleDimensionChange(registry, event) {
-  if (event.toDimension.id === "overworld") {
+  if (event.toDimension.id === LOBBY_DIMENSION_ID) {
     registry.unbindPlayer(event.player.id);
     ensureClock(event.player);
     return;
@@ -435,14 +443,28 @@ function handleDimensionChange(registry, event) {
   }
 }
 function handleSpawn(registry, event) {
-  if (event.player.dimension.id === "overworld") {
+  if (event.player.dimension.id === LOBBY_DIMENSION_ID) {
     ensureClock(event.player);
   }
 }
 function initLobby(registry) {
   world3.afterEvents.itemUse.subscribe((event) => {
-    if (event.itemStack.typeId === CLOCK_ITEM && event.source.dimension.id === "overworld") {
-      openMainMenu(event.source);
+    const { source: player, itemStack } = event;
+    console.warn(
+      `[Bearcade Core][itemUse] type=${itemStack.typeId} dim=${player.dimension.id} player=${player.name}`
+    );
+    if (itemStack.typeId === CLOCK_ITEM) {
+      if (player.dimension.id !== LOBBY_DIMENSION_ID) {
+        console.warn(
+          `[Bearcade Core][itemUse] \u65F6\u949F\u4F7F\u7528\u4F46\u4E0D\u5728\u5927\u5385\u7EF4\u5EA6,\u5FFD\u7565`
+        );
+        return;
+      }
+      try {
+        openMainMenu(player);
+      } catch (error) {
+        console.warn("[Bearcade Core][itemUse] \u6253\u5F00\u4E3B\u83DC\u5355\u5931\u8D25", error);
+      }
     }
   });
   world3.afterEvents.playerDimensionChange.subscribe((event) => {
@@ -457,7 +479,7 @@ function initLobby(registry) {
 }
 function ensureClockForAll() {
   for (const player of world3.getAllPlayers()) {
-    if (player.dimension.id === "overworld") {
+    if (player.dimension.id === LOBBY_DIMENSION_ID) {
       ensureClock(player);
     }
   }
