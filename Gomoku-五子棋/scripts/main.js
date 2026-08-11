@@ -27,6 +27,8 @@ var GRID_MIN = -7;
 var GRID_MAX = 7;
 var STONE_BLACK = "minecraft:polished_blackstone_pressure_plate";
 var STONE_WHITE = "minecraft:heavy_weighted_pressure_plate";
+var TOKEN_BLACK = "minecraft:black_dye";
+var TOKEN_WHITE = "minecraft:white_dye";
 var START_POS_BLACK = { x: 0, y: 66, z: -1 };
 var START_POS_WHITE = { x: 0, y: 66, z: 1 };
 var DIMENSION_NAMESPACE = "bearcade";
@@ -118,7 +120,12 @@ async function initRooms() {
 import { system as system2, world as world3 } from "@minecraft/server";
 
 // Gomoku-五子棋/src/game.ts
-import { system, world as world2 } from "@minecraft/server";
+import {
+  system,
+  world as world2,
+  ItemStack,
+  EntityComponentTypes
+} from "@minecraft/server";
 var GRID_SIZE = GRID_MAX - GRID_MIN + 1;
 var ROOM_DIM_PATTERN = new RegExp(`^bearcade:${GAME_ID}_(\\d+)$`);
 var START_DELAY_TICKS = 40;
@@ -161,6 +168,47 @@ function announce(roomId, message) {
     player.sendMessage(message);
   }
 }
+function inventoryOf(player) {
+  return player.getComponent(
+    EntityComponentTypes.Inventory
+  );
+}
+function clearTokens(roomId) {
+  for (const player of roomPlayers(roomId)) {
+    const container = inventoryOf(player)?.container;
+    if (!container) continue;
+    for (let slot = 0; slot < container.size; slot++) {
+      const item = container.getItem(slot);
+      if (item && (item.typeId === TOKEN_BLACK || item.typeId === TOKEN_WHITE)) {
+        container.setItem(slot, void 0);
+      }
+    }
+  }
+}
+function consumeToken(player, color) {
+  const container = inventoryOf(player)?.container;
+  if (!container) return;
+  const token = color === "black" ? TOKEN_BLACK : TOKEN_WHITE;
+  for (let slot = 0; slot < container.size; slot++) {
+    const item = container.getItem(slot);
+    if (item && item.typeId === token) {
+      container.setItem(slot, void 0);
+      return;
+    }
+  }
+}
+function giveTurn(roomId, player, color) {
+  clearTokens(roomId);
+  const container = inventoryOf(player)?.container;
+  if (container) {
+    container.addItem(
+      new ItemStack(color === "black" ? TOKEN_BLACK : TOKEN_WHITE, 1)
+    );
+  }
+  const name = color === "black" ? "\u9ED1" : "\u767D";
+  player.sendMessage(`\xA7a\u8F6E\u5230\u4F60\u843D\u5B50(${name}\u65B9)`);
+  player.onScreenDisplay.setActionBar(`\xA7a\u8F6E\u5230\u4F60\u843D\u5B50 \xB7 ${name}\u65B9`);
+}
 function cancelPending(state) {
   if (state.pendingRunId !== void 0) {
     system.clearRun(state.pendingRunId);
@@ -185,10 +233,17 @@ function startGame(roomId) {
   state.phase = "running";
   state.board = emptyBoard();
   state.turn = "black";
-  state.players = { black: players[0].id, white: players[1].id };
-  players[0].teleport(START_POS_BLACK, { dimension: roomDim(roomId) });
-  players[1].teleport(START_POS_WHITE, { dimension: roomDim(roomId) });
-  announce(roomId, "\xA7a\u5BF9\u5C40\u5F00\u59CB!\u9ED1\u65B9\u5148\u624B,\u53F3\u952E\u68CB\u76D8\u683C\u843D\u5B50");
+  const blackIsFirst = Math.random() < 0.5;
+  const black = blackIsFirst ? players[0] : players[1];
+  const white = blackIsFirst ? players[1] : players[0];
+  state.players = { black: black.id, white: white.id };
+  black.teleport(START_POS_BLACK, { dimension: roomDim(roomId) });
+  white.teleport(START_POS_WHITE, { dimension: roomDim(roomId) });
+  announce(
+    roomId,
+    `\xA7a\u5BF9\u5C40\u5F00\u59CB!\u9ED1\u65B9:${black.name} / \u767D\u65B9:${white.name},\u53F3\u952E\u68CB\u76D8\u683C\u843D\u5B50`
+  );
+  giveTurn(roomId, black, "black");
   sendRoomStatus();
 }
 function checkWin(board, cx, cz, color) {
@@ -238,6 +293,7 @@ function handleInteract(player, block) {
   });
   target?.setType(color === "black" ? STONE_BLACK : STONE_WHITE);
   state.board[cx][cz] = color;
+  consumeToken(player, color);
   player.sendMessage(
     `\xA77\u843D\u5B50:${color === "black" ? "\u9ED1" : "\u767D"} (${x}, ${z})`
   );
@@ -253,9 +309,14 @@ function handleInteract(player, block) {
     return;
   }
   state.turn = state.turn === "black" ? "white" : "black";
+  const nextColor = state.turn;
+  const nextPlayer = roomPlayers(roomId).find(
+    (p) => p.id === state.players[nextColor]
+  );
+  if (nextPlayer) giveTurn(roomId, nextPlayer, nextColor);
   announce(
     roomId,
-    `\u8F6E\u5230${state.turn === "black" ? "\u9ED1\u65B9" : "\u767D\u65B9"}\u843D\u5B50`
+    `\u8F6E\u5230${nextColor === "black" ? "\u9ED1\u65B9" : "\u767D\u65B9"}\u843D\u5B50`
   );
 }
 function endGame(roomId, result) {
@@ -263,7 +324,7 @@ function endGame(roomId, result) {
   if (state.phase === "resetting") return;
   cancelPending(state);
   state.phase = "resetting";
-  const resultText = result === "draw" ? "\u5E73\u5C40" : result === "black" ? "\u9ED1\u65B9\u83B7\u80DC" : "\u767D\u65B9\u83B7\u80DC";
+  const resultText = result === "force" ? "\u5BF9\u5C40\u5DF2\u88AB\u5F3A\u5236\u4E2D\u65AD" : result === "draw" ? "\u5E73\u5C40" : result === "black" ? "\u9ED1\u65B9\u83B7\u80DC" : "\u767D\u65B9\u83B7\u80DC";
   announce(roomId, `\xA7e${resultText},\u5373\u5C06\u8FD4\u56DE\u5927\u5385\u2026`);
   system.runTimeout(() => finishReset(roomId), END_DELAY_TICKS);
 }
@@ -271,6 +332,7 @@ function finishReset(roomId) {
   const dim = roomDim(roomId);
   const lobbyDim = world2.getDimension(LOBBY_DIMENSION_ID);
   const spawn = world2.getDefaultSpawnLocation();
+  clearTokens(roomId);
   for (const player of roomPlayers(roomId)) {
     try {
       player.teleport(spawn, { dimension: lobbyDim });
@@ -326,6 +388,14 @@ function getReportStatus(roomId) {
   if (phase === "running" || phase === "pending") return "running";
   if (phase === "resetting") return "initializing";
   return "idle";
+}
+function forceStopInDimension(dimensionId) {
+  const roomId = roomIdFromDimension(dimensionId);
+  if (!roomId) return false;
+  const state = getState(roomId);
+  if (state.phase !== "running" && state.phase !== "pending") return false;
+  system.run(() => endGame(roomId, "force"));
+  return true;
 }
 function initGame() {
   world2.afterEvents.playerInteractWithBlock.subscribe((event) => {
@@ -401,6 +471,33 @@ system3.beforeEvents.startup.subscribe((event) => {
       return {
         status: CustomCommandStatus.Success,
         message: `\u5DF2\u4F20\u9001\u81F3\u6A21\u677F\u7EF4\u5EA6 ${TEMPLATE_DIMENSION_ID}`
+      };
+    }
+  );
+  event.customCommandRegistry.registerCommand(
+    {
+      name: "bearcade:gomoku_stop",
+      description: "\u5F3A\u5236\u4E2D\u65AD\u5F53\u524D\u7EF4\u5EA6\u8FD0\u884C\u4E2D\u7684\u4E94\u5B50\u68CB\u5BF9\u5C40",
+      permissionLevel: CommandPermissionLevel.Admin,
+      cheatsRequired: false
+    },
+    (origin) => {
+      const player = origin.sourceEntity;
+      if (!player || !(player instanceof Player)) {
+        return {
+          status: CustomCommandStatus.Failure,
+          message: "\u8BE5\u547D\u4EE4\u53EA\u80FD\u7531\u73A9\u5BB6\u6267\u884C"
+        };
+      }
+      if (!forceStopInDimension(player.dimension.id)) {
+        return {
+          status: CustomCommandStatus.Failure,
+          message: "\u5F53\u524D\u7EF4\u5EA6\u6CA1\u6709\u8FD0\u884C\u4E2D\u7684\u5BF9\u5C40"
+        };
+      }
+      return {
+        status: CustomCommandStatus.Success,
+        message: "\u5DF2\u5F3A\u5236\u4E2D\u65AD\u5F53\u524D\u5BF9\u5C40"
       };
     }
   );

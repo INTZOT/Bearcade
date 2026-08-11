@@ -1,4 +1,12 @@
-import { system, world, type Block, type Player } from "@minecraft/server";
+import {
+  system,
+  world,
+  ItemStack,
+  EntityComponentTypes,
+  type Block,
+  type EntityInventoryComponent,
+  type Player,
+} from "@minecraft/server";
 import {
   BOARD_Y,
   GAME_ID,
@@ -12,6 +20,8 @@ import {
   START_POS_BLACK,
   START_POS_WHITE,
   STRUCTURE_ID,
+  TOKEN_BLACK,
+  TOKEN_WHITE,
   roomDimensionId,
 } from "./config";
 import { isRoomReady } from "./rooms";
@@ -78,6 +88,54 @@ function announce(roomId: number, message: string): void {
   }
 }
 
+function inventoryOf(player: Player): EntityInventoryComponent | undefined {
+  return player.getComponent(
+    EntityComponentTypes.Inventory,
+  ) as EntityInventoryComponent | undefined;
+}
+
+function clearTokens(roomId: number): void {
+  for (const player of roomPlayers(roomId)) {
+    const container = inventoryOf(player)?.container;
+    if (!container) continue;
+    for (let slot = 0; slot < container.size; slot++) {
+      const item = container.getItem(slot);
+      if (
+        item &&
+        (item.typeId === TOKEN_BLACK || item.typeId === TOKEN_WHITE)
+      ) {
+        container.setItem(slot, undefined);
+      }
+    }
+  }
+}
+
+function consumeToken(player: Player, color: Color): void {
+  const container = inventoryOf(player)?.container;
+  if (!container) return;
+  const token = color === "black" ? TOKEN_BLACK : TOKEN_WHITE;
+  for (let slot = 0; slot < container.size; slot++) {
+    const item = container.getItem(slot);
+    if (item && item.typeId === token) {
+      container.setItem(slot, undefined);
+      return;
+    }
+  }
+}
+
+function giveTurn(roomId: number, player: Player, color: Color): void {
+  clearTokens(roomId);
+  const container = inventoryOf(player)?.container;
+  if (container) {
+    container.addItem(
+      new ItemStack(color === "black" ? TOKEN_BLACK : TOKEN_WHITE, 1),
+    );
+  }
+  const name = color === "black" ? "黑" : "白";
+  player.sendMessage(`§a轮到你落子(${name}方)`);
+  player.onScreenDisplay.setActionBar(`§a轮到你落子 · ${name}方`);
+}
+
 function cancelPending(state: RoomState): void {
   if (state.pendingRunId !== undefined) {
     system.clearRun(state.pendingRunId);
@@ -105,10 +163,18 @@ function startGame(roomId: number): void {
   state.phase = "running";
   state.board = emptyBoard();
   state.turn = "black";
-  state.players = { black: players[0].id, white: players[1].id };
-  players[0].teleport(START_POS_BLACK, { dimension: roomDim(roomId) });
-  players[1].teleport(START_POS_WHITE, { dimension: roomDim(roomId) });
-  announce(roomId, "§a对局开始!黑方先手,右键棋盘格落子");
+  // 随机决定黑/白方
+  const blackIsFirst = Math.random() < 0.5;
+  const black = blackIsFirst ? players[0] : players[1];
+  const white = blackIsFirst ? players[1] : players[0];
+  state.players = { black: black.id, white: white.id };
+  black.teleport(START_POS_BLACK, { dimension: roomDim(roomId) });
+  white.teleport(START_POS_WHITE, { dimension: roomDim(roomId) });
+  announce(
+    roomId,
+    `§a对局开始!黑方:${black.name} / 白方:${white.name},右键棋盘格落子`,
+  );
+  giveTurn(roomId, black, "black");
   sendRoomStatus();
 }
 
@@ -175,6 +241,7 @@ function handleInteract(player: Player, block: Block): void {
   });
   target?.setType(color === "black" ? STONE_BLACK : STONE_WHITE);
   state.board[cx][cz] = color;
+  consumeToken(player, color);
   player.sendMessage(
     `§7落子:${color === "black" ? "黑" : "白"} (${x}, ${z})`,
   );
@@ -192,20 +259,27 @@ function handleInteract(player: Player, block: Block): void {
   }
 
   state.turn = state.turn === "black" ? "white" : "black";
+  const nextColor = state.turn;
+  const nextPlayer = roomPlayers(roomId).find(
+    (p) => p.id === state.players[nextColor],
+  );
+  if (nextPlayer) giveTurn(roomId, nextPlayer, nextColor);
   announce(
     roomId,
-    `轮到${state.turn === "black" ? "黑方" : "白方"}落子`,
+    `轮到${nextColor === "black" ? "黑方" : "白方"}落子`,
   );
 }
 
-function endGame(roomId: number, result: Color | "draw"): void {
+function endGame(roomId: number, result: Color | "draw" | "force"): void {
   const state = getState(roomId);
   if (state.phase === "resetting") return;
   cancelPending(state);
   state.phase = "resetting";
 
   const resultText =
-    result === "draw"
+    result === "force"
+      ? "对局已被强制中断"
+      : result === "draw"
       ? "平局"
       : result === "black"
         ? "黑方获胜"
@@ -220,6 +294,7 @@ function finishReset(roomId: number): void {
   const lobbyDim = world.getDimension(LOBBY_DIMENSION_ID);
   const spawn = world.getDefaultSpawnLocation();
 
+  clearTokens(roomId);
   // 先送玩家回大厅,再重置场地
   for (const player of roomPlayers(roomId)) {
     try {
@@ -283,6 +358,15 @@ export function getReportStatus(
   if (phase === "running" || phase === "pending") return "running";
   if (phase === "resetting") return "initializing";
   return "idle";
+}
+
+export function forceStopInDimension(dimensionId: string): boolean {
+  const roomId = roomIdFromDimension(dimensionId);
+  if (!roomId) return false;
+  const state = getState(roomId);
+  if (state.phase !== "running" && state.phase !== "pending") return false;
+  system.run(() => endGame(roomId, "force"));
+  return true;
 }
 
 export function initGame(): void {

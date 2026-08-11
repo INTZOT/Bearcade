@@ -14,7 +14,7 @@ import {
 } from "./config";
 import { initRooms } from "./rooms";
 import { sendGameRegister, sendRoomStatus } from "./ipc";
-import { initGame, tickGames } from "./game";
+import { forceStopInDimension, initGame, tickGames } from "./game";
 
 system.beforeEvents.startup.subscribe((event) => {
   // 注册房间维度 bearcade:gomoku_1 ~ bearcade:gomoku_8
@@ -48,6 +48,35 @@ system.beforeEvents.startup.subscribe((event) => {
       return {
         status: CustomCommandStatus.Success,
         message: `已传送至模板维度 ${TEMPLATE_DIMENSION_ID}`,
+      };
+    },
+  );
+
+  // 强制中断当前维度运行中的对局
+  event.customCommandRegistry.registerCommand(
+    {
+      name: "bearcade:gomoku_stop",
+      description: "强制中断当前维度运行中的五子棋对局",
+      permissionLevel: CommandPermissionLevel.Admin,
+      cheatsRequired: false,
+    },
+    (origin) => {
+      const player = origin.sourceEntity;
+      if (!player || !(player instanceof Player)) {
+        return {
+          status: CustomCommandStatus.Failure,
+          message: "该命令只能由玩家执行",
+        };
+      }
+      if (!forceStopInDimension(player.dimension.id)) {
+        return {
+          status: CustomCommandStatus.Failure,
+          message: "当前维度没有运行中的对局",
+        };
+      }
+      return {
+        status: CustomCommandStatus.Success,
+        message: "已强制中断当前对局",
       };
     },
   );

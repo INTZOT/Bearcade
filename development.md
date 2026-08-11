@@ -312,3 +312,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-11 | 按最新定义(2.10.0-beta / MC 1.26.43)修订:新增 DimensionRegistry.registerCustomDimension 维度注册流程(startup 阶段、void 生成器、幂等容错),DDUI 明确为 CustomForm + Observable 实时刷新,manifest 参考 Beatorini 配置 |
 | 2026-08-11 | 实现 Gomoku 全流程:13×13 棋盘交互落子、回合与五连判定、胜负/平局结算、房间保护、结束送大厅并重置场地、状态机与心跳上报 |
 | 2026-08-11 | Gomoku 配置调整:模板与棋盘扩为 ±7 / 15×15,棋子改为压力板(黑=磨制黑石、白=重质测重),结构按尺寸变化自动重新捕获 |
+| 2026-08-11 | Gomoku 流程细化:随机黑白、棋权交接给提示与一颗棋子(落子消耗)、强制中断命令 `/bearcade:gomoku_stop` |
