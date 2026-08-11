@@ -13,18 +13,16 @@ import {
   GRID_MAX,
   GRID_MIN,
   LOBBY_DIMENSION_ID,
-  ROOM_COPY_ORIGIN,
   ROOM_COUNT,
   STONE_BLACK,
   STONE_WHITE,
   START_POS_BLACK,
   START_POS_WHITE,
-  STRUCTURE_ID,
   TOKEN_BLACK,
   TOKEN_WHITE,
   roomDimensionId,
 } from "./config";
-import { isRoomReady } from "./rooms";
+import { isRoomReady, resetRoomsFromTemplate } from "./rooms";
 import { sendRoomStatus } from "./ipc";
 
 type Cell = "black" | "white" | null;
@@ -286,10 +284,12 @@ function endGame(roomId: number, result: Color | "draw" | "force"): void {
         : "白方获胜";
   announce(roomId, `§e${resultText},即将返回大厅…`);
 
-  system.runTimeout(() => finishReset(roomId), END_DELAY_TICKS);
+  system.runTimeout(() => {
+    void finishReset(roomId);
+  }, END_DELAY_TICKS);
 }
 
-function finishReset(roomId: number): void {
+async function finishReset(roomId: number): Promise<void> {
   const dim = roomDim(roomId);
   const lobbyDim = world.getDimension(LOBBY_DIMENSION_ID);
   const spawn = world.getDefaultSpawnLocation();
@@ -307,7 +307,7 @@ function finishReset(roomId: number): void {
     }
   }
   try {
-    world.structureManager.place(STRUCTURE_ID, dim, ROOM_COPY_ORIGIN);
+    await resetRoomsFromTemplate([roomId]);
   } catch (error) {
     console.warn(`[Bearcade Gomoku] 房间 ${roomId} 场地重置失败`, error);
   }

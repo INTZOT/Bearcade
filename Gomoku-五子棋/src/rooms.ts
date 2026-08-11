@@ -101,3 +101,28 @@ export async function initRooms(): Promise<void> {
     console.warn("[Bearcade Gomoku] 模板结构捕获失败", error);
   }
 }
+
+/**
+ * 从模板维度重新捕获场地并复制到指定房间(场地每次重置都走这条路径)。
+ */
+export async function resetRoomsFromTemplate(
+  roomIds: number[],
+): Promise<void> {
+  // 旧结构必须先删除,同名结构无法重复捕获
+  if (world.structureManager.get(STRUCTURE_ID)) {
+    world.structureManager.delete(STRUCTURE_ID);
+  }
+
+  const templateDim = world.getDimension(TEMPLATE_DIMENSION_ID);
+  const structure = world.structureManager.createFromWorld(
+    STRUCTURE_ID,
+    templateDim,
+    TEMPLATE_FROM,
+    TEMPLATE_TO,
+  );
+
+  for (const roomId of roomIds) {
+    const dim = world.getDimension(roomDimensionId(roomId));
+    world.structureManager.place(structure.id, dim, ROOM_COPY_ORIGIN);
+  }
+}

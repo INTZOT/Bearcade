@@ -115,6 +115,22 @@ async function initRooms() {
     console.warn("[Bearcade Gomoku] \u6A21\u677F\u7ED3\u6784\u6355\u83B7\u5931\u8D25", error);
   }
 }
+async function resetRoomsFromTemplate(roomIds) {
+  if (world.structureManager.get(STRUCTURE_ID)) {
+    world.structureManager.delete(STRUCTURE_ID);
+  }
+  const templateDim = world.getDimension(TEMPLATE_DIMENSION_ID);
+  const structure = world.structureManager.createFromWorld(
+    STRUCTURE_ID,
+    templateDim,
+    TEMPLATE_FROM,
+    TEMPLATE_TO
+  );
+  for (const roomId of roomIds) {
+    const dim = world.getDimension(roomDimensionId(roomId));
+    world.structureManager.place(structure.id, dim, ROOM_COPY_ORIGIN);
+  }
+}
 
 // Gomoku-五子棋/src/ipc.ts
 import { system as system2, world as world3 } from "@minecraft/server";
@@ -326,9 +342,11 @@ function endGame(roomId, result) {
   state.phase = "resetting";
   const resultText = result === "force" ? "\u5BF9\u5C40\u5DF2\u88AB\u5F3A\u5236\u4E2D\u65AD" : result === "draw" ? "\u5E73\u5C40" : result === "black" ? "\u9ED1\u65B9\u83B7\u80DC" : "\u767D\u65B9\u83B7\u80DC";
   announce(roomId, `\xA7e${resultText},\u5373\u5C06\u8FD4\u56DE\u5927\u5385\u2026`);
-  system.runTimeout(() => finishReset(roomId), END_DELAY_TICKS);
+  system.runTimeout(() => {
+    void finishReset(roomId);
+  }, END_DELAY_TICKS);
 }
-function finishReset(roomId) {
+async function finishReset(roomId) {
   const dim = roomDim(roomId);
   const lobbyDim = world2.getDimension(LOBBY_DIMENSION_ID);
   const spawn = world2.getDefaultSpawnLocation();
@@ -344,7 +362,7 @@ function finishReset(roomId) {
     }
   }
   try {
-    world2.structureManager.place(STRUCTURE_ID, dim, ROOM_COPY_ORIGIN);
+    await resetRoomsFromTemplate([roomId]);
   } catch (error) {
     console.warn(`[Bearcade Gomoku] \u623F\u95F4 ${roomId} \u573A\u5730\u91CD\u7F6E\u5931\u8D25`, error);
   }
