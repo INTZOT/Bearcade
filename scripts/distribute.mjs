@@ -22,6 +22,7 @@ copy("docs", "docs");
 copy("package.json", "package.json");
 copy("tsconfig.json", "tsconfig.json");
 copy("scripts", "scripts");
+copy("shared", "shared");
 
 // 包:仅 Core + 模板(不含内部小游戏)
 copy("Core-核心", "Core-核心");

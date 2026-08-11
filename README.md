@@ -36,6 +36,7 @@ Bearcade/
 ├── Core-核心/              # 全局调控包(大厅、DDUI 菜单、入房校验、状态汇聚)
 ├── Gomoku-五子棋/          # 五子棋小游戏(首个完整可运行的小游戏)
 ├── Template-小游戏模板/    # 小游戏模板包(复制即可开发新游戏)
+├── shared/minigame-core/   # 共享小游戏运行时(维度/复制/状态机/上报,构建期内联进各包)
 ├── docs/                   # ScriptAPI 类型定义与官方文档快照
 ├── config/packs.json       # 包定义唯一来源(构建时生成 manifest)
 ├── scripts/                # 构建/打包/部署/分发脚本
@@ -150,6 +151,7 @@ Core 校验 `packId`(manifest header UUID)与 `game` 匹配,并结合 `sourceTyp
 
 - 每个包独立构建、独立发布为 `.mcaddon`;构建产物统一收集到 `dist/packages/`;
 - 游戏包 manifest 通过包依赖声明依赖 Core(保证加载顺序);
+- 房间管理通用逻辑集中在 `shared/minigame-core`,构建期内联进每个小游戏包;改共享代码后 `npm run build` 即同步全部包;
 - 所有包以 `docs/` 内类型定义为基准:当前 `@minecraft/server` 2.10.0-beta、`@minecraft/server-ui` 2.2.0-beta、`min_engine_version` [1, 26, 40](预发布版本,启用需匹配对应实验开关);
 - Core 注册表持久化到动态属性 `bearcade:registry`;房间状态与玩家绑定不持久化,重启后房间回到初始化中;
 - `npm run distribute` 生成含 Core、小游戏模板、开发文档与工具链的分发套件。

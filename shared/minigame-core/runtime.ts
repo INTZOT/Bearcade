@@ -1,49 +1,76 @@
-// Template-小游戏模板/src/main.ts
-import { system as system2, world as world2 } from "@minecraft/server";
-
-// shared/minigame-core/runtime.ts
 import {
   system,
   world,
   Player,
   CustomCommandStatus,
-  CommandPermissionLevel
+  CommandPermissionLevel,
+  type CustomCommandRegistry,
+  type DimensionRegistry,
 } from "@minecraft/server";
-var MinigameRuntime = class {
-  constructor(config, hooks = {}) {
-    this.states = /* @__PURE__ */ new Map();
-    this.ready = /* @__PURE__ */ new Map();
-    this.started = false;
+import type { MinigameConfig, MinigameHooks } from "./types";
+
+type Phase = "idle" | "pending" | "running" | "resetting";
+
+interface RoomState {
+  phase: Phase;
+  players: string[];
+  pendingRunId?: number;
+}
+
+interface StartupContext {
+  dimensionRegistry: DimensionRegistry;
+  customCommandRegistry: CustomCommandRegistry;
+}
+
+/**
+ * 小游戏房间运行时(构建期内联到每个小游戏包):
+ * 维度注册、模板命令/强制中止命令、模板捕获与复制、常加载、
+ * 房间状态机、Core 上报、结束回大厅与重置。
+ */
+export class MinigameRuntime {
+  readonly config: MinigameConfig;
+  readonly hooks: MinigameHooks;
+  private readonly states = new Map<number, RoomState>();
+  private readonly ready = new Map<number, boolean>();
+  private readonly roomPattern: RegExp;
+  private started = false;
+
+  constructor(config: MinigameConfig, hooks: MinigameHooks = {}) {
     this.config = config;
     this.hooks = hooks;
     this.roomPattern = new RegExp(`^bearcade:${config.gameId}_(\\d+)$`);
   }
-  log(message, error) {
+
+  private log(message: string, error?: unknown): void {
     console.warn(`[Bearcade ${this.config.gameId}] ${message}`, error ?? "");
   }
+
   // ================= 维度与命令 =================
-  initStartup(event) {
+
+  initStartup(event: StartupContext): void {
     for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
       event.dimensionRegistry.registerCustomDimension(
-        this.roomDimensionId(roomId)
+        this.roomDimensionId(roomId),
       );
     }
     event.dimensionRegistry.registerCustomDimension(
-      this.templateDimensionId()
+      this.templateDimensionId(),
     );
+
+    // 开发命令:进入模板维度
     event.customCommandRegistry.registerCommand(
       {
         name: `bearcade:${this.config.gameId}`,
-        description: "\u5F00\u53D1\u7528:\u8FDB\u5165\u6A21\u677F\u7EF4\u5EA6\u5236\u4F5C\u573A\u5730",
+        description: "开发用:进入模板维度制作场地",
         permissionLevel: CommandPermissionLevel.Any,
-        cheatsRequired: false
+        cheatsRequired: false,
       },
       (origin) => {
         const player = origin.sourceEntity;
         if (!player || !(player instanceof Player)) {
           return {
             status: CustomCommandStatus.Failure,
-            message: "\u8BE5\u547D\u4EE4\u53EA\u80FD\u7531\u73A9\u5BB6\u6267\u884C"
+            message: "该命令只能由玩家执行",
           };
         }
         system.run(() => {
@@ -52,74 +79,93 @@ var MinigameRuntime = class {
         });
         return {
           status: CustomCommandStatus.Success,
-          message: `\u5DF2\u4F20\u9001\u81F3\u6A21\u677F\u7EF4\u5EA6 ${this.templateDimensionId()}`
+          message: `已传送至模板维度 ${this.templateDimensionId()}`,
         };
-      }
+      },
     );
+
+    // 强制中止命令
     event.customCommandRegistry.registerCommand(
       {
         name: `bearcade:${this.config.gameId}_stop`,
-        description: "\u5F3A\u5236\u4E2D\u65AD\u5F53\u524D\u7EF4\u5EA6\u8FD0\u884C\u4E2D\u7684\u5BF9\u5C40",
+        description: "强制中断当前维度运行中的对局",
         permissionLevel: CommandPermissionLevel.Admin,
-        cheatsRequired: false
+        cheatsRequired: false,
       },
       (origin) => {
         const player = origin.sourceEntity;
         if (!player || !(player instanceof Player)) {
           return {
             status: CustomCommandStatus.Failure,
-            message: "\u8BE5\u547D\u4EE4\u53EA\u80FD\u7531\u73A9\u5BB6\u6267\u884C"
+            message: "该命令只能由玩家执行",
           };
         }
         if (!this.forceStopInDimension(player.dimension.id)) {
           return {
             status: CustomCommandStatus.Failure,
-            message: "\u5F53\u524D\u7EF4\u5EA6\u6CA1\u6709\u8FD0\u884C\u4E2D\u7684\u5BF9\u5C40"
+            message: "当前维度没有运行中的对局",
           };
         }
         return {
           status: CustomCommandStatus.Success,
-          message: "\u5DF2\u5F3A\u5236\u4E2D\u65AD\u5F53\u524D\u5BF9\u5C40"
+          message: "已强制中断当前对局",
         };
-      }
+      },
     );
+
     this.log(
-      `\u5DF2\u6CE8\u518C ${this.config.roomCount} \u4E2A\u623F\u95F4\u7EF4\u5EA6\u4E0E\u6A21\u677F\u7EF4\u5EA6`
+      `已注册 ${this.config.roomCount} 个房间维度与模板维度`,
     );
   }
+
   // ================= 维度与房间工具 =================
-  roomDimensionId(roomId) {
+
+  roomDimensionId(roomId: number): string {
     return `bearcade:${this.config.gameId}_${roomId}`;
   }
-  templateDimensionId() {
+
+  templateDimensionId(): string {
     return `bearcade:${this.config.gameId}_template`;
   }
-  roomIdFromDimension(dimensionId) {
+
+  roomIdFromDimension(dimensionId: string): number | undefined {
     const match = this.roomPattern.exec(dimensionId);
-    return match ? Number(match[1]) : void 0;
+    return match ? Number(match[1]) : undefined;
   }
-  roomDim(roomId) {
+
+  roomDim(roomId: number) {
     return world.getDimension(this.roomDimensionId(roomId));
   }
-  roomPlayers(roomId) {
+
+  roomPlayers(roomId: number): Player[] {
     return this.roomDim(roomId).getPlayers();
   }
-  announce(roomId, message) {
+
+  announce(roomId: number, message: string): void {
     for (const player of this.roomPlayers(roomId)) {
       player.sendMessage(message);
     }
   }
-  teleportPlayer(roomId, player, location) {
+
+  teleportPlayer(
+    roomId: number,
+    player: Player,
+    location: MinigameConfig["startPositions"][number],
+  ): void {
     player.teleport(location, { dimension: this.roomDim(roomId) });
   }
-  getPhase(roomId) {
+
+  getPhase(roomId: number): Phase {
     return this.getState(roomId).phase;
   }
-  isRunning(roomId) {
+
+  isRunning(roomId: number): boolean {
     return this.getState(roomId).phase === "running";
   }
+
   // ================= 房间初始化与重置 =================
-  getState(roomId) {
+
+  private getState(roomId: number): RoomState {
     let state = this.states.get(roomId);
     if (!state) {
       state = { phase: "idle", players: [] };
@@ -127,31 +173,38 @@ var MinigameRuntime = class {
     }
     return state;
   }
-  isRoomReady(roomId) {
+
+  private isRoomReady(roomId: number): boolean {
     return this.ready.get(roomId) === true;
   }
-  async ensureTemplateStructure() {
+
+  private async ensureTemplateStructure() {
     const templateDim = world.getDimension(this.templateDimensionId());
     const templateAreaId = this.tickingAreaId("template");
     if (!world.tickingAreaManager.hasTickingArea(templateAreaId)) {
       await world.tickingAreaManager.createTickingArea(templateAreaId, {
         dimension: templateDim,
         from: this.config.tickingFrom,
-        to: this.config.tickingTo
+        to: this.config.tickingTo,
       });
     }
+
     let structure = world.structureManager.get(this.config.structureId);
     if (structure) {
       const expectedSize = {
         x: this.config.templateTo.x - this.config.templateFrom.x + 1,
         y: this.config.templateTo.y - this.config.templateFrom.y + 1,
-        z: this.config.templateTo.z - this.config.templateFrom.z + 1
+        z: this.config.templateTo.z - this.config.templateFrom.z + 1,
       };
       const size = structure.size;
-      if (size.x !== expectedSize.x || size.y !== expectedSize.y || size.z !== expectedSize.z) {
+      if (
+        size.x !== expectedSize.x ||
+        size.y !== expectedSize.y ||
+        size.z !== expectedSize.z
+      ) {
         world.structureManager.delete(this.config.structureId);
-        structure = void 0;
-        this.log("\u6A21\u677F\u7ED3\u6784\u5C3A\u5BF8\u53D8\u5316,\u91CD\u65B0\u6355\u83B7");
+        structure = undefined;
+        this.log("模板结构尺寸变化,重新捕获");
       }
     }
     if (!structure) {
@@ -159,16 +212,18 @@ var MinigameRuntime = class {
         this.config.structureId,
         templateDim,
         this.config.templateFrom,
-        this.config.templateTo
+        this.config.templateTo,
       );
-      this.log(`\u5DF2\u6355\u83B7\u6A21\u677F\u7ED3\u6784 ${this.config.structureId}`);
+      this.log(`已捕获模板结构 ${this.config.structureId}`);
     }
     return structure;
   }
-  tickingAreaId(roomId) {
+
+  private tickingAreaId(roomId: number | "template"): string {
     return `bearcade:ta_${this.config.gameId}_${roomId}`;
   }
-  async initRoom(roomId, structureId) {
+
+  private async initRoom(roomId: number, structureId: string): Promise<void> {
     const dim = this.roomDim(roomId);
     const areaId = this.tickingAreaId(roomId);
     if (world.tickingAreaManager.hasTickingArea(areaId)) {
@@ -177,13 +232,14 @@ var MinigameRuntime = class {
     await world.tickingAreaManager.createTickingArea(areaId, {
       dimension: dim,
       from: this.config.tickingFrom,
-      to: this.config.tickingTo
+      to: this.config.tickingTo,
     });
     world.structureManager.place(structureId, dim, this.config.roomCopyOrigin);
     this.ready.set(roomId, true);
-    this.log(`\u623F\u95F4 ${roomId} \u573A\u5730\u5C31\u7EEA`);
+    this.log(`房间 ${roomId} 场地就绪`);
   }
-  async initRooms() {
+
+  private async initRooms(): Promise<void> {
     try {
       const structure = await this.ensureTemplateStructure();
       for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
@@ -191,14 +247,15 @@ var MinigameRuntime = class {
           await this.initRoom(roomId, structure.id);
         } catch (error) {
           this.ready.set(roomId, false);
-          this.log(`\u623F\u95F4 ${roomId} \u521D\u59CB\u5316\u5931\u8D25`, error);
+          this.log(`房间 ${roomId} 初始化失败`, error);
         }
       }
     } catch (error) {
-      this.log("\u6A21\u677F\u7ED3\u6784\u6355\u83B7\u5931\u8D25", error);
+      this.log("模板结构捕获失败", error);
     }
   }
-  async resetRoomsFromTemplate(roomIds) {
+
+  private async resetRoomsFromTemplate(roomIds: number[]): Promise<void> {
     if (world.structureManager.get(this.config.structureId)) {
       world.structureManager.delete(this.config.structureId);
     }
@@ -207,31 +264,35 @@ var MinigameRuntime = class {
       this.config.structureId,
       templateDim,
       this.config.templateFrom,
-      this.config.templateTo
+      this.config.templateTo,
     );
     for (const roomId of roomIds) {
       const dim = this.roomDim(roomId);
       world.structureManager.place(structure.id, dim, this.config.roomCopyOrigin);
     }
   }
+
   // ================= 对局状态机 =================
-  cancelPending(state) {
-    if (state.pendingRunId !== void 0) {
+
+  private cancelPending(state: RoomState): void {
+    if (state.pendingRunId !== undefined) {
       system.clearRun(state.pendingRunId);
-      state.pendingRunId = void 0;
+      state.pendingRunId = undefined;
     }
   }
-  startPending(roomId) {
+
+  private startPending(roomId: number): void {
     const state = this.getState(roomId);
     if (state.phase !== "idle") return;
     state.phase = "pending";
     state.pendingRunId = system.runTimeout(
       () => this.startGame(roomId),
-      this.config.startDelayTicks ?? 40
+      this.config.startDelayTicks ?? 40,
     );
-    this.announce(roomId, "\xA7e\u4E24\u540D\u73A9\u5BB6\u5DF2\u5C31\u4F4D,\u5BF9\u5C40\u5373\u5C06\u5F00\u59CB\u2026");
+    this.announce(roomId, "§e两名玩家已就位,对局即将开始…");
   }
-  startGame(roomId) {
+
+  private startGame(roomId: number): void {
     const state = this.getState(roomId);
     if (state.phase !== "pending") return;
     const players = this.roomPlayers(roomId);
@@ -244,44 +305,49 @@ var MinigameRuntime = class {
     this.hooks.onGameStart?.(roomId, players);
     this.sendRoomStatus();
   }
+
   /** 结束对局并进入重置流程;message 为空时使用默认提示 */
-  endGame(roomId, reason, message) {
+  endGame(roomId: number, reason: string, message?: string): void {
     const state = this.getState(roomId);
     if (state.phase === "resetting") return;
     this.cancelPending(state);
     state.phase = "resetting";
     this.announce(
       roomId,
-      message ?? `\xA7e\u5BF9\u5C40\u7ED3\u675F(${reason}),\u5373\u5C06\u8FD4\u56DE\u5927\u5385\u2026`
+      message ?? `§e对局结束(${reason}),即将返回大厅…`,
     );
     system.runTimeout(() => {
       void this.finishReset(roomId);
     }, this.config.endDelayTicks ?? 60);
   }
-  async finishReset(roomId) {
+
+  private async finishReset(roomId: number): Promise<void> {
     this.hooks.onBeforeReset?.(roomId);
+
     const lobbyDim = world.getDimension(
-      this.config.lobbyDimensionId ?? "minecraft:overworld"
+      this.config.lobbyDimensionId ?? "minecraft:overworld",
     );
     const spawn = world.getDefaultSpawnLocation();
     for (const player of this.roomPlayers(roomId)) {
       try {
         player.teleport(spawn, { dimension: lobbyDim });
       } catch (error) {
-        this.log(`\u623F\u95F4 ${roomId} \u73A9\u5BB6\u56DE\u5927\u5385\u5931\u8D25`, error);
+        this.log(`房间 ${roomId} 玩家回大厅失败`, error);
       }
     }
+
     try {
       await this.resetRoomsFromTemplate([roomId]);
     } catch (error) {
-      this.log(`\u623F\u95F4 ${roomId} \u573A\u5730\u91CD\u7F6E\u5931\u8D25`, error);
+      this.log(`房间 ${roomId} 场地重置失败`, error);
     }
     this.hooks.onRoomReset?.(roomId);
     this.states.set(roomId, { phase: "idle", players: [] });
-    this.log(`\u623F\u95F4 ${roomId} \u5DF2\u91CD\u7F6E`);
+    this.log(`房间 ${roomId} 已重置`);
     this.sendRoomStatus();
   }
-  tickGames() {
+
+  private tickGames(): void {
     for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
       try {
         if (!this.isRoomReady(roomId)) continue;
@@ -292,32 +358,38 @@ var MinigameRuntime = class {
         } else if (state.phase === "pending" && count < 2) {
           this.cancelPending(state);
           state.phase = "idle";
-          this.announce(roomId, "\xA77\u7B49\u5F85\u73A9\u5BB6\u5C31\u4F4D\u2026");
+          this.announce(roomId, "§7等待玩家就位…");
         } else if (state.phase === "running" && count < 2) {
-          this.endGame(roomId, "\u73A9\u5BB6\u79BB\u5F00");
+          this.endGame(roomId, "玩家离开");
         }
       } catch (error) {
-        this.log(`\u623F\u95F4 ${roomId} \u72B6\u6001\u673A\u5F02\u5E38`, error);
+        this.log(`房间 ${roomId} 状态机异常`, error);
       }
     }
   }
-  forceStopInDimension(dimensionId) {
+
+  forceStopInDimension(dimensionId: string): boolean {
     const roomId = this.roomIdFromDimension(dimensionId);
     if (!roomId) return false;
     const state = this.getState(roomId);
     if (state.phase !== "running" && state.phase !== "pending") return false;
-    system.run(() => this.endGame(roomId, "\u5F3A\u5236\u4E2D\u65AD"));
+    system.run(() => this.endGame(roomId, "强制中断"));
     return true;
   }
+
   // ================= Core 上报 =================
-  getReportStatus(roomId) {
+
+  getReportStatus(
+    roomId: number,
+  ): "idle" | "running" | "initializing" {
     if (!this.isRoomReady(roomId)) return "initializing";
     const phase = this.getState(roomId).phase;
     if (phase === "running" || phase === "pending") return "running";
     if (phase === "resetting") return "initializing";
     return "idle";
   }
-  sendGameRegister() {
+
+  private sendGameRegister(): void {
     try {
       system.sendScriptEvent(
         this.config.ipcChannel ?? "bearcade:ipc",
@@ -329,23 +401,24 @@ var MinigameRuntime = class {
             displayName: this.config.displayName,
             roomCount: this.config.roomCount,
             maxPlayers: this.config.maxPlayers,
-            prepSpawn: this.config.prepSpawn
-          }
-        })
+            prepSpawn: this.config.prepSpawn,
+          },
+        }),
       );
-      this.log("\u5DF2\u5411 Core \u6CE8\u518C\u6E38\u620F\u4FE1\u606F");
+      this.log("已向 Core 注册游戏信息");
     } catch (error) {
-      this.log("\u6CE8\u518C\u6D88\u606F\u53D1\u9001\u5931\u8D25", error);
+      this.log("注册消息发送失败", error);
     }
   }
-  sendRoomStatus() {
+
+  private sendRoomStatus(): void {
     try {
-      const rooms = [];
+      const rooms: { id: number; players: number; status: string }[] = [];
       for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
         rooms.push({
           id: roomId,
           players: this.roomPlayers(roomId).length,
-          status: this.getReportStatus(roomId)
+          status: this.getReportStatus(roomId),
         });
       }
       system.sendScriptEvent(
@@ -353,111 +426,44 @@ var MinigameRuntime = class {
         JSON.stringify({
           op: "room.status",
           packId: this.config.packId,
-          payload: { game: this.config.gameId, rooms }
-        })
+          payload: { game: this.config.gameId, rooms },
+        }),
       );
     } catch (error) {
-      this.log("\u72B6\u6001\u4E0A\u62A5\u5931\u8D25", error);
+      this.log("状态上报失败", error);
     }
   }
+
   // ================= 生命周期入口 =================
-  initWorld() {
+
+  initWorld(): void {
     if (this.started) return;
     this.started = true;
     this.sendGameRegister();
     void this.initRooms();
     system.runInterval(
       () => this.tickGames(),
-      this.config.gameTickInterval ?? 10
+      this.config.gameTickInterval ?? 10,
     );
     system.runInterval(
       () => this.sendRoomStatus(),
-      this.config.heartbeatInterval ?? 100
+      this.config.heartbeatInterval ?? 100,
     );
   }
-  initEvents() {
+
+  initEvents(): void {
+    // 房间维度内禁止破坏方块
     world.beforeEvents.playerBreakBlock.subscribe((event) => {
-      if (this.roomIdFromDimension(event.block.dimension.id) !== void 0) {
+      if (this.roomIdFromDimension(event.block.dimension.id) !== undefined) {
         event.cancel = true;
       }
     });
+    // 放置方块:由玩法钩子决定是否放行,默认全部取消
     world.beforeEvents.playerPlaceBlock.subscribe((event) => {
       const roomId = this.roomIdFromDimension(event.block.dimension.id);
-      if (roomId === void 0) return;
+      if (roomId === undefined) return;
       if (this.hooks.canPlace?.(event, roomId) ?? false) return;
       event.cancel = true;
     });
   }
-};
-
-// Template-小游戏模板/src/config.ts
-var GAME_ID = "mygame";
-var DISPLAY_NAME = "\u6211\u7684\u5C0F\u6E38\u620F";
-var PACK_ID = "95076440-41a8-49f8-9aeb-f57f4edd0db5";
-var IPC_CHANNEL = "bearcade:ipc";
-var LOBBY_DIMENSION_ID = "minecraft:overworld";
-var ROOM_COUNT = 2;
-var MAX_PLAYERS = 2;
-var TEMPLATE_FROM = { x: -7, y: -64, z: -7 };
-var TEMPLATE_TO = { x: 7, y: 319, z: 7 };
-var ROOM_COPY_ORIGIN = { x: -7, y: -64, z: -7 };
-var PREP_SPAWN = { x: 0, y: 0, z: 0 };
-var TICKING_FROM = { x: -7, y: -1, z: -7 };
-var TICKING_TO = { x: 7, y: 65, z: 7 };
-var STRUCTURE_ID = "bearcade:mygame_room";
-var TEMPLATE_SPAWN = { x: 0, y: 100, z: 0 };
-var START_POSITIONS = [
-  { x: 0, y: 65, z: -1 },
-  { x: 0, y: 65, z: 1 }
-];
-var DIMENSION_NAMESPACE = "bearcade";
-var TEMPLATE_DIMENSION_ID = `${DIMENSION_NAMESPACE}:${GAME_ID}_template`;
-
-// Template-小游戏模板/src/game.ts
-function makeTemplateHooks(getRuntime) {
-  return {
-    onGameStart(roomId, players) {
-      const runtime2 = getRuntime();
-      players.forEach((player, index) => {
-        runtime2.teleportPlayer(
-          roomId,
-          player,
-          START_POSITIONS[index] ?? START_POSITIONS[0]
-        );
-      });
-      runtime2.announce(roomId, "\xA7a\u5BF9\u5C40\u5F00\u59CB!\u5728\u8FD9\u91CC\u5B9E\u73B0\u4F60\u7684\u73A9\u6CD5");
-    }
-  };
 }
-
-// Template-小游戏模板/src/main.ts
-var runtime;
-runtime = new MinigameRuntime(
-  {
-    gameId: GAME_ID,
-    displayName: DISPLAY_NAME,
-    packId: PACK_ID,
-    roomCount: ROOM_COUNT,
-    maxPlayers: MAX_PLAYERS,
-    prepSpawn: PREP_SPAWN,
-    templateFrom: TEMPLATE_FROM,
-    templateTo: TEMPLATE_TO,
-    roomCopyOrigin: ROOM_COPY_ORIGIN,
-    tickingFrom: TICKING_FROM,
-    tickingTo: TICKING_TO,
-    structureId: STRUCTURE_ID,
-    templateSpawn: TEMPLATE_SPAWN,
-    startPositions: START_POSITIONS,
-    lobbyDimensionId: LOBBY_DIMENSION_ID,
-    ipcChannel: IPC_CHANNEL
-  },
-  makeTemplateHooks(() => runtime)
-);
-system2.beforeEvents.startup.subscribe((event) => {
-  runtime.initStartup(event);
-});
-world2.afterEvents.worldLoad.subscribe(() => {
-  runtime.initWorld();
-  runtime.initEvents();
-});
-//# sourceMappingURL=main.js.map
