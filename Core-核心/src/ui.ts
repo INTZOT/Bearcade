@@ -91,7 +91,6 @@ export function openMainMenu(player: Player): void {
     closeForm(player.id);
     system.runTimeout(() => openGameList(player), MENU_DELAY_TICKS);
   });
-  form.closeButton();
   trackForm(player.id, form);
 }
 
@@ -118,7 +117,6 @@ export function openGameList(player: Player): void {
     closeForm(player.id);
     system.runTimeout(() => openMainMenu(player), MENU_DELAY_TICKS);
   });
-  form.closeButton();
   trackForm(player.id, form);
 }
 
@@ -156,7 +154,6 @@ export function openRoomList(player: Player, game: string): void {
     closeForm(player.id);
     system.runTimeout(() => openGameList(player), MENU_DELAY_TICKS);
   });
-  form.closeButton();
 
   roomViews.set(player.id, { game: entry, form, labels, disabled });
   trackForm(player.id, form);

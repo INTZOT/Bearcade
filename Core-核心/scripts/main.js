@@ -294,7 +294,6 @@ function openMainMenu(player) {
     closeForm(player.id);
     system2.runTimeout(() => openGameList(player), MENU_DELAY_TICKS);
   });
-  form.closeButton();
   trackForm(player.id, form);
 }
 function openGameList(player) {
@@ -319,7 +318,6 @@ function openGameList(player) {
     closeForm(player.id);
     system2.runTimeout(() => openMainMenu(player), MENU_DELAY_TICKS);
   });
-  form.closeButton();
   trackForm(player.id, form);
 }
 function setUiRegistry(registry) {
@@ -352,7 +350,6 @@ function openRoomList(player, game) {
     closeForm(player.id);
     system2.runTimeout(() => openGameList(player), MENU_DELAY_TICKS);
   });
-  form.closeButton();
   roomViews.set(player.id, { game: entry, form, labels, disabled });
   trackForm(player.id, form);
 }
