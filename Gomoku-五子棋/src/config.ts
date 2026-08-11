@@ -4,6 +4,7 @@ export const PACK_ID = "cae46db7-ef95-477a-841c-5c29d38eefe5";
 export const IPC_CHANNEL = "bearcade:ipc";
 export const ROOM_COUNT = 8;
 export const MAX_PLAYERS = 2;
+export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 
 // ===== 以下坐标全部由小游戏包开发者配置 =====
 
@@ -24,6 +25,15 @@ export const TICKING_FROM = { x: -6, y: -1, z: -6 };
 export const TICKING_TO = { x: 6, y: 65, z: 6 };
 
 export const STRUCTURE_ID = "bearcade:gomoku_room";
+
+// ===== 棋盘玩法配置(开发者可调整) =====
+export const BOARD_Y = 64; // 棋盘方块所在 y(与模板场地配套)
+export const GRID_MIN = -6;
+export const GRID_MAX = 6; // 13×13 棋盘
+export const STONE_BLACK = "minecraft:black_concrete";
+export const STONE_WHITE = "minecraft:white_concrete";
+export const START_POS_BLACK = { x: 0, y: 65, z: -1 };
+export const START_POS_WHITE = { x: 0, y: 65, z: 1 };
 
 export const DIMENSION_NAMESPACE = "bearcade";
 export const TEMPLATE_DIMENSION_ID = `${DIMENSION_NAMESPACE}:${GAME_ID}_template`;

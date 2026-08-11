@@ -9,7 +9,7 @@ import {
   ROOM_COUNT,
   roomDimensionId,
 } from "./config";
-import { isRoomReady } from "./rooms";
+import { getReportStatus } from "./game";
 
 function send(op: string, payload: unknown): void {
   system.sendScriptEvent(
@@ -36,7 +36,7 @@ export function sendRoomStatus(): void {
     rooms.push({
       id: roomId,
       players: dim.getPlayers().length,
-      status: isRoomReady(roomId) ? "idle" : "initializing",
+      status: getReportStatus(roomId),
     });
   }
   send("room.status", { game: GAME_ID, rooms });

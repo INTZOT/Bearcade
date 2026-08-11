@@ -14,6 +14,7 @@ import {
 } from "./config";
 import { initRooms } from "./rooms";
 import { sendGameRegister, sendRoomStatus } from "./ipc";
+import { initGame, tickGames } from "./game";
 
 system.beforeEvents.startup.subscribe((event) => {
   // 注册房间维度 bearcade:gomoku_1 ~ bearcade:gomoku_8
@@ -59,6 +60,9 @@ system.beforeEvents.startup.subscribe((event) => {
 world.afterEvents.worldLoad.subscribe(() => {
   sendGameRegister();
   void initRooms();
+  initGame();
+  // 对局状态机:每 10 tick(0.5 秒)检查一次
+  system.runInterval(() => tickGames(), 10);
   // 5 秒心跳兜底上报
   system.runInterval(() => sendRoomStatus(), 100);
 });

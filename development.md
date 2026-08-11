@@ -310,3 +310,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-11 | 补齐细节决策:三态状态机、并发预留与去重、通信协议(通道/信封/操作码)、心跳与轮询周期、钟物品锁定方案、模板复制与常加载生命周期、重启策略、版本与打包约定 |
 | 2026-08-11 | 按 `docs/` 内 ScriptAPI 定义修订:版本基准 2.9.0-beta、structureManager 标识符规范、tickingAreaManager 异步/按包隔离/chunk 上限、ItemLockMode.slot、playerDimensionChange、scriptevent 来源校验、server-ui 表单 |
 | 2026-08-11 | 按最新定义(2.10.0-beta / MC 1.26.43)修订:新增 DimensionRegistry.registerCustomDimension 维度注册流程(startup 阶段、void 生成器、幂等容错),DDUI 明确为 CustomForm + Observable 实时刷新,manifest 参考 Beatorini 配置 |
+| 2026-08-11 | 实现 Gomoku 全流程:13×13 棋盘交互落子、回合与五连判定、胜负/平局结算、房间保护、结束送大厅并重置场地、状态机与心跳上报 |
