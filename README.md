@@ -217,6 +217,7 @@ Core 校验消息来源:
 ## 工程与发布
 
 - 每个包独立构建、独立发布为 `.mcaddon`;构建产物统一收集到根目录 `dist/packages/`;
+- `npm run deploy` 可将包部署到开发行为包目录(默认 Levilauncher 1.26.42.01 的 development_behavior_packs,可用环境变量 `MC_DEV_PACKS` 覆盖);
 - 游戏包 manifest 通过包依赖(`packDependencies`)声明依赖 Core 包(UUID + 版本),保证 Core 先加载;
 - 所有包以仓库 `docs/` 内的类型定义为基准:当前为 `@minecraft/server` 2.10.0-beta.1.26.43-stable、`@minecraft/server-ui` 2.2.0-beta.1.26.43-stable、`@minecraft/common` 1.3.0、`@minecraft/vanilla-data` 1.26.40(对应 MC 1.26.42/1.26.43),属于预发布版本,启用时需匹配对应实验开关;manifest 依赖版本与 `min_engine_version` 必须与所选定义对齐;若改用稳定版,须先核对 API 差异;
 - manifest 参考 Beatorini 实际配置:依赖声明 `@minecraft/server` 2.10.0-beta 与 `@minecraft/server-ui` 2.2.0-beta,`min_engine_version` 为 [1, 26, 40],capabilities 含 `script_eval`;

@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "node scripts/build.mjs",
     "package": "node scripts/package.mjs",
+    "deploy": "node scripts/deploy.mjs",
     "watch": "node scripts/watch.mjs"
   },
   "devDependencies": {
