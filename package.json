@@ -1,0 +1,22 @@
+{
+  "name": "bearcade",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bearcade 基岩版小游戏服务器(分包解耦 + 容器化房间)",
+  "scripts": {
+    "gen:uuid": "node -e \"console.log(crypto.randomUUID())\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "node scripts/build.mjs",
+    "package": "node scripts/package.mjs",
+    "watch": "node scripts/watch.mjs"
+  },
+  "devDependencies": {
+    "@minecraft/common": "1.3.0",
+    "@minecraft/server": "2.10.0-beta.1.26.43-stable",
+    "@minecraft/server-ui": "2.2.0-beta.1.26.43-stable",
+    "@minecraft/vanilla-data": "1.26.40",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}

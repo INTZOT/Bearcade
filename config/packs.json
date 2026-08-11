@@ -1,0 +1,19 @@
+{
+  "packs": [
+    {
+      "id": "core",
+      "dir": "Core-核心",
+      "name": "Bearcade Core",
+      "description": "Bearcade 小游戏服务器核心:大厅、DDUI 菜单、入房校验与房间状态汇聚",
+      "headerUuid": "9ce781fb-ff67-4e21-904d-6a5b8b457703",
+      "moduleUuid": "24e35e86-c463-40d1-950b-5c7a0f15e355",
+      "version": [0, 1, 0],
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      ],
+      "packDependencies": []
+    }
+  ]
+}
