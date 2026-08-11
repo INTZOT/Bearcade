@@ -1,5 +1,5 @@
 // Core-核心/src/main.ts
-import { world as world4, system as system3 } from "@minecraft/server";
+import { world as world5, system as system4 } from "@minecraft/server";
 
 // Core-核心/src/registry.ts
 import { world } from "@minecraft/server";
@@ -485,14 +485,57 @@ function ensureClockForAll() {
   }
 }
 
+// Core-核心/src/commands.ts
+import {
+  system as system3,
+  world as world4,
+  Player,
+  CustomCommandStatus,
+  CommandPermissionLevel
+} from "@minecraft/server";
+function initCommands() {
+  system3.beforeEvents.startup.subscribe((event) => {
+    event.customCommandRegistry.registerCommand(
+      {
+        name: "bearcade:lobby",
+        description: "\u4F20\u9001\u56DE\u5927\u5385(\u4E3B\u4E16\u754C)",
+        permissionLevel: CommandPermissionLevel.Any,
+        cheatsRequired: false
+      },
+      (origin) => {
+        const player = origin.sourceEntity;
+        if (!player || !(player instanceof Player)) {
+          return {
+            status: CustomCommandStatus.Failure,
+            message: "\u8BE5\u547D\u4EE4\u53EA\u80FD\u7531\u73A9\u5BB6\u6267\u884C"
+          };
+        }
+        system3.run(() => {
+          try {
+            const dimension = world4.getDimension(LOBBY_DIMENSION_ID);
+            player.teleport(world4.getDefaultSpawnLocation(), { dimension });
+          } catch (error) {
+            console.warn("[Bearcade Core] /bearcade:lobby \u4F20\u9001\u5931\u8D25", error);
+          }
+        });
+        return {
+          status: CustomCommandStatus.Success,
+          message: "\u6B63\u5728\u4F20\u9001\u56DE\u5927\u5385"
+        };
+      }
+    );
+  });
+}
+
 // Core-核心/src/main.ts
 var POLL_INTERVAL_TICKS = 40;
-world4.afterEvents.worldLoad.subscribe(() => {
+initCommands();
+world5.afterEvents.worldLoad.subscribe(() => {
   const registry = new GameRegistry();
   setUiRegistry(registry);
   initIpc(registry);
   initLobby(registry);
-  system3.runInterval(() => {
+  system4.runInterval(() => {
     registry.tick(Date.now());
     refreshRoomViews();
   }, POLL_INTERVAL_TICKS);

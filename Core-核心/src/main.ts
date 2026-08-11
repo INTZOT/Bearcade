@@ -3,8 +3,11 @@ import { GameRegistry } from "./registry";
 import { initIpc } from "./ipc";
 import { initLobby, ensureClockForAll } from "./lobby";
 import { refreshRoomViews, setUiRegistry } from "./ui";
+import { initCommands } from "./commands";
 
 const POLL_INTERVAL_TICKS = 40; // 2 秒
+
+initCommands();
 
 world.afterEvents.worldLoad.subscribe(() => {
   const registry = new GameRegistry();

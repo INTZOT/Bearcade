@@ -175,6 +175,7 @@ Core 校验:有效人数 < 最大人数 且 状态 = 空闲中
 
 - 玩家每次回到大厅(进入主世界)时,Core 自动发放钟物品:固定放入快捷栏第 1 格,并设置 `ItemLockMode.slot` 锁定(等价于 `minecraft:item_lock` 的 `lock_in_slot`),实现不可移动、不可丢弃;
 - 钟物品是进入菜单的唯一入口,由 Core 负责检测与展示;菜单基于 `@minecraft/server-ui` 的 **CustomForm(数据驱动 UI,DDUI)** 实现,校验失败反馈使用 MessageBox / MessageFormData;
+- 提供自定义命令 `/bearcade:lobby`,任意维度下执行即可传送回大厅(主世界默认出生点);
 - 二级菜单的游戏列表来自各游戏包在 worldLoad 时发送的注册消息,Core 汇总并持久化;
 - 三级菜单的房间数据来自各游戏包上报的状态:Core 每 2 秒轮询汇总最新上报,并通过 ObservableString 等可观察对象**实时更新已打开的菜单**;不可加入的房间用按钮禁用态表达;
 - DDUI 菜单切换时先 `close()` 当前表单,再延迟 2 tick 打开新表单,避免表单排队/无法显示(参考 Beatorini 实践);
