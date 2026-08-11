@@ -33,6 +33,24 @@ async function ensureTemplateStructure() {
 
   // 结构保存于世界:已存在则复用,不存在才从模板捕获
   let structure = world.structureManager.get(STRUCTURE_ID);
+  if (structure) {
+    const expectedSize = {
+      x: TEMPLATE_TO.x - TEMPLATE_FROM.x + 1,
+      y: TEMPLATE_TO.y - TEMPLATE_FROM.y + 1,
+      z: TEMPLATE_TO.z - TEMPLATE_FROM.z + 1,
+    };
+    const size = structure.size;
+    if (
+      size.x !== expectedSize.x ||
+      size.y !== expectedSize.y ||
+      size.z !== expectedSize.z
+    ) {
+      // 模板范围变化(如 ±6 → ±7),删除旧结构重新捕获
+      world.structureManager.delete(STRUCTURE_ID);
+      structure = undefined;
+      console.warn("[Bearcade Gomoku] 模板结构尺寸变化,重新捕获");
+    }
+  }
   if (!structure) {
     structure = world.structureManager.createFromWorld(
       STRUCTURE_ID,

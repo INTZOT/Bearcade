@@ -15,20 +15,20 @@ var IPC_CHANNEL = "bearcade:ipc";
 var ROOM_COUNT = 8;
 var MAX_PLAYERS = 2;
 var LOBBY_DIMENSION_ID = "minecraft:overworld";
-var TEMPLATE_FROM = { x: -6, y: -64, z: -6 };
-var TEMPLATE_TO = { x: 6, y: 319, z: 6 };
-var ROOM_COPY_ORIGIN = { x: -6, y: -64, z: -6 };
+var TEMPLATE_FROM = { x: -7, y: -64, z: -7 };
+var TEMPLATE_TO = { x: 7, y: 319, z: 7 };
+var ROOM_COPY_ORIGIN = { x: -7, y: -64, z: -7 };
 var PREP_SPAWN = { x: 0, y: 0, z: 0 };
-var TICKING_FROM = { x: -6, y: -1, z: -6 };
-var TICKING_TO = { x: 6, y: 65, z: 6 };
+var TICKING_FROM = { x: -7, y: -1, z: -7 };
+var TICKING_TO = { x: 7, y: 65, z: 7 };
 var STRUCTURE_ID = "bearcade:gomoku_room";
 var BOARD_Y = 64;
-var GRID_MIN = -6;
-var GRID_MAX = 6;
-var STONE_BLACK = "minecraft:black_concrete";
-var STONE_WHITE = "minecraft:white_concrete";
-var START_POS_BLACK = { x: 0, y: 65, z: -1 };
-var START_POS_WHITE = { x: 0, y: 65, z: 1 };
+var GRID_MIN = -7;
+var GRID_MAX = 7;
+var STONE_BLACK = "minecraft:polished_blackstone_pressure_plate";
+var STONE_WHITE = "minecraft:heavy_weighted_pressure_plate";
+var START_POS_BLACK = { x: 0, y: 66, z: -1 };
+var START_POS_WHITE = { x: 0, y: 66, z: 1 };
 var DIMENSION_NAMESPACE = "bearcade";
 var TEMPLATE_DIMENSION_ID = `${DIMENSION_NAMESPACE}:${GAME_ID}_template`;
 var TEMPLATE_SPAWN = { x: 0, y: 100, z: 0 };
@@ -56,6 +56,19 @@ async function ensureTemplateStructure() {
     });
   }
   let structure = world.structureManager.get(STRUCTURE_ID);
+  if (structure) {
+    const expectedSize = {
+      x: TEMPLATE_TO.x - TEMPLATE_FROM.x + 1,
+      y: TEMPLATE_TO.y - TEMPLATE_FROM.y + 1,
+      z: TEMPLATE_TO.z - TEMPLATE_FROM.z + 1
+    };
+    const size = structure.size;
+    if (size.x !== expectedSize.x || size.y !== expectedSize.y || size.z !== expectedSize.z) {
+      world.structureManager.delete(STRUCTURE_ID);
+      structure = void 0;
+      console.warn("[Bearcade Gomoku] \u6A21\u677F\u7ED3\u6784\u5C3A\u5BF8\u53D8\u5316,\u91CD\u65B0\u6355\u83B7");
+    }
+  }
   if (!structure) {
     structure = world.structureManager.createFromWorld(
       STRUCTURE_ID,
@@ -218,7 +231,12 @@ function handleInteract(player, block) {
     return;
   }
   const color = state.turn;
-  block.setType(color === "black" ? STONE_BLACK : STONE_WHITE);
+  const target = block.dimension.getBlock({
+    x: block.location.x,
+    y: block.location.y + 1,
+    z: block.location.z
+  });
+  target?.setType(color === "black" ? STONE_BLACK : STONE_WHITE);
   state.board[cx][cz] = color;
   player.sendMessage(
     `\xA77\u843D\u5B50:${color === "black" ? "\u9ED1" : "\u767D"} (${x}, ${z})`

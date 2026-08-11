@@ -10,30 +10,30 @@ export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 
 // 模板复制起始点/终点:模板维度中场地结构的两个对角坐标(含端点)
 // 注意:引擎结构上限为 64×384×64,纵向取满时 from.y = -64、to.y = 319(320 超限 1 格)
-export const TEMPLATE_FROM = { x: -6, y: -64, z: -6 };
-export const TEMPLATE_TO = { x: 6, y: 319, z: 6 };
+export const TEMPLATE_FROM = { x: -7, y: -64, z: -7 };
+export const TEMPLATE_TO = { x: 7, y: 319, z: 7 };
 
 // 每个房间维度内放置场地的原点坐标(结构 from 角落在该位置)
 // 与模板同坐标放置:房间场地位于 y 63~64、准备房间位于 y 0(同模板)
-export const ROOM_COPY_ORIGIN = { x: -6, y: -64, z: -6 };
+export const ROOM_COPY_ORIGIN = { x: -7, y: -64, z: -7 };
 
 // 准备房间坐标:与游戏场地位于同一房间维度的不同位置(玩家入房后传送到此,随 game.register 上报给 Core)
 export const PREP_SPAWN = { x: 0, y: 0, z: 0 };
 
 // 常加载区域:只需覆盖实际内容(准备房间 y0 与场地 y63~64),不要整列 384 层,以节省每包 chunk 上限
-export const TICKING_FROM = { x: -6, y: -1, z: -6 };
-export const TICKING_TO = { x: 6, y: 65, z: 6 };
+export const TICKING_FROM = { x: -7, y: -1, z: -7 };
+export const TICKING_TO = { x: 7, y: 65, z: 7 };
 
 export const STRUCTURE_ID = "bearcade:gomoku_room";
 
 // ===== 棋盘玩法配置(开发者可调整) =====
 export const BOARD_Y = 64; // 棋盘方块所在 y(与模板场地配套)
-export const GRID_MIN = -6;
-export const GRID_MAX = 6; // 13×13 棋盘
-export const STONE_BLACK = "minecraft:black_concrete";
-export const STONE_WHITE = "minecraft:white_concrete";
-export const START_POS_BLACK = { x: 0, y: 65, z: -1 };
-export const START_POS_WHITE = { x: 0, y: 65, z: 1 };
+export const GRID_MIN = -7;
+export const GRID_MAX = 7; // 15×15 棋盘
+export const STONE_BLACK = "minecraft:polished_blackstone_pressure_plate";
+export const STONE_WHITE = "minecraft:heavy_weighted_pressure_plate";
+export const START_POS_BLACK = { x: 0, y: 66, z: -1 };
+export const START_POS_WHITE = { x: 0, y: 66, z: 1 };
 
 export const DIMENSION_NAMESPACE = "bearcade";
 export const TEMPLATE_DIMENSION_ID = `${DIMENSION_NAMESPACE}:${GAME_ID}_template`;

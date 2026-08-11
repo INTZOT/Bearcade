@@ -167,7 +167,13 @@ function handleInteract(player: Player, block: Block): void {
   }
 
   const color = state.turn;
-  block.setType(color === "black" ? STONE_BLACK : STONE_WHITE);
+  // 压力板棋子放在棋盘格上方一格,不覆盖棋盘方块
+  const target = block.dimension.getBlock({
+    x: block.location.x,
+    y: block.location.y + 1,
+    z: block.location.z,
+  });
+  target?.setType(color === "black" ? STONE_BLACK : STONE_WHITE);
   state.board[cx][cz] = color;
   player.sendMessage(
     `§7落子:${color === "black" ? "黑" : "白"} (${x}, ${z})`,
