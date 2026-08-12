@@ -21,7 +21,6 @@
 | --- | --- | --- |
 | `Core-核心/` | 全局调控包 | 所有包的基础 |
 | `Gomoku-五子棋/` | 小游戏包 | 五子棋玩法,8 个房间 |
-| `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡 V 玩法,2 个房间 |
 | `GuessNBuild-建筑猜猜乐/` | 小游戏包 | 建筑猜猜乐,3~16 人,第一版可运行 |
 
 新增小游戏时,在根目录新建独立目录,命名沿用 `英文标识-中文说明` 的风格(如 `Gomoku-五子棋`)。
@@ -110,7 +109,6 @@ bearcade:gomoku_template
 | 游戏 | 房间数量 | 维度范围 |
 | --- | --- | --- |
 | Gomoku | 8 | `bearcade:gomoku_1` ~ `bearcade:gomoku_8` |
-| SND5 | 2 | `bearcade:snd5_1` ~ `bearcade:snd5_2` |
 
 ### 3.4 向 Core 上报状态
 
@@ -385,3 +383,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | 新增 GitHub Actions PR 检查(自动 typecheck + build);development.md 补新游戏合并流程 |
 | 2026-08-13 | GuessNBuild 第一版验证通过(回合制/聊天答题/题库/计分/调试开关全链路可运行) |
 | 2026-08-13 | 包版本统一为 Preview v0.0.1:版本号集中在 config/packs.json 的 projectVersion,构建时写入 manifest |
+| 2026-08-13 | 移除 SND5-剑与消亡V 目录及文档中的相关引用(该游戏不在当前职责范围) |

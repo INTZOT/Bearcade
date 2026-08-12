@@ -19,8 +19,8 @@
 
 ## 使用步骤
 
-1. 复制 `Template-小游戏模板` 目录,重命名(如 `SND5-剑与消亡V`);
-2. 全局替换 `mygame` 为你的游戏 ID(小写字母/数字/下划线,如 `snd5`);
+1. 复制 `Template-小游戏模板` 目录,重命名(如 `MyGame-我的游戏`);
+2. 全局替换 `mygame` 为你的游戏 ID(小写字母/数字/下划线,如 `mygame`);
 3. 修改 [src/config.ts](src/config.ts):`DISPLAY_NAME`、`ROOM_COUNT`、`MAX_PLAYERS`,并重新生成 `PACK_ID` 与 manifest UUID;
 4. 在 `config/packs.json` 注册你的包(参考 template 条目),`npm run build` 生成 manifest;
 5. 部署后进游戏 `/reload`,执行 `/bearcade:mygame` 进入模板维度建场地;
