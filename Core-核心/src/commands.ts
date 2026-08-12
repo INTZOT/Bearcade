@@ -24,7 +24,11 @@ export function initCommands(
 ): void {
   system.beforeEvents.startup.subscribe((event) => {
     try {
-      event.customCommandRegistry.registerEnum(TMP_ACTION_ENUM, ["tp", "ap"]);
+      event.customCommandRegistry.registerEnum(TMP_ACTION_ENUM, [
+        "tp",
+        "ap",
+        "sz",
+      ]);
     } catch (error) {
       console.warn("[Bearcade Core] 注册 tmp 枚举失败", error);
     }
@@ -67,7 +71,7 @@ export function initCommands(
       event.customCommandRegistry.registerCommand(
         {
           name: "bearcade:tmp",
-          description: "开发/运维:tp=传送到模板维度,ap=应用模板到全部房间",
+          description: "开发/运维:tp=模板维度,ap=应用模板,sz=表单配置模板范围",
           permissionLevel: CommandPermissionLevel.Admin,
           cheatsRequired: false,
           mandatoryParameters: [
@@ -99,8 +103,10 @@ export function initCommands(
           system.run(() => {
             if (action === "tp") {
               send("game.tp", { game: gamename, playerId: player.id });
-            } else {
+            } else if (action === "ap") {
               send("game.apply", { game: gamename });
+            } else {
+              send("game.sz", { game: gamename, playerId: player.id });
             }
           });
           return {
@@ -108,7 +114,9 @@ export function initCommands(
             message:
               action === "tp"
                 ? "正在传送到模板维度"
-                : "正在应用模板到全部房间",
+                : action === "ap"
+                  ? "正在应用模板到全部房间"
+                  : "正在打开模板范围配置",
           };
         },
       );

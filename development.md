@@ -76,6 +76,7 @@ bearcade:gomoku_template
 模板维度自身创建常加载区域 `bearcade:ta_<gamename>_template` 并保留,保证随时可读取。
 
 - **强制要求**:进入模板维度的命令由 Core 统一提供,格式为 `/bearcade:tmp tp <gamename>`,执行后传送到 `bearcade:<gamename>_template`;应用模板到全部房间使用 `/bearcade:tmp ap <gamename>`(Core 经 IPC 路由到对应游戏包)。
+- 模板范围可用 `/bearcade:tmp sz <gamename>` 在游戏内通过表单配置(起始点/终点,保存到动态属性 `bearcade:template_bounds_<gamename>`);**游戏内配置优先于 config.ts**,想恢复代码默认值需清除对应动态属性。
 - **restricted execution 陷阱**:自定义命令回调运行在受限上下文,直接调用 `teleport`、`getDimension` 等原生 API 会抛 `cannot be used in restricted execution`;回调内须先用 `system.run(...)` / `runTimeout(...)` 延迟到正常上下文再执行原生调用。
 
 **API 注意事项**:
@@ -274,6 +275,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | --- | --- | --- |
 | `game.tp` | `/bearcade:tmp tp <gamename>` | `{ game, playerId }` 传送到模板维度 |
 | `game.apply` | `/bearcade:tmp ap <gamename>` | `{ game }` 应用模板到全部房间 |
+| `game.sz` | `/bearcade:tmp sz <gamename>` | `{ game, playerId }` 打开模板范围配置表单 |
 | `game.quit` | `/bearcade:quit <gamename>` | `{ game, dimensionId }` 强制中止指定维度对局 |
 
 ### 5.5 来源校验
@@ -343,3 +345,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-11 | 抽取共享运行时 `shared/minigame-core`(MinigameRuntime):Gomoku 与模板包迁移为"共享运行时 + 玩法钩子",房间通用逻辑只维护一份 |
 | 2026-08-11 | 自定义命令改版:Core 统一提供 `/bearcade:tmp tp|ap <gamename>` 与 `/bearcade:quit <gamename>`,经 IPC(`game.tp`/`game.apply`/`game.quit`)路由到游戏包 |
 | 2026-08-12 | Gomoku 模板范围扩一圈(±7 → ±8),棋盘仍为 ±7,结构尺寸变化自动重新捕获 |
+| 2026-08-12 | 新增 `/bearcade:tmp sz <gamename>`:游戏内表单配置模板范围(动态属性持久化,游戏内配置优先) |

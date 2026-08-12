@@ -104,6 +104,7 @@ Core 提供命令:
 - `/bearcade:lobby`:任意维度下传送回大厅;
 - `/bearcade:tmp tp <gamename>`:传送到指定游戏的模板维度;
 - `/bearcade:tmp ap <gamename>`:将指定游戏的模板应用到其全部房间;
+- `/bearcade:tmp sz <gamename>`:打开表单配置模板范围的起始点/终点(游戏内配置优先于 config.ts,保存到动态属性);
 - `/bearcade:quit <gamename>`:强制中止执行者当前维度中该游戏的对局。
 
 ## 大厅与 DDUI 菜单
@@ -121,7 +122,7 @@ Core 提供命令:
 2. **发信**:按规则上报每房间人数与状态(变化即时 + 5 秒心跳);
 3. **送回大厅**:对局结束后由游戏包将玩家传送回主世界出生点。
 4. **兜底中止**:必须响应 Core 的 `/bearcade:quit <gamename>`(强制中止并重置),便于运营与测试。
-5. **模板命令**:必须响应 Core 的 `/bearcade:tmp tp <gamename>` 与 `/bearcade:tmp ap <gamename>`(进入模板维度 / 应用模板到全部房间)。
+5. **模板命令**:必须响应 Core 的 `/bearcade:tmp tp|ap|sz <gamename>`(进入模板维度 / 应用模板 / 表单配置模板范围)。
 
 ## 通信协议
 

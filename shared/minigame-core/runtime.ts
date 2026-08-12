@@ -2,11 +2,12 @@ import {
   system,
   world,
   Player,
-  type CustomCommandRegistry,
   type DimensionRegistry,
   type ScriptEventCommandMessageAfterEvent,
 } from "@minecraft/server";
+import { CustomForm, ObservableString } from "@minecraft/server-ui";
 import type { MinigameConfig, MinigameHooks } from "./types";
+import type { Vec3 } from "./types";
 
 type Phase = "idle" | "pending" | "running" | "resetting";
 
@@ -96,6 +97,14 @@ export class MinigameRuntime {
           this.log("quit:当前维度没有运行中的对局");
         }
         break;
+      case "game.sz": {
+        if (typeof payload.playerId !== "string") return;
+        const player = world
+          .getAllPlayers()
+          .find((p) => p.id === payload.playerId);
+        if (player) this.openTemplateBoundsForm(player);
+        break;
+      }
     }
   }
 
@@ -111,6 +120,137 @@ export class MinigameRuntime {
       this.log("应用模板失败", error);
     }
     this.sendRoomStatus();
+  }
+
+  // ================= 模板范围表单配置 =================
+
+  private loadPersistedTemplateBounds(): void {
+    try {
+      const raw = world.getDynamicProperty(
+        `bearcade:template_bounds_${this.config.gameId}`,
+      );
+      if (typeof raw !== "string" || raw.length === 0) return;
+      const data = JSON.parse(raw) as { from?: Vec3; to?: Vec3 };
+      if (!data.from || !data.to) return;
+      this.applyTemplateBounds(data.from, data.to);
+      this.log("已加载游戏内配置的模板范围");
+    } catch (error) {
+      this.log("模板范围配置加载失败", error);
+    }
+  }
+
+  private applyTemplateBounds(from: Vec3, to: Vec3): void {
+    this.config.templateFrom = from;
+    this.config.templateTo = to;
+    this.config.roomCopyOrigin = from;
+    this.config.tickingFrom = { x: from.x, y: -1, z: from.z };
+    this.config.tickingTo = { x: to.x, y: 65, z: to.z };
+  }
+
+  saveTemplateBounds(from: Vec3, to: Vec3): boolean {
+    const x1 = Math.min(from.x, to.x);
+    const x2 = Math.max(from.x, to.x);
+    const y1 = Math.min(from.y, to.y);
+    const y2 = Math.max(from.y, to.y);
+    const z1 = Math.min(from.z, to.z);
+    const z2 = Math.max(from.z, to.z);
+    if (
+      y1 < -64 ||
+      y2 > 320 ||
+      x2 - x1 + 1 > 64 ||
+      y2 - y1 + 1 > 384 ||
+      z2 - z1 + 1 > 64
+    ) {
+      return false;
+    }
+    const normalized = {
+      from: { x: x1, y: y1, z: z1 } as Vec3,
+      to: { x: x2, y: y2, z: z2 } as Vec3,
+    };
+    this.applyTemplateBounds(normalized.from, normalized.to);
+    world.setDynamicProperty(
+      `bearcade:template_bounds_${this.config.gameId}`,
+      JSON.stringify(normalized),
+    );
+    this.log(
+      `模板范围已保存:(${x1},${y1},${z1}) ~ (${x2},${y2},${z2}),执行 /bearcade:tmp ap ${this.config.gameId} 应用到全部房间`,
+    );
+    return true;
+  }
+
+  private openTemplateBoundsForm(player: Player): void {
+    const { templateFrom, templateTo } = this.config;
+    const fromX = new ObservableString(String(templateFrom.x), {
+      clientWritable: true,
+    });
+    const fromY = new ObservableString(String(templateFrom.y), {
+      clientWritable: true,
+    });
+    const fromZ = new ObservableString(String(templateFrom.z), {
+      clientWritable: true,
+    });
+    const toX = new ObservableString(String(templateTo.x), {
+      clientWritable: true,
+    });
+    const toY = new ObservableString(String(templateTo.y), {
+      clientWritable: true,
+    });
+    const toZ = new ObservableString(String(templateTo.z), {
+      clientWritable: true,
+    });
+
+    const form = new CustomForm(
+      player,
+      `${this.config.displayName} · 模板范围配置`,
+    );
+    form.label(
+      "填写模板维度的起始点/终点坐标(含端点)。保存后执行 /bearcade:tmp ap 应用到全部房间。",
+    );
+    form.textField("起始点 X", fromX);
+    form.textField("起始点 Y", fromY);
+    form.textField("起始点 Z", fromZ);
+    form.textField("终点 X", toX);
+    form.textField("终点 Y", toY);
+    form.textField("终点 Z", toZ);
+    form.button("保存", () => {
+      form.close();
+      const from = this.parseIntVec3(fromX, fromY, fromZ);
+      const to = this.parseIntVec3(toX, toY, toZ);
+      if (!from || !to) {
+        player.sendMessage("§c坐标格式不正确,请输入整数");
+        return;
+      }
+      if (!this.saveTemplateBounds(from, to)) {
+        player.sendMessage(
+          "§c范围不合法:需在 y -64~320 内,且尺寸不超过 64×384×64",
+        );
+        return;
+      }
+      player.sendMessage(
+        `§a已保存模板范围,执行 /bearcade:tmp ap ${this.config.gameId} 应用到全部房间`,
+      );
+    });
+    form.show().catch((error) => {
+      this.log("模板范围表单显示失败", error);
+    });
+  }
+
+  private parseIntVec3(
+    x: ObservableString,
+    y: ObservableString,
+    z: ObservableString,
+  ): Vec3 | undefined {
+    const nx = Number(x.getData());
+    const ny = Number(y.getData());
+    const nz = Number(z.getData());
+    if (
+      !Number.isInteger(nx) ||
+      !Number.isInteger(ny) ||
+      !Number.isInteger(nz)
+    ) {
+      return undefined;
+    }
+    return { x: nx, y: ny, z: nz };
   }
 
   // ================= 维度与房间工具 =================
@@ -434,6 +574,7 @@ export class MinigameRuntime {
   initWorld(): void {
     if (this.started) return;
     this.started = true;
+    this.loadPersistedTemplateBounds();
     this.sendGameRegister();
     void this.initRooms();
     system.runInterval(
