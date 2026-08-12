@@ -85,7 +85,8 @@ bearcade:gomoku_template
 - `world.tickingAreaManager` 按包隔离:只能管理本包创建的常加载区域,不能操作其他包或命令创建的;
 - 每包常加载 chunk 有上限(`maxChunkCount`),场地尺寸设计需预留余量;
 - 结构引擎上限为 **64×384×64**:纵向取满时 `from.y = -64`、`to.y = 319`(320 会超限 1 格);
-- 常加载区域建议只覆盖实际内容(准备房间 + 场地),不要跟随结构整列 384 层,以节省每包 chunk 上限;
+- **超宽模板自动分块**:横向超过 64 时,`shared/minigame-core` 会自动按 `tileSize`(默认 64)切成多块结构捕获/放置/重置(块 ID 形如 `bearcade:<gamename>_room_x0_z0`);已实测 65×384×65 会抛 `Structure size exceeds the maximum of 64x384x64`,请勿尝试单块超限;
+- **模板维度无需常加载区域**(实测 `createFromWorld` 可读取未加载区块);常加载区域只为房间游玩区保留,并只覆盖实际内容(准备房间 + 场地),不要跟随结构整列 384 层,以节省每包 chunk 上限;
 - 自定义维度传送前必须保证到达区域已加载:场地与常加载就绪(上报 `idle`)前禁止放玩家进入。
 
 要求:
@@ -346,3 +347,5 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-11 | 自定义命令改版:Core 统一提供 `/bearcade:tmp tp|ap <gamename>` 与 `/bearcade:quit <gamename>`,经 IPC(`game.tp`/`game.apply`/`game.quit`)路由到游戏包 |
 | 2026-08-12 | Gomoku 模板范围扩一圈(±7 → ±8),棋盘仍为 ±7,结构尺寸变化自动重新捕获 |
 | 2026-08-12 | 新增 `/bearcade:tmp sz <gamename>`:游戏内表单配置模板范围(动态属性持久化,游戏内配置优先) |
+| 2026-08-12 | 实测确认结构上限 64×384×64(65/100 均失败);共享运行时实现超宽模板自动分块(tileSize 可配) |
+| 2026-08-12 | 移除模板维度的临时常加载区域(createFromWorld 可读未加载区块),常加载仅用于房间游玩区 |

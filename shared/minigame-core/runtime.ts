@@ -313,52 +313,91 @@ export class MinigameRuntime {
     return this.ready.get(roomId) === true;
   }
 
-  private async ensureTemplateStructure() {
-    const templateDim = world.getDimension(this.templateDimensionId());
-    const templateAreaId = this.tickingAreaId("template");
-    if (!world.tickingAreaManager.hasTickingArea(templateAreaId)) {
-      await world.tickingAreaManager.createTickingArea(templateAreaId, {
-        dimension: templateDim,
-        from: this.config.tickingFrom,
-        to: this.config.tickingTo,
-      });
-    }
-
-    let structure = world.structureManager.get(this.config.structureId);
-    if (structure) {
-      const expectedSize = {
-        x: this.config.templateTo.x - this.config.templateFrom.x + 1,
-        y: this.config.templateTo.y - this.config.templateFrom.y + 1,
-        z: this.config.templateTo.z - this.config.templateFrom.z + 1,
-      };
-      const size = structure.size;
-      if (
-        size.x !== expectedSize.x ||
-        size.y !== expectedSize.y ||
-        size.z !== expectedSize.z
-      ) {
-        world.structureManager.delete(this.config.structureId);
-        structure = undefined;
-        this.log("模板结构尺寸变化,重新捕获");
+  private templateTiles(): { id: string; from: Vec3; to: Vec3 }[] {
+    const { templateFrom, templateTo, structureId } = this.config;
+    const size = this.config.tileSize ?? 64;
+    const width = templateTo.x - templateFrom.x + 1;
+    const depth = templateTo.z - templateFrom.z + 1;
+    const xCount = Math.ceil(width / size);
+    const zCount = Math.ceil(depth / size);
+    const tiles: { id: string; from: Vec3; to: Vec3 }[] = [];
+    for (let tx = 0; tx < xCount; tx++) {
+      for (let tz = 0; tz < zCount; tz++) {
+        const from: Vec3 = {
+          x: templateFrom.x + tx * size,
+          y: templateFrom.y,
+          z: templateFrom.z + tz * size,
+        };
+        const to: Vec3 = {
+          x: Math.min(templateFrom.x + (tx + 1) * size - 1, templateTo.x),
+          y: templateTo.y,
+          z: Math.min(templateFrom.z + (tz + 1) * size - 1, templateTo.z),
+        };
+        const id =
+          xCount === 1 && zCount === 1
+            ? structureId
+            : `${structureId}_x${tx}_z${tz}`;
+        tiles.push({ id, from, to });
       }
     }
-    if (!structure) {
-      structure = world.structureManager.createFromWorld(
-        this.config.structureId,
-        templateDim,
-        this.config.templateFrom,
-        this.config.templateTo,
-      );
-      this.log(`已捕获模板结构 ${this.config.structureId}`);
-    }
-    return structure;
+    return tiles;
   }
 
-  private tickingAreaId(roomId: number | "template"): string {
+  private deleteTemplateTiles(): void {
+    for (const tile of this.templateTiles()) {
+      if (world.structureManager.get(tile.id)) {
+        world.structureManager.delete(tile.id);
+      }
+    }
+  }
+
+  private captureTemplateTiles(): { id: string; from: Vec3; to: Vec3 }[] {
+    const templateDim = world.getDimension(this.templateDimensionId());
+    // 实测确认:createFromWorld 可读取未加载区块,无需为模板维度创建常加载区域
+    const tiles = this.templateTiles();
+    this.deleteTemplateTiles();
+    for (const tile of tiles) {
+      world.structureManager.createFromWorld(
+        tile.id,
+        templateDim,
+        tile.from,
+        tile.to,
+      );
+    }
+    this.log(
+      `已捕获模板结构 ${tiles.length} 块(${tiles[0]?.id ?? "无"})`,
+    );
+    return tiles;
+  }
+
+  private tickingAreaId(roomId: number): string {
     return `bearcade:ta_${this.config.gameId}_${roomId}`;
   }
 
-  private async initRoom(roomId: number, structureId: string): Promise<void> {
+  private placeTiles(
+    dimension: ReturnType<MinigameRuntime["roomDim"]>,
+    tiles: { id: string; from: Vec3; to: Vec3 }[],
+  ): void {
+    for (const tile of tiles) {
+      const dest: Vec3 = {
+        x:
+          this.config.roomCopyOrigin.x +
+          (tile.from.x - this.config.templateFrom.x),
+        y:
+          this.config.roomCopyOrigin.y +
+          (tile.from.y - this.config.templateFrom.y),
+        z:
+          this.config.roomCopyOrigin.z +
+          (tile.from.z - this.config.templateFrom.z),
+      };
+      world.structureManager.place(tile.id, dimension, dest);
+    }
+  }
+
+  private async initRoom(
+    roomId: number,
+    tiles: { id: string; from: Vec3; to: Vec3 }[],
+  ): Promise<void> {
     const dim = this.roomDim(roomId);
     const areaId = this.tickingAreaId(roomId);
     if (world.tickingAreaManager.hasTickingArea(areaId)) {
@@ -369,17 +408,17 @@ export class MinigameRuntime {
       from: this.config.tickingFrom,
       to: this.config.tickingTo,
     });
-    world.structureManager.place(structureId, dim, this.config.roomCopyOrigin);
+    this.placeTiles(dim, tiles);
     this.ready.set(roomId, true);
     this.log(`房间 ${roomId} 场地就绪`);
   }
 
   private async initRooms(): Promise<void> {
     try {
-      const structure = await this.ensureTemplateStructure();
+      const tiles = this.captureTemplateTiles();
       for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
         try {
-          await this.initRoom(roomId, structure.id);
+          await this.initRoom(roomId, tiles);
         } catch (error) {
           this.ready.set(roomId, false);
           this.log(`房间 ${roomId} 初始化失败`, error);
@@ -391,19 +430,10 @@ export class MinigameRuntime {
   }
 
   private async resetRoomsFromTemplate(roomIds: number[]): Promise<void> {
-    if (world.structureManager.get(this.config.structureId)) {
-      world.structureManager.delete(this.config.structureId);
-    }
-    const templateDim = world.getDimension(this.templateDimensionId());
-    const structure = world.structureManager.createFromWorld(
-      this.config.structureId,
-      templateDim,
-      this.config.templateFrom,
-      this.config.templateTo,
-    );
+    const tiles = this.captureTemplateTiles();
     for (const roomId of roomIds) {
       const dim = this.roomDim(roomId);
-      world.structureManager.place(structure.id, dim, this.config.roomCopyOrigin);
+      this.placeTiles(dim, tiles);
     }
   }
 

@@ -24,6 +24,8 @@ export interface MinigameConfig {
   structureId: string;
   templateSpawn: Vec3;
   startPositions: Vec3[];
+  /** 结构分块尺寸(默认 64):模板横向超过该值会自动切成多块捕获/放置 */
+  tileSize?: number;
   lobbyDimensionId?: string;
   ipcChannel?: string;
   startDelayTicks?: number;
