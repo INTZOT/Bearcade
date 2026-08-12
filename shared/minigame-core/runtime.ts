@@ -352,9 +352,19 @@ export class MinigameRuntime {
     }
   }
 
-  private captureTemplateTiles(): { id: string; from: Vec3; to: Vec3 }[] {
+  private async captureTemplateTiles(): Promise<
+    { id: string; from: Vec3; to: Vec3 }[]
+  > {
     const templateDim = world.getDimension(this.templateDimensionId());
-    // 实测确认:createFromWorld 可读取未加载区块,无需为模板维度创建常加载区域
+    // 模板维度必须常加载,否则 worldLoad 时区块未加载,createFromWorld 会失败
+    const templateAreaId = this.tickingAreaId("template");
+    if (!world.tickingAreaManager.hasTickingArea(templateAreaId)) {
+      await world.tickingAreaManager.createTickingArea(templateAreaId, {
+        dimension: templateDim,
+        from: this.config.tickingFrom,
+        to: this.config.tickingTo,
+      });
+    }
     const tiles = this.templateTiles();
     this.deleteTemplateTiles();
     for (const tile of tiles) {
@@ -371,7 +381,7 @@ export class MinigameRuntime {
     return tiles;
   }
 
-  private tickingAreaId(roomId: number): string {
+  private tickingAreaId(roomId: number | "template"): string {
     return `bearcade:ta_${this.config.gameId}_${roomId}`;
   }
 
@@ -416,7 +426,7 @@ export class MinigameRuntime {
 
   private async initRooms(): Promise<void> {
     try {
-      const tiles = this.captureTemplateTiles();
+      const tiles = await this.captureTemplateTiles();
       for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
         try {
           await this.initRoom(roomId, tiles);
@@ -431,7 +441,7 @@ export class MinigameRuntime {
   }
 
   private async resetRoomsFromTemplate(roomIds: number[]): Promise<void> {
-    const tiles = this.captureTemplateTiles();
+    const tiles = await this.captureTemplateTiles();
     for (const roomId of roomIds) {
       const dim = this.roomDim(roomId);
       this.placeTiles(dim, tiles);
