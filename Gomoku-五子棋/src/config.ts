@@ -10,19 +10,20 @@ export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 
 // 模板复制起始点/终点:模板维度中场地结构的两个对角坐标(含端点)
 // 注意:引擎结构上限为 64×384×64,纵向取满时 from.y = -64、to.y = 319(320 超限 1 格)
-export const TEMPLATE_FROM = { x: -7, y: -64, z: -7 };
-export const TEMPLATE_TO = { x: 7, y: 319, z: 7 };
+// 已从 ±7 扩一圈到 ±8(棋盘仍为 ±7,四周留一圈边)
+export const TEMPLATE_FROM = { x: -8, y: -64, z: -8 };
+export const TEMPLATE_TO = { x: 8, y: 319, z: 8 };
 
 // 每个房间维度内放置场地的原点坐标(结构 from 角落在该位置)
 // 与模板同坐标放置:房间场地位于 y 63~64、准备房间位于 y 0(同模板)
-export const ROOM_COPY_ORIGIN = { x: -7, y: -64, z: -7 };
+export const ROOM_COPY_ORIGIN = { x: -8, y: -64, z: -8 };
 
 // 准备房间坐标:与游戏场地位于同一房间维度的不同位置(玩家入房后传送到此,随 game.register 上报给 Core)
 export const PREP_SPAWN = { x: 0, y: 0, z: 0 };
 
 // 常加载区域:只需覆盖实际内容(准备房间 y0 与场地 y63~64),不要整列 384 层,以节省每包 chunk 上限
-export const TICKING_FROM = { x: -7, y: -1, z: -7 };
-export const TICKING_TO = { x: 7, y: 65, z: 7 };
+export const TICKING_FROM = { x: -8, y: -1, z: -8 };
+export const TICKING_TO = { x: 8, y: 65, z: 8 };
 
 export const STRUCTURE_ID = "bearcade:gomoku_room";
 

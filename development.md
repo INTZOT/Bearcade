@@ -342,3 +342,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-11 | 开发规范新增强制要求:小游戏包必须提供进入模板维度的开发命令(规范命令 `/bearcade:<gamename>`) |
 | 2026-08-11 | 抽取共享运行时 `shared/minigame-core`(MinigameRuntime):Gomoku 与模板包迁移为"共享运行时 + 玩法钩子",房间通用逻辑只维护一份 |
 | 2026-08-11 | 自定义命令改版:Core 统一提供 `/bearcade:tmp tp|ap <gamename>` 与 `/bearcade:quit <gamename>`,经 IPC(`game.tp`/`game.apply`/`game.quit`)路由到游戏包 |
+| 2026-08-12 | Gomoku 模板范围扩一圈(±7 → ±8),棋盘仍为 ±7,结构尺寸变化自动重新捕获 |
