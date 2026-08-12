@@ -25,6 +25,7 @@ export interface GameEntry {
   packId: string;
   roomCount: number;
   maxPlayers: number;
+  partyAvailable: boolean;
   prepSpawn: Vec3;
   rooms: Map<number, RoomInfo>;
 }
@@ -34,6 +35,7 @@ export interface RegisterPayload {
   displayName: string;
   roomCount: number;
   maxPlayers: number;
+  partyAvailable?: boolean;
   prepSpawn: Vec3;
 }
 

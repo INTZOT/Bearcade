@@ -198,6 +198,18 @@ Core 只负责以下内容:
 
 Core 提供自定义命令 `/bearcade:lobby`:任意维度下传送回大厅(主世界默认出生点),小游戏包不得注册同名命令。
 
+### 4.5 派对模式
+
+派对模式是 Core 提供的全局开关(管理员命令 `/bearcade:party`,状态持久化)。
+
+- **`partyAvailable`**:小游戏注册时必须上报(见 §5.2);若小游戏去除最大人数上限后依然可以正常运行,则该属性为 `true`,否则为 `false`(如 gomoku=false、guessnbuild=true);
+- 派对模式开启后:
+  - 普通玩家无法自行选择游戏加入,主菜单只提示"等待管理员带队加入";
+  - 游戏列表只显示 `partyAvailable=true` 的小游戏;
+  - 管理员点击房间后,Core 会将**全服在线玩家**一起传送进该房间,且**忽略最大人数上限**;
+- 管理员判定:玩家拥有 `op` tag;
+- 派对模式下房间仍必须处于 `idle` 且数据未过期,否则拒绝加入。
+
 ## 5. 通信协议规范
 
 ### 5.1 通道与信封
@@ -227,6 +239,7 @@ Core 提供自定义命令 `/bearcade:lobby`:任意维度下传送回大厅(主�
     "displayName": "五子棋",
     "roomCount": 8,
     "maxPlayers": 2,
+    "partyAvailable": false,
     "prepSpawn": { "x": 0, "y": 64, "z": 0 }
   }
 }
@@ -237,6 +250,7 @@ Core 提供自定义命令 `/bearcade:lobby`:任意维度下传送回大厅(主�
 - `game`:正式英文名(全小写),与维度命名一致;
 - `roomCount`:房间数量,必须 ≥ 1;
 - `maxPlayers`:该游戏单房间最大游玩人数,Core 入房校验与菜单展示使用;
+- `partyAvailable`:派对模式可用性(去除最大人数上限后仍可正常运行则为 true,默认 false);
 - `prepSpawn`:准备房间区域坐标(房间维度内),同一游戏所有房间共用;Core 仅用它传送。
 
 Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `bearcade:registry`;`packId` 与 `game` 的对应关系作为后续状态消息的校验依据。
@@ -384,3 +398,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | GuessNBuild 第一版验证通过(回合制/聊天答题/题库/计分/调试开关全链路可运行) |
 | 2026-08-13 | 包版本统一为 Preview v0.0.1:版本号集中在 config/packs.json 的 projectVersion,构建时写入 manifest |
 | 2026-08-13 | 移除 SND5-剑与消亡V 目录及文档中的相关引用(该游戏不在当前职责范围) |
+| 2026-08-13 | 新增派对模式:游戏注册增加 partyAvailable 属性,Core 提供 `/bearcade:party` 开关,开启后普通玩家不能自行加入、管理员带队全服加入 PartyAvailable 游戏 |

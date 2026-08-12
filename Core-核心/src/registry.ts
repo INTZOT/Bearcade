@@ -49,6 +49,7 @@ export class GameRegistry {
           entry.packId,
           entry.roomCount,
           entry.maxPlayers,
+          entry.partyAvailable === true,
           entry.prepSpawn as GameEntry["prepSpawn"],
         );
       }
@@ -65,6 +66,7 @@ export class GameRegistry {
       packId: entry.packId,
       roomCount: entry.roomCount,
       maxPlayers: entry.maxPlayers,
+      partyAvailable: entry.partyAvailable,
       prepSpawn: entry.prepSpawn,
     }));
     world.setDynamicProperty(REGISTRY_KEY, JSON.stringify(snapshot));
@@ -76,6 +78,7 @@ export class GameRegistry {
     packId: string,
     roomCount: number,
     maxPlayers: number,
+    partyAvailable: boolean,
     prepSpawn: GameEntry["prepSpawn"],
   ): GameEntry {
     const rooms = new Map<number, RoomInfo>();
@@ -95,6 +98,7 @@ export class GameRegistry {
       packId,
       roomCount,
       maxPlayers,
+      partyAvailable,
       prepSpawn,
       rooms,
     };
@@ -113,6 +117,8 @@ export class GameRegistry {
       typeof payload.maxPlayers !== "number" ||
       !Number.isInteger(payload.maxPlayers) ||
       payload.maxPlayers < 1 ||
+      (payload.partyAvailable !== undefined &&
+        typeof payload.partyAvailable !== "boolean") ||
       !payload.prepSpawn ||
       typeof payload.prepSpawn.x !== "number" ||
       typeof payload.prepSpawn.y !== "number" ||
@@ -126,6 +132,7 @@ export class GameRegistry {
       packId,
       payload.roomCount,
       payload.maxPlayers,
+      payload.partyAvailable === true,
       payload.prepSpawn,
     );
     this.persist();

@@ -8,6 +8,7 @@ import {
 } from "@minecraft/server";
 import { IPC_CHANNEL, LOBBY_DIMENSION_ID } from "./types";
 import type { GameRegistry } from "./registry";
+import { togglePartyMode } from "./party";
 
 const CORE_PACK_ID = "9ce781fb-ff67-4e21-904d-6a5b8b457703";
 const TMP_ACTION_ENUM = "bearcade:tmp_action";
@@ -170,6 +171,26 @@ export function initCommands(
       );
     } catch (error) {
       console.warn("[Bearcade Core] 注册 /bearcade:quit 失败", error);
+    }
+
+    try {
+      event.customCommandRegistry.registerCommand(
+        {
+          name: "bearcade:party",
+          description: "开关派对模式(管理员带队全服加入 PartyAvailable 游戏)",
+          permissionLevel: CommandPermissionLevel.Admin,
+          cheatsRequired: false,
+        },
+        () => {
+          const on = togglePartyMode();
+          return {
+            status: CustomCommandStatus.Success,
+            message: `派对模式已${on ? "开启" : "关闭"}`,
+          };
+        },
+      );
+    } catch (error) {
+      console.warn("[Bearcade Core] 注册 /bearcade:party 失败", error);
     }
   });
 }

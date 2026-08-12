@@ -15,6 +15,8 @@
 
 > 进入模板维度/应用模板/强制中止命令由 **Core 统一提供**:`/bearcade:tmp tp <gamename>`、`/bearcade:tmp ap <gamename>`、`/bearcade:quit`(在对应房间维度执行)。小游戏包无需自己注册命令,共享运行时已内置对应 IPC 响应。
 
+> 派对模式:在 `src/config.ts` 中设置 `PARTY_AVAILABLE`(去除最大人数上限后仍可正常运行才设为 true),Core 的 `/bearcade:party` 会依据该属性决定是否允许管理员带队全员加入。
+
 开发流程:先 `/bearcade:tmp tp mygame` 进入模板维度建场地;模板范围可用 `/bearcade:tmp sz mygame` 表单配置起始点/终点;场地改好后 `/bearcade:tmp ap mygame` 一键应用到全部房间。
 
 ## 使用步骤

@@ -11,6 +11,7 @@ import {
 } from "@minecraft/server-ui";
 import type { GameRegistry } from "./registry";
 import type { GameEntry, RoomInfo } from "./types";
+import { isAdmin, isPartyMode } from "./party";
 
 const MENU_DELAY_TICKS = 2;
 let registryForUi: GameRegistry;
@@ -82,11 +83,34 @@ function roomLabel(entry: GameEntry, room: RoomInfo): string {
   return `房间 ${room.id} [${status}] ${room.players}/${entry.maxPlayers} 人`;
 }
 
+function canJoinForUi(entry: GameEntry, room: RoomInfo): boolean {
+  // 派对模式下忽略人数上限,只看房间是否空闲且数据未过期
+  if (isPartyMode()) {
+    return !room.stale && room.status === "idle";
+  }
+  return registryForUi.canJoin(entry, room);
+}
+
 export function openMainMenu(player: Player): void {
   closeForm(player.id);
   const form = new CustomForm(player, "Bearcade 服务器");
   form.label(`§e欢迎, ${player.name}`);
   form.spacer();
+  if (isPartyMode()) {
+    form.label(
+      isAdmin(player)
+        ? "§e派对模式已开启,点击游戏列表带队加入"
+        : "§e派对模式已开启,等待管理员带队加入",
+    );
+    form.spacer();
+  }
+  if (isPartyMode() && !isAdmin(player)) {
+    form.button("关闭", () => {
+      closeForm(player.id);
+    });
+    trackForm(player.id, form);
+    return;
+  }
   form.button("游戏列表", () => {
     closeForm(player.id);
     system.runTimeout(() => openGameList(player), MENU_DELAY_TICKS);
@@ -97,10 +121,16 @@ export function openMainMenu(player: Player): void {
 export function openGameList(player: Player): void {
   closeForm(player.id);
   const form = new CustomForm(player, "游戏列表");
-  const games = registryForUi.listGames();
+  const games = registryForUi
+    .listGames()
+    .filter((entry) => !isPartyMode() || entry.partyAvailable);
 
   if (games.length === 0) {
-    form.label("§7暂无游戏(等待小游戏包注册)");
+    form.label(
+      isPartyMode()
+        ? "§7派对模式:暂无支持全员加入的游戏"
+        : "§7暂无游戏(等待小游戏包注册)",
+    );
   } else {
     for (const entry of games) {
       form.button(entry.displayName, () => {
@@ -137,7 +167,7 @@ export function openRoomList(player: Player, game: string): void {
     const room = entry.rooms.get(roomId);
     if (!room) continue;
     const label = new ObservableString(roomLabel(entry, room));
-    const disable = new ObservableBoolean(!registryForUi.canJoin(entry, room));
+    const disable = new ObservableBoolean(!canJoinForUi(entry, room));
     labels.set(roomId, label);
     disabled.set(roomId, disable);
     form.button(
@@ -161,6 +191,45 @@ export function openRoomList(player: Player, game: string): void {
 
 function handleJoin(player: Player, entry: GameEntry, roomId: number): void {
   closeForm(player.id);
+
+  // 派对模式:管理员带队,全服玩家一起加入(仅 PartyAvailable 游戏)
+  if (isPartyMode()) {
+    if (!isAdmin(player)) return;
+    if (!entry.partyAvailable) {
+      showNotice(player, "该游戏不支持派对模式。");
+      return;
+    }
+    const partyRoom = registryForUi.getRoom(entry.game, roomId);
+    if (!partyRoom || partyRoom.stale || partyRoom.status !== "idle") {
+      showNotice(player, "该房间当前不可用,请稍后再试。");
+      return;
+    }
+    const allPlayers = world.getAllPlayers();
+    partyRoom.reserved = Math.max(partyRoom.reserved, allPlayers.length);
+    const dimensionId = registryForUi.roomDimensionId(entry.game, roomId);
+    try {
+      const dimension = world.getDimension(dimensionId);
+      for (const p of allPlayers) {
+        p.teleport(
+          {
+            x: entry.prepSpawn.x + 0.5,
+            y: entry.prepSpawn.y + 0.5,
+            z: entry.prepSpawn.z + 0.5,
+          },
+          { dimension },
+        );
+        registryForUi.bindPlayer(p.id, entry.game, roomId);
+      }
+      showNotice(player, `已带领 ${allPlayers.length} 名玩家加入房间 ${roomId}`);
+    } catch (error) {
+      console.warn(
+        `[Bearcade Core] 派对传送失败:${player.name} -> ${dimensionId}`,
+        error,
+      );
+      showNotice(player, "派对加入失败:房间维度尚未就绪。");
+    }
+    return;
+  }
 
   if (registryForUi.getPlayerRoom(player.id)) {
     showNotice(player, "你已在房间内,请先返回大厅再选择其他房间。");
@@ -211,7 +280,7 @@ export function refreshRoomViews(): void {
       view.labels.get(roomId)?.setData(roomLabel(entry, room));
       view.disabled
         .get(roomId)
-        ?.setData(!registryForUi.canJoin(entry, room));
+        ?.setData(!canJoinForUi(entry, room));
     }
   }
 }

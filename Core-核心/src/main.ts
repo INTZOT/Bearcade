@@ -4,6 +4,7 @@ import { initIpc } from "./ipc";
 import { initLobby, ensureClockForAll } from "./lobby";
 import { refreshRoomViews, setUiRegistry } from "./ui";
 import { initCommands } from "./commands";
+import { loadPartyMode } from "./party";
 
 const POLL_INTERVAL_TICKS = 40; // 2 秒
 
@@ -11,6 +12,7 @@ let registry: GameRegistry | undefined;
 initCommands(() => registry);
 
 world.afterEvents.worldLoad.subscribe(() => {
+  loadPartyMode();
   const coreRegistry = new GameRegistry();
   registry = coreRegistry;
   setUiRegistry(coreRegistry);

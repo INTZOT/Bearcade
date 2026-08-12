@@ -646,6 +646,7 @@ export class MinigameRuntime {
             displayName: this.config.displayName,
             roomCount: this.config.roomCount,
             maxPlayers: this.config.maxPlayers,
+            partyAvailable: this.config.partyAvailable ?? false,
             prepSpawn: this.config.prepSpawn,
           },
         }),

@@ -16,6 +16,8 @@ export interface MinigameConfig {
   packId: string;
   roomCount: number;
   maxPlayers: number;
+  /** 派对模式可用性:去除最大人数上限后仍可正常运行则为 true(默认 false) */
+  partyAvailable?: boolean;
   /** 开局所需最少玩家数(默认 2) */
   minPlayers?: number;
   prepSpawn: Vec3;

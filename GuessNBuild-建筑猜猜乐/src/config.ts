@@ -11,6 +11,8 @@ export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 export const ROOM_COUNT = 2;
 export const MAX_PLAYERS = 16;
 export const MIN_PLAYERS = 3;
+/** 派对模式可用性:去除人数上限后仍可正常运行 */
+export const PARTY_AVAILABLE = true;
 
 // 回合与计分规则
 export const ROUND_SECONDS = 300;

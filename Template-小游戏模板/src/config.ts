@@ -10,6 +10,8 @@ export const IPC_CHANNEL = "bearcade:ipc";
 export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 export const ROOM_COUNT = 2;
 export const MAX_PLAYERS = 2;
+// 派对模式可用性:去除最大人数上限后仍可正常运行才设为 true
+export const PARTY_AVAILABLE = false;
 
 // ===== 以下坐标由开发者在模板维度建好场地后填写 =====
 // 模板复制起始点/终点(引擎结构上限 64×384×64,纵向取满为 y -64~319)
