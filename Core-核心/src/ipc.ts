@@ -6,6 +6,7 @@ import {
   type RoomStatusPayload,
 } from "./types";
 import type { GameRegistry } from "./registry";
+import { broadcastPartyMode } from "./party";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -70,6 +71,9 @@ function handleRegister(
   );
   if (!ok) {
     console.warn(`[Bearcade Core] 非法 game.register(packId=${packId})`);
+  } else {
+    // 新注册的游戏包同步一次当前派对状态
+    system.runTimeout(() => broadcastPartyMode(), 2);
   }
 }
 

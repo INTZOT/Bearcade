@@ -33,6 +33,7 @@ export class MinigameRuntime {
   private readonly ready = new Map<number, boolean>();
   private readonly roomPattern: RegExp;
   private started = false;
+  private partyMode = false;
 
   constructor(config: MinigameConfig, hooks: MinigameHooks = {}) {
     this.config = config;
@@ -73,9 +74,23 @@ export class MinigameRuntime {
     if (!envelope || typeof envelope.op !== "string") return;
 
     const payload = envelope.payload as
-      | { game?: unknown; playerId?: unknown; dimensionId?: unknown }
+      | {
+          game?: unknown;
+          playerId?: unknown;
+          dimensionId?: unknown;
+          enabled?: unknown;
+        }
       | undefined;
-    if (!payload || payload.game !== this.config.gameId) return;
+    if (!payload) return;
+
+    if (envelope.op === "party.mode") {
+      if (typeof payload.enabled === "boolean") {
+        this.setPartyMode(payload.enabled);
+      }
+      return;
+    }
+
+    if (payload.game !== this.config.gameId) return;
 
     switch (envelope.op) {
       case "game.tp": {
@@ -470,7 +485,7 @@ export class MinigameRuntime {
     const state = this.getState(roomId);
     if (state.phase !== "idle") return;
     state.phase = "pending";
-    const delay = this.config.startDelayTicks ?? 40;
+    const delay = this.effectiveStartDelay();
     state.pendingDeadlineTick = system.currentTick + delay;
     this.announce(
       roomId,
@@ -550,6 +565,7 @@ export class MinigameRuntime {
         } else if (state.phase === "pending") {
           const fullDelay = this.config.startFullShortenTicks ?? 100;
           if (
+            !this.partyMode &&
             count >= this.config.maxPlayers &&
             (state.pendingDeadlineTick ?? system.currentTick) -
               system.currentTick >
@@ -606,6 +622,26 @@ export class MinigameRuntime {
         );
       }
     }
+  }
+
+  private effectiveStartDelay(): number {
+    return this.partyMode
+      ? (this.config.partyStartDelayTicks ?? 60 * 20)
+      : (this.config.startDelayTicks ?? 40);
+  }
+
+  setPartyMode(enabled: boolean): void {
+    if (this.partyMode === enabled) return;
+    this.partyMode = enabled;
+    const delay = this.effectiveStartDelay();
+    for (const state of this.states.values()) {
+      if (state.phase === "pending") {
+        state.pendingDeadlineTick = system.currentTick + delay;
+      }
+    }
+    this.log(
+      `派对模式${enabled ? "开启" : "关闭"},开局倒计时 ${Math.round(delay / 20)} 秒`,
+    );
   }
 
   forceStopInDimension(dimensionId: string): boolean {

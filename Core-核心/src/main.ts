@@ -4,7 +4,7 @@ import { initIpc } from "./ipc";
 import { initLobby, ensureClockForAll } from "./lobby";
 import { refreshRoomViews, setUiRegistry } from "./ui";
 import { initCommands } from "./commands";
-import { loadPartyMode } from "./party";
+import { broadcastPartyMode, loadPartyMode } from "./party";
 
 const POLL_INTERVAL_TICKS = 40; // 2 秒
 
@@ -13,6 +13,8 @@ initCommands(() => registry);
 
 world.afterEvents.worldLoad.subscribe(() => {
   loadPartyMode();
+  // 等游戏包加载后广播一次当前派对状态
+  system.runTimeout(() => broadcastPartyMode(), 40);
   const coreRegistry = new GameRegistry();
   registry = coreRegistry;
   setUiRegistry(coreRegistry);
