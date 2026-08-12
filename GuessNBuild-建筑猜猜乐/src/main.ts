@@ -2,6 +2,8 @@ import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { initGuessGame, makeGameHooks } from "./game";
 import { initQBank } from "./qbank";
+import { initDebugCommand } from "./debugCommand";
+import { loadDebugState } from "./debug";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -43,7 +45,7 @@ runtime = new MinigameRuntime(
     startPositions: START_POSITIONS,
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
-    startDelayTicks: 60 * 20,
+    startDelayTicks: 10 * 20,
   },
   makeGameHooks(getRuntime),
 );
@@ -53,8 +55,10 @@ system.beforeEvents.startup.subscribe((event) => {
 });
 
 initQBank();
+initDebugCommand();
 
 world.afterEvents.worldLoad.subscribe(() => {
+  loadDebugState();
   runtime.initWorld();
   runtime.initEvents();
   initGuessGame(getRuntime);

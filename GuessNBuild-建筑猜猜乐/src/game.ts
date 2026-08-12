@@ -19,6 +19,7 @@ import {
   targetScoreFor,
 } from "./config";
 import { loadQuestions } from "./qbank";
+import { dbg } from "./debug";
 
 type RoundResult = "correct" | "timeout" | "builder_left";
 
@@ -172,6 +173,9 @@ function startRound(
     }
   }
   updateActionbars(runtime, roomId, session);
+  dbg(
+    `回合开始 room=${roomId} builder=${builderId} question=${question} deadline=${session.deadlineTick}`,
+  );
 }
 
 async function nextRound(
@@ -180,8 +184,10 @@ async function nextRound(
   session: Session,
 ): Promise<void> {
   // 每回合结束:清空实体并从模板重置场地
+  dbg(`重置场地 room=${roomId}`);
   clearFieldEntities(runtime, roomId);
   await runtime.resetRoom(roomId);
+  dbg(`场地重置完成 room=${roomId}`);
   startRound(runtime, roomId, session);
 }
 
@@ -195,6 +201,9 @@ async function roundEnd(
   if (session.settling) return;
   session.settling = true;
   session.phase = "ended";
+  dbg(
+    `回合结束 room=${roomId} result=${result} guesser=${guesserId ?? "-"} scores=${JSON.stringify([...session.scores.entries()])}`,
+  );
 
   if (result === "correct" && guesserId) {
     session.scores.set(
@@ -291,10 +300,12 @@ export function makeGameHooks(
       ensureObjective(roomId);
       for (const player of players) setScore(roomId, player.id, 0);
       runtime.teleportPlayer(roomId, players[0], BUILD_SPAWN);
+      dbg(`游戏开始 room=${roomId} players=${players.map((p) => p.name).join(",")}`);
       void nextRound(runtime, roomId, session);
     },
     onBeforeReset(roomId) {
       const runtime = getRuntime();
+      dbg(`游戏结束重置 room=${roomId}`);
       clearFieldEntities(runtime, roomId);
       for (const player of runtime.roomPlayers(roomId)) {
         player.setGameMode(GameMode.Adventure);
@@ -330,15 +341,17 @@ export function initGuessGame(getRuntime: () => MinigameRuntime): void {
     if (event.sender.id === session.builderId) return; // 建筑者聊天放行
     if (normalized(event.message) === normalized(session.question)) {
       event.cancel = true;
-      // 聊天 before 事件运行在受限上下文:先同步锁定,再延迟到正常上下文结算
       const guesserId = event.sender.id;
-      if (!session.settling) {
-        session.settling = true;
+      // 聊天 before 事件运行在受限上下文:用 phase 同步锁定,再延迟到正常上下文结算
+      if (session.phase === "building") {
         session.phase = "ended";
+        dbg(`答对 room=${roomId} player=${event.sender.name} text=${event.message}`);
         system.run(() => {
           void roundEnd(runtime, roomId, session, "correct", guesserId);
         });
       }
+    } else {
+      dbg(`答错 room=${roomId} player=${event.sender.name} text=${event.message}`);
     }
     // 错误答案不做处理,消息照常广播
   });
