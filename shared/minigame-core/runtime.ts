@@ -454,14 +454,17 @@ export class MinigameRuntime {
       () => this.startGame(roomId),
       this.config.startDelayTicks ?? 40,
     );
-    this.announce(roomId, "§e两名玩家已就位,对局即将开始…");
+    this.announce(
+      roomId,
+      `§e${this.config.minPlayers ?? 2} 名玩家已就位,对局即将开始…`,
+    );
   }
 
   private startGame(roomId: number): void {
     const state = this.getState(roomId);
     if (state.phase !== "pending") return;
     const players = this.roomPlayers(roomId);
-    if (players.length < 2) {
+    if (players.length < (this.config.minPlayers ?? 2)) {
       state.phase = "idle";
       return;
     }
@@ -518,13 +521,14 @@ export class MinigameRuntime {
         if (!this.isRoomReady(roomId)) continue;
         const state = this.getState(roomId);
         const count = this.roomPlayers(roomId).length;
-        if (state.phase === "idle" && count >= 2) {
+        const min = this.config.minPlayers ?? 2;
+        if (state.phase === "idle" && count >= min) {
           this.startPending(roomId);
-        } else if (state.phase === "pending" && count < 2) {
+        } else if (state.phase === "pending" && count < min) {
           this.cancelPending(state);
           state.phase = "idle";
           this.announce(roomId, "§7等待玩家就位…");
-        } else if (state.phase === "running" && count < 2) {
+        } else if (state.phase === "running" && count < min) {
           this.endGame(roomId, "玩家离开");
         }
       } catch (error) {
@@ -540,6 +544,11 @@ export class MinigameRuntime {
     if (state.phase !== "running" && state.phase !== "pending") return false;
     system.run(() => this.endGame(roomId, "强制中断"));
     return true;
+  }
+
+  /** 从模板重新复制场地到指定房间(每回合重置用) */
+  async resetRoom(roomId: number): Promise<void> {
+    await this.resetRoomsFromTemplate([roomId]);
   }
 
   // ================= Core 上报 =================
@@ -625,9 +634,10 @@ export class MinigameRuntime {
 
     // 房间维度内禁止破坏方块
     world.beforeEvents.playerBreakBlock.subscribe((event) => {
-      if (this.roomIdFromDimension(event.block.dimension.id) !== undefined) {
-        event.cancel = true;
-      }
+      const roomId = this.roomIdFromDimension(event.block.dimension.id);
+      if (roomId === undefined) return;
+      if (this.hooks.canBreak?.(event, roomId) ?? false) return;
+      event.cancel = true;
     });
     // 放置方块:由玩法钩子决定是否放行,默认全部取消
     world.beforeEvents.playerPlaceBlock.subscribe((event) => {

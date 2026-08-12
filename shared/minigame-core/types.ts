@@ -1,5 +1,6 @@
 import type {
   Player,
+  PlayerBreakBlockBeforeEvent,
   PlayerPlaceBlockBeforeEvent,
 } from "@minecraft/server";
 
@@ -15,6 +16,8 @@ export interface MinigameConfig {
   packId: string;
   roomCount: number;
   maxPlayers: number;
+  /** 开局所需最少玩家数(默认 2) */
+  minPlayers?: number;
   prepSpawn: Vec3;
   templateFrom: Vec3;
   templateTo: Vec3;
@@ -47,4 +50,6 @@ export interface MinigameHooks {
    * 原生调用(消息/传送/表单)须延迟到 system.run。
    */
   canPlace?(event: PlayerPlaceBlockBeforeEvent, roomId: number): boolean;
+  /** 房间维度内的方块破坏校验:返回 true 放行,默认 false 取消 */
+  canBreak?(event: PlayerBreakBlockBeforeEvent, roomId: number): boolean;
 }

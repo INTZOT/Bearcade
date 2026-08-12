@@ -1,12 +1,14 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { makeGameHooks } from "./game";
+import { initGuessGame, makeGameHooks } from "./game";
+import { initQBank } from "./qbank";
 import {
   DISPLAY_NAME,
   GAME_ID,
   IPC_CHANNEL,
   LOBBY_DIMENSION_ID,
   MAX_PLAYERS,
+  MIN_PLAYERS,
   PACK_ID,
   PREP_SPAWN,
   ROOM_COPY_ORIGIN,
@@ -21,6 +23,7 @@ import {
 } from "./config";
 
 let runtime: MinigameRuntime;
+const getRuntime = () => runtime;
 runtime = new MinigameRuntime(
   {
     gameId: GAME_ID,
@@ -28,6 +31,7 @@ runtime = new MinigameRuntime(
     packId: PACK_ID,
     roomCount: ROOM_COUNT,
     maxPlayers: MAX_PLAYERS,
+    minPlayers: MIN_PLAYERS,
     prepSpawn: PREP_SPAWN,
     templateFrom: TEMPLATE_FROM,
     templateTo: TEMPLATE_TO,
@@ -40,14 +44,17 @@ runtime = new MinigameRuntime(
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
   },
-  makeGameHooks(() => runtime),
+  makeGameHooks(getRuntime),
 );
 
 system.beforeEvents.startup.subscribe((event) => {
   runtime.initStartup(event);
 });
 
+initQBank();
+
 world.afterEvents.worldLoad.subscribe(() => {
   runtime.initWorld();
   runtime.initEvents();
+  initGuessGame(getRuntime);
 });
