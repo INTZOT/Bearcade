@@ -85,7 +85,15 @@ export class MinigameRuntime {
           .find((p) => p.id === payload.playerId);
         if (!player) return;
         const dimension = world.getDimension(this.templateDimensionId());
-        player.teleport(this.config.templateSpawn, { dimension });
+        // 坐标默认按方块中心:传送时 +0.5
+        player.teleport(
+          {
+            x: this.config.templateSpawn.x + 0.5,
+            y: this.config.templateSpawn.y + 0.5,
+            z: this.config.templateSpawn.z + 0.5,
+          },
+          { dimension },
+        );
         break;
       }
       case "game.apply":
@@ -288,7 +296,15 @@ export class MinigameRuntime {
     player: Player,
     location: MinigameConfig["startPositions"][number],
   ): void {
-    player.teleport(location, { dimension: this.roomDim(roomId) });
+    // 坐标默认按方块中心:传送时 +0.5
+    player.teleport(
+      {
+        x: location.x + 0.5,
+        y: location.y + 0.5,
+        z: location.z + 0.5,
+      },
+      { dimension: this.roomDim(roomId) },
+    );
   }
 
   getPhase(roomId: number): Phase {

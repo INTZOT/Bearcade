@@ -10,9 +10,9 @@ import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import {
   BUILDER_GAIN,
-  BUILD_SPAWN,
   GUESSER_GAIN,
   MIN_PLAYERS,
+  ROUND_SPAWN,
   ROUND_SECONDS,
   TEMPLATE_FROM,
   TEMPLATE_TO,
@@ -174,6 +174,10 @@ function startRound(
     }
   }
   updateActionbars(runtime, roomId, session);
+  // 每回合开始把玩家传送到场地中心(方块中心由运行时自动 +0.5)
+  for (const player of runtime.roomPlayers(roomId)) {
+    runtime.teleportPlayer(roomId, player, ROUND_SPAWN);
+  }
   dbg(
     `回合开始 room=${roomId} builder=${builderId} question=${question} deadline=${session.deadlineTick}`,
   );
@@ -316,7 +320,6 @@ export function makeGameHooks(
       sessions.set(roomId, session);
       ensureObjective(roomId);
       for (const player of players) setScore(roomId, player.id, 0);
-      runtime.teleportPlayer(roomId, players[0], BUILD_SPAWN);
       dbg(`游戏开始 room=${roomId} players=${players.map((p) => p.name).join(",")}`);
       void nextRound(runtime, roomId, session);
     },

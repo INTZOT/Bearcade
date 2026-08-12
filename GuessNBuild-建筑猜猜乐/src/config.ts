@@ -34,7 +34,7 @@ export const TICKING_FROM = { x: -7, y: -1, z: -7 };
 export const TICKING_TO = { x: 7, y: 65, z: 7 };
 export const STRUCTURE_ID = "bearcade:guessnbuild_room";
 export const TEMPLATE_SPAWN = { x: 0, y: 100, z: 0 };
-export const BUILD_SPAWN = { x: 0, y: 65, z: 0 };
+export const ROUND_SPAWN = { x: 0, y: 64, z: 0 };
 export const START_POSITIONS = [
   { x: 0, y: 65, z: -1 },
   { x: 0, y: 65, z: 1 },

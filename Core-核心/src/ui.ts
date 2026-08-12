@@ -178,7 +178,15 @@ function handleJoin(player: Player, entry: GameEntry, roomId: number): void {
   const dimensionId = registryForUi.roomDimensionId(entry.game, roomId);
   try {
     const dimension = world.getDimension(dimensionId);
-    player.teleport(entry.prepSpawn, { dimension });
+    // 坐标默认按方块中心:传送时 +0.5
+    player.teleport(
+      {
+        x: entry.prepSpawn.x + 0.5,
+        y: entry.prepSpawn.y + 0.5,
+        z: entry.prepSpawn.z + 0.5,
+      },
+      { dimension },
+    );
     registryForUi.bindPlayer(player.id, entry.game, roomId);
   } catch (error) {
     room.reserved = Math.max(0, room.reserved - 1);
