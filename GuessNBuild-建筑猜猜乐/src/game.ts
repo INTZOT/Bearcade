@@ -24,6 +24,7 @@ type RoundResult = "correct" | "timeout" | "builder_left";
 
 interface Session {
   phase: "building" | "ended";
+  settling: boolean;
   order: string[];
   builderIndex: number;
   builderId: string;
@@ -191,7 +192,8 @@ async function roundEnd(
   result: RoundResult,
   guesserId?: string,
 ): Promise<void> {
-  if (session.phase === "ended") return;
+  if (session.settling) return;
+  session.settling = true;
   session.phase = "ended";
 
   if (result === "correct" && guesserId) {
@@ -276,6 +278,7 @@ export function makeGameHooks(
       const runtime = getRuntime();
       const session: Session = {
         phase: "building",
+        settling: false,
         order: players.map((p) => p.id),
         builderIndex: 0,
         builderId: "",
@@ -327,7 +330,15 @@ export function initGuessGame(getRuntime: () => MinigameRuntime): void {
     if (event.sender.id === session.builderId) return; // 建筑者聊天放行
     event.cancel = true;
     if (normalized(event.message) === normalized(session.question)) {
-      void roundEnd(runtime, roomId, session, "correct", event.sender.id);
+      // 聊天 before 事件运行在受限上下文:先同步锁定,再延迟到正常上下文结算
+      const guesserId = event.sender.id;
+      if (!session.settling) {
+        session.settling = true;
+        session.phase = "ended";
+        system.run(() => {
+          void roundEnd(runtime, roomId, session, "correct", guesserId);
+        });
+      }
     }
     // 错误答案不做处理
   });

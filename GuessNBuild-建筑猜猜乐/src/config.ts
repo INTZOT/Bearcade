@@ -14,8 +14,8 @@ export const MIN_PLAYERS = 3;
 
 // 回合与计分规则
 export const ROUND_SECONDS = 300;
-export const BUILDER_GAIN = 2;
-export const GUESSER_GAIN = 1;
+export const BUILDER_GAIN = 1;
+export const GUESSER_GAIN = 2;
 export const QB_KEY = "bearcade:qbank_guessnbuild";
 
 /** 获胜所需分数,由游玩人数决定 */
