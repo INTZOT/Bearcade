@@ -315,7 +315,27 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 - 所有涉及 ScriptAPI 的实现必须以 `docs/` 目录的类型定义为准;升级或更换版本前先核对 API 差异。
 - 包目录内的 `manifest.json` 与 `scripts/` 是构建产物,**不入库**(已加入 .gitignore);克隆后先 `npm install && npm run build` 再部署/打包。
 
-## 9. 开放项(不阻塞开发)
+## 9. 新游戏合并到 master 的流程
+
+每个新游戏 = 根目录下一个独立包目录 + `config/packs.json` 一条配置,合并过程如下:
+
+1. **开发者侧**:复制 `Template-小游戏模板` 为游戏目录(如 `MyGame-我的游戏`),全局替换 `mygame` 为游戏 ID,重新生成 `headerUuid` / `moduleUuid`(`npm run gen:uuid`),填好 `src/config.ts`,实现玩法;
+2. **本地自检**:`npm run typecheck && npm run build && npm run package`,确认自己的 `.mcpack` 可安装;
+3. **提交方式**(二选一):
+   - 有仓库权限:基于 master 开分支(`feat/<gameid>`),提交后发 Pull Request;
+   - 无权限:把游戏目录打包发来,由管理员合入;
+4. **管理员合入检查清单**:
+   - 只新增游戏目录,未改动 Core / 其他游戏;
+   - `config/packs.json` 中新增条目 `packDependencies: ["core"]`,UUID 不与现有包重复;
+   - 游戏 ID、结构 ID、维度名符合命名规范(`bearcade:<gameid>_n` 等);
+   - tsconfig `include` 已加新包源码;
+   - `npm run typecheck && npm run build` 通过;
+   - 部署到开发环境实测:入房、状态上报、结束回大厅、`/bearcade:quit` 强制中止、模板命令均正常;
+5. **合入后**:管理员合并到 master,开发套件(`npm run distribute`)会自动包含新游戏。
+
+> 构建产物(manifest/scripts)不入库;合入时不要提交它们,合并后由 `npm run build` 统一生成。
+
+## 10. 开放项(不阻塞开发)
 
 - 大厅保护规则(PvP、掉落物清理、大厅区域限制)暂未纳入;
 - 轮询 / 心跳参数可按实际规模调整;
