@@ -16,6 +16,7 @@
     "Core-核心/src/**/*.ts",
     "Gomoku-五子棋/src/**/*.ts",
     "Template-小游戏模板/src/**/*.ts",
+    "GuessNBuild-建筑猜猜乐/src/**/*.ts",
     "shared/**/*.ts"
   ]
 }

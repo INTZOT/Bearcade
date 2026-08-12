@@ -44,6 +44,21 @@
         { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
       ],
       "packDependencies": ["core"]
+    },
+    {
+      "id": "guessnbuild",
+      "dir": "GuessNBuild-建筑猜猜乐",
+      "name": "Bearcade GuessNBuild",
+      "description": "Bearcade 建筑猜猜乐小游戏包(开发中)",
+      "headerUuid": "452ba546-30fd-45d4-bfc5-cee80429ecfc",
+      "moduleUuid": "d0dacf88-20f6-42d9-be62-b7853db7147c",
+      "version": [0, 1, 0],
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      ],
+      "packDependencies": ["core"]
     }
   ]
 }
