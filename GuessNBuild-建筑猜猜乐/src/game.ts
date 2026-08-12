@@ -143,6 +143,46 @@ function updateActionbars(
   }
 }
 
+/** 按环形散开生成全员回合落点(派对模式大部队不会叠在一起) */
+function roundSpawnPositions(
+  count: number,
+): { x: number; y: number; z: number }[] {
+  const positions: { x: number; y: number; z: number }[] = [];
+  const seen = new Set<string>();
+  let radius = 1;
+  while (positions.length < count) {
+    const ring: { x: number; y: number; z: number }[] = [];
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      const x = Math.round(ROUND_SPAWN.x + radius * Math.cos(angle));
+      const z = Math.round(ROUND_SPAWN.z + radius * Math.sin(angle));
+      if (
+        x < TEMPLATE_FROM.x ||
+        x > TEMPLATE_TO.x ||
+        z < TEMPLATE_FROM.z ||
+        z > TEMPLATE_TO.z
+      ) {
+        continue;
+      }
+      const key = `${x},${z}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        ring.push({ x, y: ROUND_SPAWN.y, z });
+      }
+    }
+    if (ring.length === 0) break;
+    for (const pos of ring) {
+      positions.push(pos);
+      if (positions.length >= count) break;
+    }
+    radius++;
+  }
+  while (positions.length < count) {
+    positions.push({ ...ROUND_SPAWN });
+  }
+  return positions;
+}
+
 function startRound(
   runtime: MinigameRuntime,
   roomId: number,
@@ -180,8 +220,10 @@ function startRound(
   }
   updateActionbars(runtime, roomId, session);
   // 每回合开始把玩家传送到场地中心(方块中心由运行时自动 +0.5)
-  for (const player of runtime.roomPlayers(roomId)) {
-    runtime.teleportPlayer(roomId, player, ROUND_SPAWN);
+  const players = runtime.roomPlayers(roomId);
+  const spawns = roundSpawnPositions(players.length);
+  for (const [index, player] of players.entries()) {
+    runtime.teleportPlayer(roomId, player, spawns[index] ?? ROUND_SPAWN);
   }
   dbg(
     `回合开始 room=${roomId} builder=${builderId} question=${question} deadline=${session.deadlineTick}`,

@@ -399,3 +399,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | 包版本统一为 Preview v0.0.1:版本号集中在 config/packs.json 的 projectVersion,构建时写入 manifest |
 | 2026-08-13 | 移除 SND5-剑与消亡V 目录及文档中的相关引用(该游戏不在当前职责范围) |
 | 2026-08-13 | 新增派对模式:游戏注册增加 partyAvailable 属性,Core 提供 `/bearcade:party` 开关,开启后普通玩家不能自行加入、管理员带队全服加入 PartyAvailable 游戏 |
+| 2026-08-13 | GuessNBuild 派对适配:回合落点按环形散开(大部队不叠方块中心),目标分支持 17 人以上(5 分) |

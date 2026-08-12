@@ -24,7 +24,8 @@ export const QB_KEY = "bearcade:qbank_guessnbuild";
 export function targetScoreFor(playerCount: number): number {
   if (playerCount >= 3 && playerCount <= 5) return 11;
   if (playerCount >= 6 && playerCount <= 9) return 9;
-  return 7; // 10~16 人
+  if (playerCount >= 10 && playerCount <= 16) return 7;
+  return 5; // 17 人及以上(派对模式大部队)
 }
 
 // ===== 场地坐标(开发者配置) =====
