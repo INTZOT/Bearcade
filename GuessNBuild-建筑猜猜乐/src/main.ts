@@ -43,6 +43,7 @@ runtime = new MinigameRuntime(
     startPositions: START_POSITIONS,
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
+    startDelayTicks: 60 * 20,
   },
   makeGameHooks(getRuntime),
 );

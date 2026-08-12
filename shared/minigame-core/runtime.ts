@@ -14,7 +14,7 @@ type Phase = "idle" | "pending" | "running" | "resetting";
 interface RoomState {
   phase: Phase;
   players: string[];
-  pendingRunId?: number;
+  pendingDeadlineTick?: number;
 }
 
 interface StartupContext {
@@ -439,24 +439,15 @@ export class MinigameRuntime {
 
   // ================= 对局状态机 =================
 
-  private cancelPending(state: RoomState): void {
-    if (state.pendingRunId !== undefined) {
-      system.clearRun(state.pendingRunId);
-      state.pendingRunId = undefined;
-    }
-  }
-
   private startPending(roomId: number): void {
     const state = this.getState(roomId);
     if (state.phase !== "idle") return;
     state.phase = "pending";
-    state.pendingRunId = system.runTimeout(
-      () => this.startGame(roomId),
-      this.config.startDelayTicks ?? 40,
-    );
+    const delay = this.config.startDelayTicks ?? 40;
+    state.pendingDeadlineTick = system.currentTick + delay;
     this.announce(
       roomId,
-      `§e${this.config.minPlayers ?? 2} 名玩家已就位,对局即将开始…`,
+      `§e${this.config.minPlayers ?? 2} 名玩家已就位,${Math.round(delay / 20)} 秒后开始…`,
     );
   }
 
@@ -469,6 +460,7 @@ export class MinigameRuntime {
       return;
     }
     state.phase = "running";
+    state.pendingDeadlineTick = undefined;
     state.players = players.map((p) => p.id);
     this.hooks.onGameStart?.(roomId, players);
     this.sendRoomStatus();
@@ -478,7 +470,7 @@ export class MinigameRuntime {
   endGame(roomId: number, reason: string, message?: string): void {
     const state = this.getState(roomId);
     if (state.phase === "resetting") return;
-    this.cancelPending(state);
+    state.pendingDeadlineTick = undefined;
     state.phase = "resetting";
     this.announce(
       roomId,
@@ -525,14 +517,66 @@ export class MinigameRuntime {
         if (state.phase === "idle" && count >= min) {
           this.startPending(roomId);
         } else if (state.phase === "pending" && count < min) {
-          this.cancelPending(state);
           state.phase = "idle";
+          state.pendingDeadlineTick = undefined;
           this.announce(roomId, "§7等待玩家就位…");
+        } else if (state.phase === "pending") {
+          const fullDelay = this.config.startFullShortenTicks ?? 100;
+          if (
+            count >= this.config.maxPlayers &&
+            (state.pendingDeadlineTick ?? system.currentTick) -
+              system.currentTick >
+              fullDelay
+          ) {
+            state.pendingDeadlineTick = system.currentTick + fullDelay;
+            this.announce(
+              roomId,
+              `§e已满员,${Math.round(fullDelay / 20)} 秒后开始`,
+            );
+          }
+          if (
+            state.pendingDeadlineTick !== undefined &&
+            system.currentTick >= state.pendingDeadlineTick
+          ) {
+            this.startGame(roomId);
+          }
         } else if (state.phase === "running" && count < min) {
           this.endGame(roomId, "玩家离开");
         }
+
+        if (
+          (state.phase === "idle" && count > 0) ||
+          state.phase === "pending"
+        ) {
+          this.updatePendingActionbars(roomId, state, count);
+        }
       } catch (error) {
         this.log(`房间 ${roomId} 状态机异常`, error);
+      }
+    }
+  }
+
+  private updatePendingActionbars(
+    roomId: number,
+    state: RoomState,
+    count: number,
+  ): void {
+    const total = this.config.maxPlayers;
+    for (const player of this.roomPlayers(roomId)) {
+      if (state.phase === "pending" && state.pendingDeadlineTick !== undefined) {
+        const remain = Math.max(
+          0,
+          Math.ceil(
+            (state.pendingDeadlineTick - system.currentTick) / 20,
+          ),
+        );
+        player.onScreenDisplay.setActionBar(
+          `§e目前人数 ${count}/${total} | 开局倒计时 ${remain} 秒`,
+        );
+      } else {
+        player.onScreenDisplay.setActionBar(
+          `§e目前人数 ${count}/${total} | 等待更多玩家`,
+        );
       }
     }
   }

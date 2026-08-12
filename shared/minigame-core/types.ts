@@ -35,6 +35,8 @@ export interface MinigameConfig {
   endDelayTicks?: number;
   gameTickInterval?: number;
   heartbeatInterval?: number;
+  /** 满员后缩短倒计时:剩余时间大于该 tick 数时压到该值(默认 100 tick = 5 秒) */
+  startFullShortenTicks?: number;
 }
 
 export interface MinigameHooks {
