@@ -29,6 +29,7 @@ runtime = new MinigameRuntime(
     packId: PACK_ID,
     roomCount: ROOM_COUNT,
     maxPlayers: MAX_PLAYERS,
+    minPlayers: 2,
     prepSpawn: PREP_SPAWN,
     templateFrom: TEMPLATE_FROM,
     templateTo: TEMPLATE_TO,
@@ -40,6 +41,7 @@ runtime = new MinigameRuntime(
     startPositions: [START_POS_BLACK, START_POS_WHITE],
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
+    startDelayTicks: 5 * 20,
   },
   makeGomokuHooks(() => runtime),
 );
