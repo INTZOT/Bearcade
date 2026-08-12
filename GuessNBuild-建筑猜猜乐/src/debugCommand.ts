@@ -5,7 +5,9 @@ import {
 } from "@minecraft/server";
 import { toggleDebug } from "./debug";
 
-export function initDebugCommand(): void {
+export function initDebugCommand(
+  onToggle?: (on: boolean) => void,
+): void {
   system.beforeEvents.startup.subscribe((event) => {
     event.customCommandRegistry.registerCommand(
       {
@@ -16,6 +18,7 @@ export function initDebugCommand(): void {
       },
       () => {
         const on = toggleDebug();
+        onToggle?.(on);
         return {
           status: CustomCommandStatus.Success,
           message: `调试日志已${on ? "开启" : "关闭"}`,

@@ -3,7 +3,7 @@ import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { initGuessGame, makeGameHooks } from "./game";
 import { initQBank } from "./qbank";
 import { initDebugCommand } from "./debugCommand";
-import { loadDebugState } from "./debug";
+import { isDebug, loadDebugState } from "./debug";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -26,6 +26,12 @@ import {
 
 let runtime: MinigameRuntime;
 const getRuntime = () => runtime;
+
+function syncDebugCountdown(on: boolean): void {
+  // 调试开启时倒计时 10 秒,关闭后恢复 60 秒默认
+  runtime.config.startDelayTicks = (on ? 10 : 60) * 20;
+}
+
 runtime = new MinigameRuntime(
   {
     gameId: GAME_ID,
@@ -45,7 +51,7 @@ runtime = new MinigameRuntime(
     startPositions: START_POSITIONS,
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
-    startDelayTicks: 10 * 20,
+    startDelayTicks: 60 * 20,
   },
   makeGameHooks(getRuntime),
 );
@@ -55,10 +61,11 @@ system.beforeEvents.startup.subscribe((event) => {
 });
 
 initQBank();
-initDebugCommand();
+initDebugCommand(syncDebugCountdown);
 
 world.afterEvents.worldLoad.subscribe(() => {
   loadDebugState();
+  syncDebugCountdown(isDebug());
   runtime.initWorld();
   runtime.initEvents();
   initGuessGame(getRuntime);

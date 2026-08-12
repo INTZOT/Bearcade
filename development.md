@@ -357,3 +357,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | 修正:恢复模板维度常加载(worldLoad 捕获结构前区块必须已加载,否则 createFromWorld 失败) |
 | 2026-08-13 | GuessNBuild:修复答对后回合卡死(phase 同步锁 + system.run 结算),准备倒计时改为 10 秒,新增可开关调试日志命令 `/bearcade:gnb_debug` |
 | 2026-08-13 | 修复 GuessNBuild 第二回合卡死(回合开始未重置 settling 防重入标记);回合重置/结算加异常兜底;`/bearcade:quit` 改为免参数、按当前维度路由 |
+| 2026-08-13 | GuessNBuild 开局倒计时:默认 60 秒,调试开启时 10 秒,关闭调试自动恢复 60 秒 |
