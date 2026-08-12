@@ -26,6 +26,7 @@ type RoundResult = "correct" | "timeout" | "builder_left";
 interface Session {
   phase: "building" | "ended";
   settling: boolean;
+  target: number;
   order: string[];
   builderIndex: number;
   builderId: string;
@@ -56,12 +57,16 @@ function playerName(
   );
 }
 
-function ensureObjective(roomId: number): void {
+function ensureObjective(roomId: number, target: number): void {
   const id = objectiveId(roomId);
-  let objective = world.scoreboard.getObjective(id);
-  if (!objective) {
-    objective = world.scoreboard.addObjective(id, "建筑猜猜乐");
+  const existing = world.scoreboard.getObjective(id);
+  if (existing) {
+    world.scoreboard.removeObjective(id);
   }
+  const objective = world.scoreboard.addObjective(
+    id,
+    `建筑猜猜乐 · 目标 ${target} 分`,
+  );
   world.scoreboard.setObjectiveAtDisplaySlot(DisplaySlotId.Sidebar, {
     objective,
     sortOrder: ObjectiveSortOrder.Descending,
@@ -71,8 +76,8 @@ function ensureObjective(roomId: number): void {
 function setScore(roomId: number, playerId: string, score: number): void {
   const objective = world.scoreboard.getObjective(objectiveId(roomId));
   const player = world.getAllPlayers().find((p) => p.id === playerId);
-  if (objective && player?.scoreboardIdentity) {
-    objective.setScore(player.scoreboardIdentity, score);
+  if (objective && player) {
+    objective.setScore(player, score);
   }
 }
 
@@ -245,7 +250,7 @@ async function roundEnd(
     // 胜负判定:任一在场玩家达到目标分即结束,同分并列
     const players = runtime.roomPlayers(roomId);
     const presentIds = new Set(players.map((p) => p.id));
-    const target = targetScoreFor(players.length);
+    const target = session.target;
     const reached = [...session.scores.entries()].filter(
       ([id, score]) => presentIds.has(id) && score >= target,
     );
@@ -309,6 +314,7 @@ export function makeGameHooks(
       const session: Session = {
         phase: "building",
         settling: false,
+        target: targetScoreFor(players.length),
         order: players.map((p) => p.id),
         builderIndex: 0,
         builderId: "",
@@ -318,7 +324,7 @@ export function makeGameHooks(
         scores: new Map(players.map((p) => [p.id, 0])),
       };
       sessions.set(roomId, session);
-      ensureObjective(roomId);
+      ensureObjective(roomId, session.target);
       for (const player of players) setScore(roomId, player.id, 0);
       dbg(`游戏开始 room=${roomId} players=${players.map((p) => p.name).join(",")}`);
       void nextRound(runtime, roomId, session);
