@@ -325,6 +325,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
    - 有仓库权限:基于 master 开分支(`feat/<gameid>`),提交后发 Pull Request;
    - 无权限:把游戏目录打包发来,由管理员合入;
 4. **管理员合入检查清单**:
+   - Pull Request 会自动运行 `npm ci && npm run typecheck && npm run build`(GitHub Actions),通过后才合并;`.mcpack` 打包依赖 Windows PowerShell,仍在本地执行,不纳入 CI;
    - 只新增游戏目录,未改动 Core / 其他游戏;
    - `config/packs.json` 中新增条目 `packDependencies: ["core"]`,UUID 不与现有包重复;
    - 游戏 ID、结构 ID、维度名符合命名规范(`bearcade:<gameid>_n` 等);
@@ -380,3 +381,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | 修复 GuessNBuild 第二回合卡死(回合开始未重置 settling 防重入标记);回合重置/结算加异常兜底;`/bearcade:quit` 改为免参数、按当前维度路由 |
 | 2026-08-13 | GuessNBuild 开局倒计时:默认 60 秒,调试开启时 10 秒,关闭调试自动恢复 60 秒 |
 | 2026-08-13 | 传送统一按方块中心(+0.5);GuessNBuild 每回合开始把全部玩家传送到 `(0,64,0)` 中心 |
+| 2026-08-13 | 新增 GitHub Actions PR 检查(自动 typecheck + build);development.md 补新游戏合并流程 |
