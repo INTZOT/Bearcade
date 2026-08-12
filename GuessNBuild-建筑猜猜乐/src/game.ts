@@ -328,8 +328,8 @@ export function initGuessGame(getRuntime: () => MinigameRuntime): void {
     const session = sessions.get(roomId);
     if (!session || session.phase !== "building") return;
     if (event.sender.id === session.builderId) return; // 建筑者聊天放行
-    event.cancel = true;
     if (normalized(event.message) === normalized(session.question)) {
+      event.cancel = true;
       // 聊天 before 事件运行在受限上下文:先同步锁定,再延迟到正常上下文结算
       const guesserId = event.sender.id;
       if (!session.settling) {
@@ -340,7 +340,7 @@ export function initGuessGame(getRuntime: () => MinigameRuntime): void {
         });
       }
     }
-    // 错误答案不做处理
+    // 错误答案不做处理,消息照常广播
   });
 
   system.runInterval(() => {
