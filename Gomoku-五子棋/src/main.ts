@@ -1,6 +1,7 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { makeGomokuHooks } from "./gomoku";
+import { initStructureTest } from "./structuretest";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -47,6 +48,8 @@ runtime = new MinigameRuntime(
 system.beforeEvents.startup.subscribe((event) => {
   runtime.initStartup(event);
 });
+
+initStructureTest();
 
 world.afterEvents.worldLoad.subscribe(() => {
   runtime.initWorld();
