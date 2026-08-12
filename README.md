@@ -99,7 +99,12 @@ Core 只做四件事:
 3. 入房校验:有效人数 < 最大人数 且 房间为空闲中(含去重与并发预留);
 4. 放行后仅将玩家传送到对应房间维度的准备区域,之后不再干预。
 
-Core 提供命令 `/bearcade:lobby`,任意维度下传送回大厅。
+Core 提供命令:
+
+- `/bearcade:lobby`:任意维度下传送回大厅;
+- `/bearcade:tmp tp <gamename>`:传送到指定游戏的模板维度;
+- `/bearcade:tmp ap <gamename>`:将指定游戏的模板应用到其全部房间;
+- `/bearcade:quit <gamename>`:强制中止执行者当前维度中该游戏的对局。
 
 ## 大厅与 DDUI 菜单
 
@@ -115,8 +120,8 @@ Core 提供命令 `/bearcade:lobby`,任意维度下传送回大厅。
 1. **注册**:worldLoad 后发送 `game.register`(游戏 ID、显示名、房间数、最大人数、准备房坐标);
 2. **发信**:按规则上报每房间人数与状态(变化即时 + 5 秒心跳);
 3. **送回大厅**:对局结束后由游戏包将玩家传送回主世界出生点。
-4. **兜底中止**:必须提供手动强制中止并重置的兜底机制(规范命令 `/bearcade:<gamename>_stop`),便于运营与测试。
-5. **模板命令**:必须提供进入模板维度的开发命令(规范命令 `/bearcade:<gamename>`),便于制作与修改场地。
+4. **兜底中止**:必须响应 Core 的 `/bearcade:quit <gamename>`(强制中止并重置),便于运营与测试。
+5. **模板命令**:必须响应 Core 的 `/bearcade:tmp tp <gamename>` 与 `/bearcade:tmp ap <gamename>`(进入模板维度 / 应用模板到全部房间)。
 
 ## 通信协议
 

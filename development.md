@@ -13,8 +13,7 @@
 - Core 只负责「接收上报、DDUI 展示、入房校验、传送至准备区域」,对局内的一切逻辑属于小游戏包,不得要求 Core 处理。
 - **玩法与对局流程不做统一规范**:房间内部如何准备、开局、结算、设计规则,由开发者自行发挥。
 - 小游戏包必须满足三条强制契约:**注册游戏信息**(§5.2)、**向 Core 发信**(§3.4)、**对局结束后将玩家传送回大厅**(§4.4)。
-- 每个小游戏包**必须提供手动强制中止并重置的兜底机制**(如 `/bearcade:<gamename>_stop` 命令),便于运营与测试。
-- 每个小游戏包**必须提供进入模板维度的开发命令**(规范命名 `/bearcade:<gamename>`),便于制作与修改场地。
+- 强制中止、进入模板维度、应用模板命令由 **Core 统一提供**(`/bearcade:quit <gamename>`、`/bearcade:tmp tp|ap <gamename>`),小游戏包只需响应对应 IPC 指令(已封装在 `shared/minigame-core`)。
 
 ## 2. 包目录规范
 
@@ -76,7 +75,7 @@ bearcade:gomoku_template
 
 模板维度自身创建常加载区域 `bearcade:ta_<gamename>_template` 并保留,保证随时可读取。
 
-- **强制要求**:每个小游戏包必须注册进入模板维度的命令(规范命名 `/bearcade:<gamename>`),执行后传送到 `bearcade:<gamename>_template`;命令回调运行在 restricted execution 模式,传送须经 `system.run` 延迟。
+- **强制要求**:进入模板维度的命令由 Core 统一提供,格式为 `/bearcade:tmp tp <gamename>`,执行后传送到 `bearcade:<gamename>_template`;应用模板到全部房间使用 `/bearcade:tmp ap <gamename>`(Core 经 IPC 路由到对应游戏包)。
 - **restricted execution 陷阱**:自定义命令回调运行在受限上下文,直接调用 `teleport`、`getDimension` 等原生 API 会抛 `cannot be used in restricted execution`;回调内须先用 `system.run(...)` / `runTimeout(...)` 延迟到正常上下文再执行原生调用。
 
 **API 注意事项**:
@@ -190,7 +189,7 @@ Core 只负责以下内容:
 
 **手动强制中止与重置(强制要求)**:
 
-- 每个小游戏包必须注册一条管理员命令(规范命名 `/bearcade:<gamename>_stop`,命令回调注意 restricted execution 限制);
+- 强制中止命令由 Core 统一提供,格式为 `/bearcade:quit <gamename>`(执行者必须位于该游戏的房间维度);
 - 命令行为:无论对局处于**倒计时中**还是**运行中**,执行后立即中断对局 → 将房间内玩家传送回大厅 → 从模板维度重新复制场地 → 上报 `idle`;
 - 命令在非对局维度或无对局运行时返回明确失败提示,不得误伤其他房间;
 - 该机制是运营与测试的兜底,不允许小游戏包省略。
@@ -267,7 +266,17 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 - `status`:仅允许 `initializing` / `idle` / `running`;
 - 最大人数不在此消息中,来自注册消息。
 
-### 5.4 来源校验
+### 5.4 Core → 游戏包指令
+
+由 Core 下发、游戏包响应(实现统一在 `shared/minigame-core` 的 `MinigameRuntime`,包内校验 `payload.game` 是否为本包游戏 ID):
+
+| 操作码 | 触发命令 | 载荷 |
+| --- | --- | --- |
+| `game.tp` | `/bearcade:tmp tp <gamename>` | `{ game, playerId }` 传送到模板维度 |
+| `game.apply` | `/bearcade:tmp ap <gamename>` | `{ game }` 应用模板到全部房间 |
+| `game.quit` | `/bearcade:quit <gamename>` | `{ game, dimensionId }` 强制中止指定维度对局 |
+
+### 5.5 来源校验
 
 - Core 只接受 `packId` 已注册且与 `game` 匹配的消息;
 - `room.status` 的 `game` 必须在注册表中存在;
@@ -332,3 +341,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-11 | 开发规范新增强制要求:小游戏包必须提供手动强制中止并重置的兜底机制(规范命令 `/bearcade:<gamename>_stop`) |
 | 2026-08-11 | 开发规范新增强制要求:小游戏包必须提供进入模板维度的开发命令(规范命令 `/bearcade:<gamename>`) |
 | 2026-08-11 | 抽取共享运行时 `shared/minigame-core`(MinigameRuntime):Gomoku 与模板包迁移为"共享运行时 + 玩法钩子",房间通用逻辑只维护一份 |
+| 2026-08-11 | 自定义命令改版:Core 统一提供 `/bearcade:tmp tp|ap <gamename>` 与 `/bearcade:quit <gamename>`,经 IPC(`game.tp`/`game.apply`/`game.quit`)路由到游戏包 |

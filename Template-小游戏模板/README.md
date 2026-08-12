@@ -11,9 +11,9 @@
 
 房间管理通用逻辑(维度注册、模板复制、状态机、上报、命令等)统一封装在仓库 `shared/minigame-core`,由构建工具内联进本包——**不要在本包内复制第二份**;修改共享代码后重新 `npm run build` 即可让所有小游戏包同步生效。
 
-> 强制中止命令(默认 `/bearcade:mygame_stop`)是开发规范的**强制要求**,请保留并随游戏 ID 一起重命名。
+> 进入模板维度/应用模板/强制中止命令由 **Core 统一提供**:`/bearcade:tmp tp <gamename>`、`/bearcade:tmp ap <gamename>`、`/bearcade:quit <gamename>`。小游戏包无需自己注册命令,共享运行时已内置对应 IPC 响应。
 
-> 进入模板维度的开发命令(默认 `/bearcade:mygame`)同样是**强制要求**,制作/修改场地时使用。
+开发流程:先 `/bearcade:tmp tp mygame` 进入模板维度建场地,场地改好后 `/bearcade:tmp ap mygame` 一键应用到全部房间。
 
 ## 使用步骤
 

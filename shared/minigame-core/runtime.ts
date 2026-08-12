@@ -2,10 +2,9 @@ import {
   system,
   world,
   Player,
-  CustomCommandStatus,
-  CommandPermissionLevel,
   type CustomCommandRegistry,
   type DimensionRegistry,
+  type ScriptEventCommandMessageAfterEvent,
 } from "@minecraft/server";
 import type { MinigameConfig, MinigameHooks } from "./types";
 
@@ -19,7 +18,6 @@ interface RoomState {
 
 interface StartupContext {
   dimensionRegistry: DimensionRegistry;
-  customCommandRegistry: CustomCommandRegistry;
 }
 
 /**
@@ -53,69 +51,66 @@ export class MinigameRuntime {
         this.roomDimensionId(roomId),
       );
     }
-    event.dimensionRegistry.registerCustomDimension(
-      this.templateDimensionId(),
-    );
-
-    // 开发命令:进入模板维度
-    event.customCommandRegistry.registerCommand(
-      {
-        name: `bearcade:${this.config.gameId}`,
-        description: "开发用:进入模板维度制作场地",
-        permissionLevel: CommandPermissionLevel.Any,
-        cheatsRequired: false,
-      },
-      (origin) => {
-        const player = origin.sourceEntity;
-        if (!player || !(player instanceof Player)) {
-          return {
-            status: CustomCommandStatus.Failure,
-            message: "该命令只能由玩家执行",
-          };
-        }
-        system.run(() => {
-          const dimension = world.getDimension(this.templateDimensionId());
-          player.teleport(this.config.templateSpawn, { dimension });
-        });
-        return {
-          status: CustomCommandStatus.Success,
-          message: `已传送至模板维度 ${this.templateDimensionId()}`,
-        };
-      },
-    );
-
-    // 强制中止命令
-    event.customCommandRegistry.registerCommand(
-      {
-        name: `bearcade:${this.config.gameId}_stop`,
-        description: "强制中断当前维度运行中的对局",
-        permissionLevel: CommandPermissionLevel.Admin,
-        cheatsRequired: false,
-      },
-      (origin) => {
-        const player = origin.sourceEntity;
-        if (!player || !(player instanceof Player)) {
-          return {
-            status: CustomCommandStatus.Failure,
-            message: "该命令只能由玩家执行",
-          };
-        }
-        if (!this.forceStopInDimension(player.dimension.id)) {
-          return {
-            status: CustomCommandStatus.Failure,
-            message: "当前维度没有运行中的对局",
-          };
-        }
-        return {
-          status: CustomCommandStatus.Success,
-          message: "已强制中断当前对局",
-        };
-      },
-    );
+    event.dimensionRegistry.registerCustomDimension(this.templateDimensionId());
 
     this.log(
       `已注册 ${this.config.roomCount} 个房间维度与模板维度`,
     );
+  }
+
+  // ================= Core 指令路由(经 IPC 下发) =================
+
+  private handleIpc(event: ScriptEventCommandMessageAfterEvent): void {
+    if (event.id !== (this.config.ipcChannel ?? "bearcade:ipc")) return;
+
+    let envelope: { op?: unknown; payload?: unknown };
+    try {
+      envelope = JSON.parse(event.message) as { op?: unknown; payload?: unknown };
+    } catch {
+      return;
+    }
+    if (!envelope || typeof envelope.op !== "string") return;
+
+    const payload = envelope.payload as
+      | { game?: unknown; playerId?: unknown; dimensionId?: unknown }
+      | undefined;
+    if (!payload || payload.game !== this.config.gameId) return;
+
+    switch (envelope.op) {
+      case "game.tp": {
+        if (typeof payload.playerId !== "string") return;
+        const player = world
+          .getAllPlayers()
+          .find((p) => p.id === payload.playerId);
+        if (!player) return;
+        const dimension = world.getDimension(this.templateDimensionId());
+        player.teleport(this.config.templateSpawn, { dimension });
+        break;
+      }
+      case "game.apply":
+        void this.applyTemplateToAllRooms();
+        break;
+      case "game.quit":
+        if (typeof payload.dimensionId !== "string") return;
+        if (!this.forceStopInDimension(payload.dimensionId)) {
+          this.log("quit:当前维度没有运行中的对局");
+        }
+        break;
+    }
+  }
+
+  private async applyTemplateToAllRooms(): Promise<void> {
+    const roomIds = Array.from(
+      { length: this.config.roomCount },
+      (_, index) => index + 1,
+    );
+    try {
+      await this.resetRoomsFromTemplate(roomIds);
+      this.log("已应用模板到全部房间");
+    } catch (error) {
+      this.log("应用模板失败", error);
+    }
+    this.sendRoomStatus();
   }
 
   // ================= 维度与房间工具 =================
@@ -452,6 +447,11 @@ export class MinigameRuntime {
   }
 
   initEvents(): void {
+    // Core 指令路由(game.tp / game.apply / game.quit)
+    system.afterEvents.scriptEventReceive.subscribe((event) => {
+      this.handleIpc(event);
+    });
+
     // 房间维度内禁止破坏方块
     world.beforeEvents.playerBreakBlock.subscribe((event) => {
       if (this.roomIdFromDimension(event.block.dimension.id) !== undefined) {

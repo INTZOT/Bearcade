@@ -7,16 +7,18 @@ import { initCommands } from "./commands";
 
 const POLL_INTERVAL_TICKS = 40; // 2 秒
 
-initCommands();
+let registry: GameRegistry | undefined;
+initCommands(() => registry);
 
 world.afterEvents.worldLoad.subscribe(() => {
-  const registry = new GameRegistry();
-  setUiRegistry(registry);
-  initIpc(registry);
-  initLobby(registry);
+  const coreRegistry = new GameRegistry();
+  registry = coreRegistry;
+  setUiRegistry(coreRegistry);
+  initIpc(coreRegistry);
+  initLobby(coreRegistry);
 
   system.runInterval(() => {
-    registry.tick(Date.now());
+    coreRegistry.tick(Date.now());
     refreshRoomViews();
   }, POLL_INTERVAL_TICKS);
 
