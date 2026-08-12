@@ -3,3 +3,7 @@ dist/
 *.mcpack
 *.mcaddon
 .env
+
+# 构建产物(由 npm run build 生成,不入库)
+*/scripts/
+*/manifest.json

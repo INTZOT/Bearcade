@@ -29,6 +29,8 @@ npm run distribute   # 生成可分发的开发套件 dist/BearcadeDevKit-<版�
 
 部署后进入世界执行 `/reload`,Core 加载时内容日志会出现 `[Bearcade Core] 已加载`;玩家在大厅使用钟物品打开菜单。
 
+> 各包目录下的 `manifest.json` 与 `scripts/` 均为构建产物,不入库;克隆仓库后先执行 `npm install && npm run build` 生成。
+
 ## 目录结构
 
 ```text
