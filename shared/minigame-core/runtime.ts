@@ -206,6 +206,7 @@ export class MinigameRuntime {
     form.label(
       "填写模板维度的起始点/终点坐标(含端点)。保存后执行 /bearcade:tmp ap 应用到全部房间。",
     );
+    form.spacer();
     form.textField("起始点 X", fromX);
     form.textField("起始点 Y", fromY);
     form.textField("起始点 Z", fromZ);

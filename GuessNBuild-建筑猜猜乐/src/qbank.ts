@@ -94,6 +94,7 @@ function openAdd(player: Player): void {
   const input = new ObservableString("", { clientWritable: true });
   const form = new CustomForm(player, "建筑猜猜乐 · 题库管理");
   form.header("添加答案");
+  form.spacer();
   form.label("输入建筑答案,字数提示会自动生成。");
   form.spacer();
   form.textField("答案", input);
@@ -120,6 +121,7 @@ function openList(player: Player, page = 0): void {
   const list = loadQuestions();
   const form = new CustomForm(player, "建筑猜猜乐 · 题库管理");
   form.header(`查看题库(${list.length})`);
+  form.spacer();
   if (list.length === 0) {
     form.label("题库为空");
   } else {
@@ -139,6 +141,7 @@ function openDelete(player: Player, page = 0): void {
   const input = new ObservableString("", { clientWritable: true });
   const form = new CustomForm(player, "建筑猜猜乐 · 题库管理");
   form.header(`删除答案(${list.length})`);
+  form.spacer();
   if (list.length === 0) {
     form.label("题库为空");
   } else {
@@ -165,6 +168,7 @@ function openDelete(player: Player, page = 0): void {
 function openClearConfirm(player: Player): void {
   const form = new CustomForm(player, "建筑猜猜乐 · 题库管理");
   form.header("清空题库");
+  form.spacer();
   form.label(`§c将删除全部 ${loadQuestions().length} 道题目,不可恢复。`);
   form.spacer();
   form.button("确认清空", () => {
@@ -182,6 +186,7 @@ function openClearConfirm(player: Player): void {
 function openMain(player: Player): void {
   const form = new CustomForm(player, "建筑猜猜乐 · 题库管理");
   form.header("题库管理");
+  form.spacer();
   form.label(`当前题目数:${loadQuestions().length}`);
   form.divider();
   form.button("添加答案", () => {
