@@ -131,14 +131,8 @@ export function initCommands(
           description: "强制中止当前维度运行中的小游戏",
           permissionLevel: CommandPermissionLevel.Admin,
           cheatsRequired: false,
-          mandatoryParameters: [
-            {
-              name: "gamename",
-              type: CustomCommandParamType.String,
-            },
-          ],
         },
-        (origin, gamename: string) => {
+        (origin) => {
           const player = origin.sourceEntity;
           if (!player || !(player instanceof Player)) {
             return {
@@ -146,17 +140,20 @@ export function initCommands(
               message: "该命令只能由玩家执行",
             };
           }
+          const match = /^bearcade:([a-z0-9_]+)_\d+$/.exec(
+            player.dimension.id,
+          );
+          if (!match) {
+            return {
+              status: CustomCommandStatus.Failure,
+              message: "当前维度不是游戏房间",
+            };
+          }
+          const gamename = match[1];
           if (!getRegistry()?.getGame(gamename)) {
             return {
               status: CustomCommandStatus.Failure,
               message: `未知游戏:${gamename}`,
-            };
-          }
-          const roomPattern = new RegExp(`^bearcade:${gamename}_\\d+$`);
-          if (!roomPattern.test(player.dimension.id)) {
-            return {
-              status: CustomCommandStatus.Failure,
-              message: "当前维度不是该游戏的房间",
             };
           }
           system.run(() => {

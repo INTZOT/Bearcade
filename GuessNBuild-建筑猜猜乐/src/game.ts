@@ -158,6 +158,7 @@ function startRound(
   session.question = question;
   session.lastQuestion = question;
   session.deadlineTick = system.currentTick + ROUND_SECONDS * 20;
+  session.settling = false; // 新回合重置防重入标记
   session.phase = "building";
   setGameModes(runtime, roomId, session);
 
@@ -183,12 +184,20 @@ async function nextRound(
   roomId: number,
   session: Session,
 ): Promise<void> {
-  // 每回合结束:清空实体并从模板重置场地
-  dbg(`重置场地 room=${roomId}`);
-  clearFieldEntities(runtime, roomId);
-  await runtime.resetRoom(roomId);
-  dbg(`场地重置完成 room=${roomId}`);
-  startRound(runtime, roomId, session);
+  try {
+    // 每回合结束:清空实体并从模板重置场地
+    dbg(`重置场地 room=${roomId}`);
+    clearFieldEntities(runtime, roomId);
+    await runtime.resetRoom(roomId);
+    dbg(`场地重置完成 room=${roomId}`);
+    startRound(runtime, roomId, session);
+  } catch (error) {
+    console.warn(
+      `[Bearcade guessnbuild] 回合重置失败 room=${roomId}`,
+      error,
+    );
+    runtime.endGame(roomId, "回合重置失败");
+  }
 }
 
 async function roundEnd(
@@ -205,7 +214,8 @@ async function roundEnd(
     `回合结束 room=${roomId} result=${result} guesser=${guesserId ?? "-"} scores=${JSON.stringify([...session.scores.entries()])}`,
   );
 
-  if (result === "correct" && guesserId) {
+  try {
+    if (result === "correct" && guesserId) {
     session.scores.set(
       guesserId,
       (session.scores.get(guesserId) ?? 0) + GUESSER_GAIN,
@@ -218,48 +228,55 @@ async function roundEnd(
       roomId,
       `§a${playerName(runtime, roomId, guesserId)} 答对(+${GUESSER_GAIN}),${playerName(runtime, roomId, session.builderId)} 建筑成功(+${BUILDER_GAIN})`,
     );
-  } else if (result === "timeout") {
-    runtime.announce(roomId, "§7时间到,无人答对,无人得分");
-  } else {
-    runtime.announce(roomId, "§7建筑者离开,本回合作废,无人得分");
-  }
+    } else if (result === "timeout") {
+      runtime.announce(roomId, "§7时间到,无人答对,无人得分");
+    } else {
+      runtime.announce(roomId, "§7建筑者离开,本回合作废,无人得分");
+    }
 
-  for (const [playerId, score] of session.scores) {
-    setScore(roomId, playerId, score);
-  }
+    for (const [playerId, score] of session.scores) {
+      setScore(roomId, playerId, score);
+    }
 
-  // 胜负判定:任一在场玩家达到目标分即结束,同分并列
-  const players = runtime.roomPlayers(roomId);
-  const presentIds = new Set(players.map((p) => p.id));
-  const target = targetScoreFor(players.length);
-  const reached = [...session.scores.entries()].filter(
-    ([id, score]) => presentIds.has(id) && score >= target,
-  );
-  if (reached.length > 0) {
-    const max = Math.max(...reached.map(([, score]) => score));
-    const winners = reached
-      .filter(([, score]) => score === max)
-      .map(([id]) => playerName(runtime, roomId, id));
-    runtime.endGame(
-      roomId,
-      "游戏结束",
-      `§e游戏结束!获胜:${winners.join("、")}(最高 ${max} 分)`,
+    // 胜负判定:任一在场玩家达到目标分即结束,同分并列
+    const players = runtime.roomPlayers(roomId);
+    const presentIds = new Set(players.map((p) => p.id));
+    const target = targetScoreFor(players.length);
+    const reached = [...session.scores.entries()].filter(
+      ([id, score]) => presentIds.has(id) && score >= target,
     );
-    return;
-  }
-
-  // 轮换建筑者(按加入顺序)
-  if (result === "builder_left") {
-    session.order = session.order.filter((id) => id !== session.builderId);
-    if (session.order.length < MIN_PLAYERS) {
-      runtime.endGame(roomId, "人数不足");
+    if (reached.length > 0) {
+      const max = Math.max(...reached.map(([, score]) => score));
+      const winners = reached
+        .filter(([, score]) => score === max)
+        .map(([id]) => playerName(runtime, roomId, id));
+      runtime.endGame(
+        roomId,
+        "游戏结束",
+        `§e游戏结束!获胜:${winners.join("、")}(最高 ${max} 分)`,
+      );
       return;
     }
-    session.builderIndex = session.builderIndex % session.order.length;
-  } else {
-    session.builderIndex = (session.builderIndex + 1) % session.order.length;
+
+    // 轮换建筑者(按加入顺序)
+    if (result === "builder_left") {
+      session.order = session.order.filter((id) => id !== session.builderId);
+      if (session.order.length < MIN_PLAYERS) {
+        runtime.endGame(roomId, "人数不足");
+        return;
+      }
+      session.builderIndex = session.builderIndex % session.order.length;
+    } else {
+      session.builderIndex = (session.builderIndex + 1) % session.order.length;
+    }
+    await nextRound(runtime, roomId, session);
+  } catch (error) {
+    console.warn(
+      `[Bearcade guessnbuild] 回合结算异常 room=${roomId}`,
+      error,
+    );
+    runtime.endGame(roomId, "回合结算异常");
   }
-  await nextRound(runtime, roomId, session);
 }
 
 function canEdit(

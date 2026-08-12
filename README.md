@@ -107,7 +107,7 @@ Core 提供命令:
 - `/bearcade:tmp tp <gamename>`:传送到指定游戏的模板维度;
 - `/bearcade:tmp ap <gamename>`:将指定游戏的模板应用到其全部房间;
 - `/bearcade:tmp sz <gamename>`:打开表单配置模板范围的起始点/终点(游戏内配置优先于 config.ts,保存到动态属性);
-- `/bearcade:quit <gamename>`:强制中止执行者当前维度中该游戏的对局。
+- `/bearcade:quit`:在对应游戏房间维度执行,强制中止该房间的对局。
 
 ## 大厅与 DDUI 菜单
 

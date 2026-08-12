@@ -192,7 +192,7 @@ Core 只负责以下内容:
 
 **手动强制中止与重置(强制要求)**:
 
-- 强制中止命令由 Core 统一提供,格式为 `/bearcade:quit <gamename>`(执行者必须位于该游戏的房间维度);
+- 强制中止命令由 Core 统一提供,格式为 `/bearcade:quit`(无参数,执行者必须位于该游戏的房间维度,Core 自动从维度 ID 解析游戏);
 - 命令行为:无论对局处于**倒计时中**还是**运行中**,执行后立即中断对局 → 将房间内玩家传送回大厅 → 从模板维度重新复制场地 → 上报 `idle`;
 - 命令在非对局维度或无对局运行时返回明确失败提示,不得误伤其他房间;
 - 该机制是运营与测试的兜底,不允许小游戏包省略。
@@ -278,7 +278,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | `game.tp` | `/bearcade:tmp tp <gamename>` | `{ game, playerId }` 传送到模板维度 |
 | `game.apply` | `/bearcade:tmp ap <gamename>` | `{ game }` 应用模板到全部房间 |
 | `game.sz` | `/bearcade:tmp sz <gamename>` | `{ game, playerId }` 打开模板范围配置表单 |
-| `game.quit` | `/bearcade:quit <gamename>` | `{ game, dimensionId }` 强制中止指定维度对局 |
+| `game.quit` | `/bearcade:quit`(在房间维度执行) | `{ game, dimensionId }` 强制中止指定维度对局 |
 
 ### 5.5 来源校验
 
@@ -356,3 +356,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | Gomoku 准备倒计时改为 5 秒(2/2 满员后 5 秒开局) |
 | 2026-08-13 | 修正:恢复模板维度常加载(worldLoad 捕获结构前区块必须已加载,否则 createFromWorld 失败) |
 | 2026-08-13 | GuessNBuild:修复答对后回合卡死(phase 同步锁 + system.run 结算),准备倒计时改为 10 秒,新增可开关调试日志命令 `/bearcade:gnb_debug` |
+| 2026-08-13 | 修复 GuessNBuild 第二回合卡死(回合开始未重置 settling 防重入标记);回合重置/结算加异常兜底;`/bearcade:quit` 改为免参数、按当前维度路由 |
