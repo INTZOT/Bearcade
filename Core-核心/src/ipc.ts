@@ -46,6 +46,11 @@ export function initIpc(registry: GameRegistry): void {
       case "room.status":
         handleRoomStatus(registry, envelope.packId, envelope.payload);
         break;
+      // Core 自己下发给游戏包的指令,Core 侧直接忽略
+      case "game.tp":
+      case "game.apply":
+      case "game.quit":
+        break;
       default:
         console.warn(`[Bearcade Core] 未知操作码:${envelope.op}`);
         break;
