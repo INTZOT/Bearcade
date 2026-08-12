@@ -161,6 +161,7 @@ Core 校验 `packId`(manifest header UUID)与 `game` 匹配,并结合 `sourceTyp
 ## 工程与发布
 
 - 每个包独立构建、独立发布为 `.mcaddon`;构建产物统一收集到 `dist/packages/`;
+- 所有包统一版本 **Preview v0.0.1**,版本号集中在 `config/packs.json` 的 `projectVersion`,构建时写入 manifest;日常更新不逐包改版本;
 - 游戏包 manifest 通过包依赖声明依赖 Core(保证加载顺序);
 - 房间管理通用逻辑集中在 `shared/minigame-core`,构建期内联进每个小游戏包;改共享代码后 `npm run build` 即同步全部包;
 - 所有包以 `docs/` 内类型定义为基准:当前 `@minecraft/server` 2.10.0-beta、`@minecraft/server-ui` 2.2.0-beta、`min_engine_version` [1, 26, 40](预发布版本,启用需匹配对应实验开关);

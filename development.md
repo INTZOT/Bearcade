@@ -292,6 +292,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 ## 6. 工程与发布
 
 - 每个包独立构建、独立发布为 `.mcaddon`,构建产物统一收集到根目录 `dist/packages/`;
+- **包版本统一管理**:所有包的 manifest 版本由 `config/packs.json` 的 `projectVersion` 统一写入(当前 **Preview v0.0.1**),日常迭代不逐包升 manifest 版本,直接构建覆盖部署;正式发版时才统一提升 `projectVersion`;
 - `npm run deploy` 部署到开发行为包目录(默认 Levilauncher 1.26.42.01,可用 `MC_DEV_PACKS` 覆盖),世界重载或 `/reload` 后生效;
 - 游戏包 manifest 使用包依赖(`packDependencies`)声明依赖 `Core-核心`(header UUID + 版本),保证 Core 先加载;
 - 类型定义以仓库 `docs/` 为准(同步自 Beatorini 包内最新定义):当前为 `@minecraft/server` 2.10.0-beta.1.26.43-stable、`@minecraft/server-ui` 2.2.0-beta.1.26.43-stable、`@minecraft/common` 1.3.0、`@minecraft/vanilla-data` 1.26.40(对应 MC 1.26.42/1.26.43);该定义为预发布版本,启用时需匹配对应实验开关;manifest 依赖版本与 `min_engine_version` 必须与所选定义对齐;若改用稳定版,须先核对 API 差异;
@@ -383,3 +384,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | 传送统一按方块中心(+0.5);GuessNBuild 每回合开始把全部玩家传送到 `(0,64,0)` 中心 |
 | 2026-08-13 | 新增 GitHub Actions PR 检查(自动 typecheck + build);development.md 补新游戏合并流程 |
 | 2026-08-13 | GuessNBuild 第一版验证通过(回合制/聊天答题/题库/计分/调试开关全链路可运行) |
+| 2026-08-13 | 包版本统一为 Preview v0.0.1:版本号集中在 config/packs.json 的 projectVersion,构建时写入 manifest |

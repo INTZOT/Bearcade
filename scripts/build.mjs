@@ -7,6 +7,15 @@ const config = JSON.parse(
   await readFile(path.join(root, "config", "packs.json"), "utf8"),
 );
 
+const projectVersion = config.projectVersion ?? [0, 0, 1];
+if (
+  !Array.isArray(projectVersion) ||
+  projectVersion.length !== 3 ||
+  !projectVersion.every((n) => Number.isInteger(n))
+) {
+  throw new Error("config/packs.json 的 projectVersion 必须为 [major, minor, patch] 整数数组");
+}
+
 const EXTERNALS = [
   "@minecraft/common",
   "@minecraft/math",
@@ -18,6 +27,7 @@ const EXTERNALS = [
 for (const pack of config.packs) {
   const dir = path.join(root, pack.dir);
   const entry = path.join(dir, "src", "main.ts");
+  const version = pack.version ?? projectVersion;
 
   await mkdir(path.join(dir, "scripts"), { recursive: true });
   await build({
@@ -45,7 +55,7 @@ for (const pack of config.packs) {
       name: pack.name,
       description: pack.description,
       uuid: pack.headerUuid,
-      version: pack.version,
+      version,
       min_engine_version: pack.minEngineVersion,
     },
     modules: [
@@ -53,7 +63,7 @@ for (const pack of config.packs) {
         type: "script",
         language: "javascript",
         uuid: pack.moduleUuid,
-        version: pack.version,
+        version,
         entry: "scripts/main.js",
       },
     ],
@@ -64,6 +74,7 @@ for (const pack of config.packs) {
     path.join(dir, "manifest.json"),
     JSON.stringify(manifest, null, 2) + "\n",
   );
+  console.log(`manifest 已生成:${pack.id} v${version.join(".")}`);
 }
 
 console.log("build 完成:manifest 已生成,脚本已打包");

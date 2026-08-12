@@ -1,4 +1,6 @@
 {
+  "projectVersion": [0, 0, 1],
+  "phase": "Preview",
   "packs": [
     {
       "id": "core",
@@ -7,7 +9,6 @@
       "description": "Bearcade 小游戏服务器核心:大厅、DDUI 菜单、入房校验与房间状态汇聚",
       "headerUuid": "9ce781fb-ff67-4e21-904d-6a5b8b457703",
       "moduleUuid": "24e35e86-c463-40d1-950b-5c7a0f15e355",
-      "version": [0, 1, 0],
       "minEngineVersion": [1, 26, 40],
       "dependencies": [
         { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
@@ -22,7 +23,6 @@
       "description": "Bearcade 五子棋小游戏包(当前阶段:房间与模板维度注册)",
       "headerUuid": "cae46db7-ef95-477a-841c-5c29d38eefe5",
       "moduleUuid": "91f71048-555d-4beb-8460-759401953142",
-      "version": [0, 1, 0],
       "minEngineVersion": [1, 26, 40],
       "dependencies": [
         { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
@@ -37,7 +37,6 @@
       "description": "Bearcade 小游戏模板包:复制后替换 mygame 即可开发新小游戏",
       "headerUuid": "95076440-41a8-49f8-9aeb-f57f4edd0db5",
       "moduleUuid": "606ae45a-4410-4625-adba-f1532e850615",
-      "version": [0, 1, 0],
       "minEngineVersion": [1, 26, 40],
       "dependencies": [
         { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
@@ -52,7 +51,6 @@
       "description": "Bearcade 建筑猜猜乐小游戏包(开发中)",
       "headerUuid": "452ba546-30fd-45d4-bfc5-cee80429ecfc",
       "moduleUuid": "d0dacf88-20f6-42d9-be62-b7853db7147c",
-      "version": [0, 1, 0],
       "minEngineVersion": [1, 26, 40],
       "dependencies": [
         { "module_name": "@minecraft/server", "version": "2.10.0-beta" },

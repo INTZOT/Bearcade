@@ -1,6 +1,6 @@
 {
   "name": "bearcade",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "description": "Bearcade 基岩版小游戏服务器(分包解耦 + 容器化房间)",
