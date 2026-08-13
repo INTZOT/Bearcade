@@ -5,7 +5,6 @@ import {
   DisplaySlotId,
   ObjectiveSortOrder,
   type Player,
-  type EntityHealthComponent,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
@@ -121,13 +120,6 @@ function clearFieldEntities(
 function teamSpawn(team: Team) {
   const cfg = getBridgeConfig();
   return team === "red" ? cfg.redSpawn : cfg.blueSpawn;
-}
-
-function healPlayer(player: Player): void {
-  const health = player.getComponent("minecraft:health") as
-    | EntityHealthComponent
-    | undefined;
-  if (health) health.setCurrentValue(health.effectiveMax);
 }
 
 function isInside(
@@ -355,7 +347,6 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
     if (!team) return;
     const player = event.player;
     player.setGameMode(GameMode.Survival);
-    healPlayer(player);
     runtime.teleportPlayer(roomId, player, teamSpawn(team));
     applyLoadout(team, player);
     setTeamName(player, team);
@@ -408,11 +399,8 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
           const team = teamOf(session, player.id);
           if (!team) continue;
           if (player.location.y < -20) {
-            runtime.teleportPlayer(roomId, player, teamSpawn(team));
-            healPlayer(player);
-            applyLoadout(team, player);
-            setTeamName(player, team);
-            player.sendMessage("§c你掉入虚空,已返回基地并回满血");
+            player.kill();
+            player.sendMessage("§c你掉入虚空,已被击杀");
             continue;
           }
           const cfg = getBridgeConfig();
