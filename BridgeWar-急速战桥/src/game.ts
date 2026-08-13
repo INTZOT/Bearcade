@@ -414,9 +414,15 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
             player.sendMessage("§c你掉入虚空,已返回基地并回满血");
             continue;
           }
+          const cfg = getBridgeConfig();
+          const ownCore = team === "red" ? cfg.redCore : cfg.blueCore;
+          if (isInside(ownCore, player.location)) {
+            runtime.teleportPlayer(roomId, player, teamSpawn(team));
+            player.sendMessage("§c你进入了己方核心区,已传送回出生点");
+            continue;
+          }
           // 回合结束到下一回合开始之间禁止得分
           if (session.roundActive) {
-            const cfg = getBridgeConfig();
             const core =
               team === "red" ? cfg.blueCore : cfg.redCore;
             if (isInside(core, player.location)) {
