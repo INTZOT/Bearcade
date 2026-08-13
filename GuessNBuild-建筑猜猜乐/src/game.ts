@@ -8,7 +8,7 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { getGuessConfig } from "./guess-config";
+import { getGuessConfig, openGuessConfig } from "./guess-config";
 import {
   BUILDER_GAIN,
   GUESSER_GAIN,
@@ -400,6 +400,9 @@ export function makeGameHooks(
     },
     canBreak(event, roomId) {
       return canEdit(getRuntime(), roomId, event.player, event.block.location);
+    },
+    openConfig(player) {
+      openGuessConfig(player, getRuntime());
     },
   };
 }

@@ -50,7 +50,10 @@ export function initIpc(registry: GameRegistry): void {
       // Core 自己下发给游戏包的指令,Core 侧直接忽略
       case "game.tp":
       case "game.apply":
+      case "game.sz":
       case "game.quit":
+      case "game.config":
+      case "game.debug":
       case "party.mode":
         break;
       default:

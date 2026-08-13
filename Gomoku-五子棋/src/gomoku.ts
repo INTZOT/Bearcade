@@ -8,7 +8,7 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { getGomokuConfig } from "./gomoku-config";
+import { getGomokuConfig, openGomokuConfig } from "./gomoku-config";
 import {
   STONE_BLACK,
   STONE_WHITE,
@@ -230,6 +230,9 @@ export function makeGomokuHooks(
     },
     canPlace(event, roomId) {
       return handlePlace(getRuntime(), event, roomId);
+    },
+    openConfig(player) {
+      openGomokuConfig(player, getRuntime());
     },
   };
 }

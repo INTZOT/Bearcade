@@ -8,7 +8,7 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { getBridgeConfig } from "./bridge-config";
+import { getBridgeConfig, openBridgeConfig } from "./bridge-config";
 import {
   RESPAWN_DELAY_TICKS,
   ROUND_END_DELAY_TICKS,
@@ -290,6 +290,9 @@ export function makeGameHooks(
       if (!set || !set.has(key)) return false;
       set.delete(key);
       return true;
+    },
+    openConfig(player) {
+      openBridgeConfig(player, getRuntime());
     },
   };
 }
