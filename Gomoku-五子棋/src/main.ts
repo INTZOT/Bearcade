@@ -43,7 +43,8 @@ runtime = new MinigameRuntime(
     startPositions: [START_POS_BLACK, START_POS_WHITE],
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
-    startDelayTicks: 5 * 20,
+    startDelayTicks: 60 * 20,
+    debugStartDelayTicks: 10 * 20,
   },
   makeGomokuHooks(() => runtime),
 );

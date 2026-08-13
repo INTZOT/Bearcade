@@ -699,9 +699,9 @@ export class MinigameRuntime {
       return this.config.partyStartDelayTicks ?? 60 * 20;
     }
     if (this.debugEnabled) {
-      return this.config.debugStartDelayTicks ?? 5 * 20;
+      return this.config.debugStartDelayTicks ?? 10 * 20;
     }
-    return this.config.startDelayTicks ?? 40;
+    return this.config.startDelayTicks ?? 60 * 20;
   }
 
   setPartyMode(enabled: boolean): void {
