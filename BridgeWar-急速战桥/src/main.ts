@@ -1,6 +1,6 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { makeGameHooks } from "./game";
+import { initBridgeWar, makeGameHooks } from "./game";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -55,4 +55,5 @@ system.beforeEvents.startup.subscribe((event) => {
 world.afterEvents.worldLoad.subscribe(() => {
   runtime.initWorld();
   runtime.initEvents();
+  initBridgeWar(getRuntime);
 });

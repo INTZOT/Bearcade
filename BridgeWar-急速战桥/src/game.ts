@@ -1,5 +1,234 @@
+import {
+  system,
+  world,
+  GameMode,
+  DisplaySlotId,
+  ObjectiveSortOrder,
+  type Player,
+} from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import {
+  BLUE_CORE_FROM,
+  BLUE_CORE_TO,
+  BLUE_SPAWN,
+  RED_CORE_FROM,
+  RED_CORE_TO,
+  RED_SPAWN,
+  RESPAWN_DELAY_TICKS,
+  ROUND_END_DELAY_TICKS,
+  TEMPLATE_FROM,
+  TEMPLATE_TO,
+  WIN_SCORE,
+} from "./config";
+
+type Team = "red" | "blue";
+
+interface CoreRegion {
+  from: { x: number; y: number; z: number };
+  to: { x: number; y: number; z: number };
+}
+
+interface Session {
+  teams: { red: string[]; blue: string[] };
+  scores: { red: number; blue: number };
+  target: number;
+  roundActive: boolean;
+  respawnUntil: Map<string, number>;
+}
+
+const RED_CORE: CoreRegion = { from: RED_CORE_FROM, to: RED_CORE_TO };
+const BLUE_CORE: CoreRegion = { from: BLUE_CORE_FROM, to: BLUE_CORE_TO };
+const sessions = new Map<number, Session>();
+const placedBlocks = new Map<number, Set<string>>();
+
+function objectiveId(roomId: number): string {
+  return `bearcade:bw_score_${roomId}`;
+}
+
+function teamName(team: Team): string {
+  return team === "red" ? "红队" : "蓝队";
+}
+
+function teamColor(team: Team): string {
+  return team === "red" ? "§c" : "§9";
+}
+
+function teamOf(session: Session, playerId: string): Team | undefined {
+  if (session.teams.red.includes(playerId)) return "red";
+  if (session.teams.blue.includes(playerId)) return "blue";
+  return undefined;
+}
+
+function playerName(
+  runtime: MinigameRuntime,
+  roomId: number,
+  playerId: string,
+): string {
+  return (
+    runtime.roomPlayers(roomId).find((p) => p.id === playerId)?.name ??
+    playerId
+  );
+}
+
+function ensureObjective(roomId: number, target: number): void {
+  const id = objectiveId(roomId);
+  const existing = world.scoreboard.getObjective(id);
+  if (existing) world.scoreboard.removeObjective(id);
+  const objective = world.scoreboard.addObjective(
+    id,
+    `急速战桥 · 目标 ${target} 分`,
+  );
+  world.scoreboard.setObjectiveAtDisplaySlot(DisplaySlotId.Sidebar, {
+    objective,
+    sortOrder: ObjectiveSortOrder.Descending,
+  });
+}
+
+function setScore(roomId: number, participant: string, score: number): void {
+  const objective = world.scoreboard.getObjective(objectiveId(roomId));
+  if (objective) objective.setScore(participant, score);
+}
+
+function refreshScoreboard(roomId: number, session: Session): void {
+  setScore(roomId, "红队", session.scores.red);
+  setScore(roomId, "蓝队", session.scores.blue);
+}
+
+function clearFieldEntities(
+  runtime: MinigameRuntime,
+  roomId: number,
+): void {
+  for (const entity of runtime.roomDim(roomId).getEntities()) {
+    if (entity.typeId === "minecraft:player") continue;
+    try {
+      entity.remove();
+    } catch (error) {
+      console.warn(
+        `[Bearcade bridgewar] 清理实体失败(${entity.typeId})`,
+        error,
+      );
+    }
+  }
+}
+
+function teamSpawn(team: Team) {
+  return team === "red" ? RED_SPAWN : BLUE_SPAWN;
+}
+
+function isInside(
+  region: CoreRegion,
+  location: { x: number; y: number; z: number },
+): boolean {
+  const x = Math.floor(location.x);
+  const y = Math.floor(location.y);
+  const z = Math.floor(location.z);
+  return (
+    x >= region.from.x &&
+    x <= region.to.x &&
+    y >= region.from.y &&
+    y <= region.to.y &&
+    z >= region.from.z &&
+    z <= region.to.z
+  );
+}
+
+function inTemplate(location: { x: number; y: number; z: number }): boolean {
+  return (
+    location.x >= TEMPLATE_FROM.x &&
+    location.x <= TEMPLATE_TO.x &&
+    location.y >= TEMPLATE_FROM.y &&
+    location.y <= TEMPLATE_TO.y &&
+    location.z >= TEMPLATE_FROM.z &&
+    location.z <= TEMPLATE_TO.z
+  );
+}
+
+function updateActionbars(
+  runtime: MinigameRuntime,
+  roomId: number,
+  session: Session,
+): void {
+  for (const player of runtime.roomPlayers(roomId)) {
+    const team = teamOf(session, player.id);
+    if (!team) continue;
+    player.onScreenDisplay.setActionBar(
+      `${teamColor(team)}${teamName(team)}§r · 比分 ${session.scores.red}:${session.scores.blue} · 目标 ${session.target}`,
+    );
+  }
+}
+
+async function startRound(
+  runtime: MinigameRuntime,
+  roomId: number,
+  session: Session,
+): Promise<void> {
+  clearFieldEntities(runtime, roomId);
+  await runtime.resetRoom(roomId);
+  placedBlocks.get(roomId)?.clear();
+  session.roundActive = true;
+  session.respawnUntil.clear();
+
+  for (const player of runtime.roomPlayers(roomId)) {
+    const team = teamOf(session, player.id);
+    if (!team) continue;
+    player.setGameMode(GameMode.Adventure);
+    runtime.teleportPlayer(roomId, player, teamSpawn(team));
+  }
+
+  runtime.announce(
+    roomId,
+    `§a回合开始!红队 ${session.teams.red.length} 人 / 蓝队 ${session.teams.blue.length} 人,冲进对方核心区得分!`,
+  );
+  updateActionbars(runtime, roomId, session);
+}
+
+async function scoreRound(
+  runtime: MinigameRuntime,
+  roomId: number,
+  session: Session,
+  team: Team,
+): Promise<void> {
+  if (!session.roundActive) return;
+  session.roundActive = false;
+  session.scores[team] += 1;
+  refreshScoreboard(roomId, session);
+  runtime.announce(
+    roomId,
+    `${teamColor(team)}${teamName(team)} 得分!比分 ${session.scores.red}:${session.scores.blue}`,
+  );
+
+  if (session.scores[team] >= session.target) {
+    runtime.endGame(
+      roomId,
+      "游戏结束",
+      `${teamColor(team)}${teamName(team)} 获胜!比分 ${session.scores.red}:${session.scores.blue}`,
+    );
+    return;
+  }
+  system.runTimeout(() => {
+    void startRound(runtime, roomId, session);
+  }, ROUND_END_DELAY_TICKS);
+}
+
+function assignTeams(players: Player[]): Session["teams"] {
+  const shuffled = [...players].sort(() => Math.random() - 0.5);
+  const half = Math.floor(shuffled.length / 2);
+  const teams = {
+    red: shuffled.slice(0, half).map((p) => p.id),
+    blue: shuffled.slice(half, half * 2).map((p) => p.id),
+  };
+  // 奇数人数:多出的一人随机分给一队
+  if (shuffled.length % 2 === 1) {
+    const extra = shuffled[shuffled.length - 1];
+    if (Math.random() < 0.5) {
+      teams.red.push(extra.id);
+    } else {
+      teams.blue.push(extra.id);
+    }
+  }
+  return teams;
+}
 
 export function makeGameHooks(
   getRuntime: () => MinigameRuntime,
@@ -7,11 +236,151 @@ export function makeGameHooks(
   return {
     onGameStart(roomId, players) {
       const runtime = getRuntime();
+      const session: Session = {
+        teams: assignTeams(players),
+        scores: { red: 0, blue: 0 },
+        target: WIN_SCORE,
+        roundActive: false,
+        respawnUntil: new Map(),
+      };
+      sessions.set(roomId, session);
+      placedBlocks.set(roomId, new Set());
+      ensureObjective(roomId, session.target);
+      refreshScoreboard(roomId, session);
+
+      const redNames = session.teams.red
+        .map((id) => playerName(runtime, roomId, id))
+        .join("、");
+      const blueNames = session.teams.blue
+        .map((id) => playerName(runtime, roomId, id))
+        .join("、");
       runtime.announce(
         roomId,
-        `§a对局开始!${players.length} 名玩家,战桥玩法待实现`,
+        `§a队伍分配:§c红队:${redNames} §r/ §9蓝队:${blueNames}`,
       );
-      // TODO: 分队伍、开局、核心区得分、回合轮换、胜负判定等玩法待确认后实现
+      void startRound(runtime, roomId, session);
+    },
+    onBeforeReset(roomId) {
+      const runtime = getRuntime();
+      for (const player of runtime.roomPlayers(roomId)) {
+        player.setGameMode(GameMode.Adventure);
+      }
+      sessions.delete(roomId);
+      placedBlocks.delete(roomId);
+      try {
+        world.scoreboard.removeObjective(objectiveId(roomId));
+      } catch {
+        // 目标可能已不存在
+      }
+      try {
+        world.scoreboard.clearObjectiveAtDisplaySlot(DisplaySlotId.Sidebar);
+      } catch {
+        // 无侧边栏目标时忽略
+      }
+    },
+    canPlace(event, roomId) {
+      const session = sessions.get(roomId);
+      if (!session || !session.roundActive) return false;
+      const loc = event.block.location;
+      if (!inTemplate(loc)) return false;
+      placedBlocks
+        .get(roomId)
+        ?.add(`${loc.x},${loc.y},${loc.z}`);
+      return true;
+    },
+    canBreak(event, roomId) {
+      const session = sessions.get(roomId);
+      if (!session || !session.roundActive) return false;
+      const loc = event.block.location;
+      const key = `${loc.x},${loc.y},${loc.z}`;
+      const set = placedBlocks.get(roomId);
+      if (!set || !set.has(key)) return false;
+      set.delete(key);
+      return true;
     },
   };
+}
+
+export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
+  // 取消友军伤害(同房间同队伍玩家互相攻击不造成伤害)
+  world.beforeEvents.entityHurt.subscribe((event) => {
+    const attacker = event.damageSource?.damagingEntity;
+    const victim = event.hurtEntity;
+    if (
+      !attacker ||
+      attacker.typeId !== "minecraft:player" ||
+      victim.typeId !== "minecraft:player"
+    ) {
+      return;
+    }
+    const runtime = getRuntime();
+    const roomId = runtime.roomIdFromDimension(victim.dimension.id);
+    if (roomId === undefined) return;
+    const session = sessions.get(roomId);
+    if (!session) return;
+    const victimTeam = teamOf(session, victim.id);
+    const attackerTeam = teamOf(session, attacker.id);
+    if (victimTeam && victimTeam === attackerTeam) {
+      event.cancel = true;
+    }
+  });
+
+  // 玩家名字按队伍颜色渲染
+  world.beforeEvents.chatSend.subscribe((event) => {
+    const runtime = getRuntime();
+    const roomId = runtime.roomIdFromDimension(event.sender.dimension.id);
+    if (roomId === undefined) return;
+    const session = sessions.get(roomId);
+    if (!session) return;
+    event.cancel = true;
+    const team = teamOf(session, event.sender.id);
+    world.sendMessage(
+      `${team ? teamColor(team) : "§f"}${event.sender.name}§r: ${event.message}`,
+    );
+  });
+
+  // 虚空复活 / 核心区得分 / actionbar
+  system.runInterval(() => {
+    const runtime = getRuntime();
+    for (const [roomId, session] of [...sessions.entries()]) {
+      try {
+        const players = runtime.roomPlayers(roomId);
+        const present = new Set(players.map((p) => p.id));
+        if (
+          !session.teams.red.some((id) => present.has(id)) ||
+          !session.teams.blue.some((id) => present.has(id))
+        ) {
+          runtime.endGame(roomId, "队伍无人", "§c有一方队伍已无人,游戏结束");
+          continue;
+        }
+
+        for (const player of players) {
+          const team = teamOf(session, player.id);
+          if (!team) continue;
+          const until = session.respawnUntil.get(player.id) ?? 0;
+          if (player.location.y < -20 && system.currentTick >= until) {
+            session.respawnUntil.set(
+              player.id,
+              system.currentTick + RESPAWN_DELAY_TICKS,
+            );
+            runtime.teleportPlayer(roomId, player, teamSpawn(team));
+            player.sendMessage("§c你掉入虚空,3 秒内不能得分");
+            continue;
+          }
+          if (session.roundActive && system.currentTick >= until) {
+            const core = team === "red" ? BLUE_CORE : RED_CORE;
+            if (isInside(core, player.location)) {
+              void scoreRound(runtime, roomId, session, team);
+            }
+          }
+        }
+        updateActionbars(runtime, roomId, session);
+      } catch (error) {
+        console.warn(
+          `[Bearcade bridgewar] 对局 tick 异常 room=${roomId}`,
+          error,
+        );
+      }
+    }
+  }, 10);
 }

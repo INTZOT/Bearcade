@@ -8,11 +8,16 @@ export const PACK_ID = "1f434015-345b-4a9a-926d-2c1da5a29681";
 export const IPC_CHANNEL = "bearcade:ipc";
 export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 
-// 人数配置(待确认)
-export const ROOM_COUNT = 2;
+// 人数与派对配置
+export const ROOM_COUNT = 4;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
-export const PARTY_AVAILABLE = false;
+export const PARTY_AVAILABLE = true;
+
+// 玩法规则
+export const WIN_SCORE = 5; // 先到 5 分队胜
+export const RESPAWN_DELAY_TICKS = 60; // 掉虚空后 3 秒内不能得分
+export const ROUND_END_DELAY_TICKS = 60; // 回合结束后 3 秒重置并开下一回合
 
 // ===== 场地坐标(待模板场地建好后填写) =====
 export const TEMPLATE_FROM = { x: -16, y: -64, z: -8 };
@@ -27,6 +32,14 @@ export const START_POSITIONS = [
   { x: -16, y: 64, z: 0 },
   { x: 16, y: 64, z: 0 },
 ];
+
+// 队伍出生点与核心区(开发者配置,模板场地建好后核对)
+export const RED_SPAWN = { x: -14, y: 64, z: 0 };
+export const BLUE_SPAWN = { x: 14, y: 64, z: 0 };
+export const RED_CORE_FROM = { x: -16, y: 63, z: -4 };
+export const RED_CORE_TO = { x: -13, y: 66, z: 4 };
+export const BLUE_CORE_FROM = { x: 13, y: 63, z: -4 };
+export const BLUE_CORE_TO = { x: 16, y: 66, z: 4 };
 
 export const DIMENSION_NAMESPACE = "bearcade";
 export const TEMPLATE_DIMENSION_ID = `${DIMENSION_NAMESPACE}:${GAME_ID}_template`;
