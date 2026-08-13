@@ -17,6 +17,11 @@ export const PARTY_AVAILABLE = true;
 // 玩法规则
 export const WIN_SCORE = 5; // 先到 5 分队胜
 export const ROUND_END_DELAY_TICKS = 60; // 回合结束后 3 秒重置并开下一回合
+export const BRIDGE_WOOLS = [
+  "minecraft:red_wool",
+  "minecraft:blue_wool",
+]; // 玩家仅可放置这两种方块
+export const SPAWN_PROTECT_RADIUS = 2; // 出生点周边禁止放置的半径
 
 // ===== 场地坐标(待模板场地建好后填写) =====
 export const TEMPLATE_FROM = { x: -16, y: -64, z: -8 };

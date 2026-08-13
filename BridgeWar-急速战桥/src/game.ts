@@ -13,6 +13,8 @@ import { getBridgeConfig, openBridgeConfig } from "./bridge-config";
 import { applyLoadout } from "./loadout";
 import {
   ROUND_END_DELAY_TICKS,
+  BRIDGE_WOOLS,
+  SPAWN_PROTECT_RADIUS,
   TEMPLATE_FROM,
   TEMPLATE_TO,
 } from "./config";
@@ -155,6 +157,25 @@ function inTemplate(location: { x: number; y: number; z: number }): boolean {
     location.z >= TEMPLATE_FROM.z &&
     location.z <= TEMPLATE_TO.z
   );
+}
+
+function isInProtectedZone(
+  location: { x: number; y: number; z: number },
+): boolean {
+  const cfg = getBridgeConfig();
+  if (isInside(cfg.redCore, location) || isInside(cfg.blueCore, location)) {
+    return true;
+  }
+  for (const spawn of [cfg.redSpawn, cfg.blueSpawn]) {
+    if (
+      Math.abs(location.x - spawn.x) <= SPAWN_PROTECT_RADIUS &&
+      Math.abs(location.y - spawn.y) <= SPAWN_PROTECT_RADIUS &&
+      Math.abs(location.z - spawn.z) <= SPAWN_PROTECT_RADIUS
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function updateActionbars(
@@ -304,6 +325,9 @@ export function makeGameHooks(
       if (!session || !session.roundActive) return false;
       const loc = event.block.location;
       if (!inTemplate(loc)) return false;
+      const typeId = event.permutationToPlace.type.id;
+      if (!BRIDGE_WOOLS.includes(typeId)) return false;
+      if (isInProtectedZone(loc)) return false;
       placedBlocks
         .get(roomId)
         ?.add(`${loc.x},${loc.y},${loc.z}`);
