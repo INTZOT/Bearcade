@@ -143,12 +143,15 @@ export class MinigameRuntime {
         break;
       }
       case "game.debug": {
-        const on = this.toggleDebug();
+        if (typeof payload.enabled !== "boolean") return;
+        this.setDebug(payload.enabled);
         if (typeof payload.playerId === "string") {
           const player = world
             .getAllPlayers()
             .find((p) => p.id === payload.playerId);
-          player?.sendMessage(`调试日志已${on ? "开启" : "关闭"}`);
+          player?.sendMessage(
+            `调试日志已${payload.enabled ? "开启" : "关闭"}`,
+          );
         }
         break;
       }
@@ -159,8 +162,8 @@ export class MinigameRuntime {
     return this.debugEnabled;
   }
 
-  toggleDebug(): boolean {
-    this.debugEnabled = !this.debugEnabled;
+  setDebug(enabled: boolean): void {
+    this.debugEnabled = enabled;
     system.run(() => {
       try {
         world.setDynamicProperty(
@@ -171,8 +174,7 @@ export class MinigameRuntime {
         this.log("调试状态持久化失败", error);
       }
     });
-    this.log(`调试日志已${this.debugEnabled ? "开启" : "关闭"}`);
-    return this.debugEnabled;
+    this.log(`调试日志已${enabled ? "开启" : "关闭"}`);
   }
 
   private loadDebugState(): void {

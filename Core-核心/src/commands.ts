@@ -30,6 +30,10 @@ export function initCommands(
         "ap",
         "sz",
       ]);
+      event.customCommandRegistry.registerEnum("bearcade:debug_state", [
+        "true",
+        "false",
+      ]);
     } catch (error) {
       console.warn("[Bearcade Core] 注册 tmp 枚举失败", error);
     }
@@ -246,9 +250,14 @@ export function initCommands(
               name: "gamename",
               type: CustomCommandParamType.String,
             },
+            {
+              name: "enabled",
+              type: CustomCommandParamType.Enum,
+              enumName: "bearcade:debug_state",
+            },
           ],
         },
-        (origin, gamename: string) => {
+        (origin, gamename: string, enabled: string) => {
           const player = origin.sourceEntity;
           if (!player || !(player instanceof Player)) {
             return {
@@ -263,11 +272,15 @@ export function initCommands(
             };
           }
           system.run(() => {
-            send("game.debug", { game: gamename, playerId: player.id });
+            send("game.debug", {
+              game: gamename,
+              playerId: player.id,
+              enabled: enabled === "true",
+            });
           });
           return {
             status: CustomCommandStatus.Success,
-            message: "已切换调试日志",
+            message: `调试日志已${enabled === "true" ? "开启" : "关闭"}`,
           };
         },
       );

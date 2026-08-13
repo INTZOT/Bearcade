@@ -17,7 +17,7 @@ Bearcade 小游戏包,**第一版已可运行**。房间管理复用 `shared/min
 ```text
 /bearcade:qbank            管理员:题库管理
 /bearcade:config guessnbuild  管理员:游戏配置(含题库/坐标)
-/bearcade:debug guessnbuild  管理员:开关调试日志(原 gnb_debug 仍可用)
+/bearcade:debug guessnbuild true|false  管理员:开启/关闭调试日志
 /bearcade:quit             在房间维度强制中止
 /bearcade:tmp tp guessnbuild   进入模板维度
 /bearcade:tmp sz guessnbuild   表单配置模板范围

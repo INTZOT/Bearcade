@@ -225,7 +225,7 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
   - 建筑猜猜乐:题库管理、准备房间坐标、每回合开局传送坐标;
   - 急速战桥:准备房间坐标、红/蓝队出生点、红/蓝队核心区、获胜所需分数。
 
-调试命令:`/bearcade:debug <gamename>`(管理员)经 `game.debug` IPC 切换该游戏的调试日志(共享运行时统一管理,GuessNBuild 已接入;原 `/bearcade:gnb_debug` 保留)。
+调试命令:`/bearcade:debug <gamename> true|false`(管理员)经 `game.debug` IPC 显式开启/关闭该游戏的调试日志(共享运行时统一管理,GuessNBuild 已接入;旧 `/bearcade:gnb_debug` 已移除)。
 
 ## 5. 通信协议规范
 
@@ -311,7 +311,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | `game.quit` | `/bearcade:quit`(在房间维度执行) | `{ game, dimensionId }` 强制中止指定维度对局 |
 | `party.mode` | `/bearcade:party`(Core 广播) | `{ enabled }` 通知游戏包派对模式开关(游戏包侧按 §4.5 调整倒计时) |
 | `game.config` | `/bearcade:config <gamename>` | `{ game, playerId }` 打开游戏运行时配置界面 |
-| `game.debug` | `/bearcade:debug <gamename>` | `{ game, playerId }` 切换该游戏调试日志 |
+| `game.debug` | `/bearcade:debug <gamename> true|false` | `{ game, playerId, enabled }` 显式开启/关闭该游戏调试日志 |
 
 ### 5.5 来源校验
 
@@ -425,4 +425,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | BridgeWar 玩法确认并实现:2~8 人/4 房/派对支持、随机平分红蓝、核心区得分、无时限、可搭拆桥、虚空复活、队伍色名与侧边栏计分 |
 | 2026-08-13 | 修复包依赖缺 version 导致小游戏包不被游戏识别的问题(构建脚本统一回退到 projectVersion) |
 | 2026-08-13 | 新增 `/bearcade:config <gamename>` 运行时配置系统(共享配置存储/表单组件,三游戏已接入;题库并入配置界面) |
-| 2026-08-13 | 新增 `/bearcade:debug <gamename>` 统一调试开关(共享运行时管理,GuessNBuild 调试日志桥接,gnb_debug 兼容保留) |
+| 2026-08-13 | `/bearcade:debug <gamename> true|false` 显式开关调试日志,移除旧 gnb_debug 命令 |

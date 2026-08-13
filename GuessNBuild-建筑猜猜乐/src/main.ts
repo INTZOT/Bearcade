@@ -2,7 +2,6 @@ import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { initGuessGame, makeGameHooks } from "./game";
 import { initQBank } from "./qbank";
-import { initDebugCommand } from "./debugCommand";
 import { bindDebugRuntime, isDebug } from "./debug";
 import { getGuessConfig, loadGuessConfig } from "./guess-config";
 import {
@@ -65,7 +64,6 @@ system.beforeEvents.startup.subscribe((event) => {
 });
 
 initQBank();
-initDebugCommand(syncDebugCountdown);
 
 world.afterEvents.worldLoad.subscribe(() => {
   syncDebugCountdown(isDebug());
