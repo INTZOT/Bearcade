@@ -21,7 +21,7 @@ export const BRIDGE_WOOLS = [
   "minecraft:red_wool",
   "minecraft:blue_wool",
 ]; // 玩家仅可放置这两种方块
-export const SPAWN_PROTECT_RADIUS = 2; // 出生点周边禁止放置的半径
+export const SPAWN_PROTECT_RADIUS = 1; // 出生点周边禁止放置的半径
 
 // ===== 场地坐标(待模板场地建好后填写) =====
 export const TEMPLATE_FROM = { x: -16, y: -64, z: -8 };
