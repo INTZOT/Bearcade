@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
@@ -32,5 +32,11 @@ for (const pack of config.packs) {
   cpSync(path.join(src, "scripts"), path.join(targetDir, "scripts"), {
     recursive: true,
   });
+  for (const extra of ["entities", "structures", "functions", "texts"]) {
+    const extraPath = path.join(src, extra);
+    if (existsSync(extraPath)) {
+      cpSync(extraPath, path.join(targetDir, extra), { recursive: true });
+    }
+  }
   console.log(`已部署 ${pack.name} -> ${targetDir}`);
 }

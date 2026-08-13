@@ -10,6 +10,7 @@ import {
   openRegionEditor,
   openVec3Editor,
 } from "../../shared/minigame-core/configUi";
+import { clearLoadout, saveLoadout } from "./loadout";
 import {
   BRIDGE_CONFIG_DEFAULTS,
   GAME_ID,
@@ -124,6 +125,46 @@ export function openBridgeConfig(
           },
           { min: 1, max: 100, back: backTo(player, runtime) },
         ),
+    },
+    {
+      label: "红方装备配置",
+      open: () =>
+        openConfigMenu(player, "红方装备配置", [
+          {
+            label: "保存当前玩家装备为红方装备",
+            open: () => {
+              const ok = saveLoadout("red", player);
+              player.sendMessage(ok ? "§a已保存红方装备" : "§c保存失败(装备仓库未就绪)");
+            },
+          },
+          {
+            label: "清空红方装备",
+            open: () => {
+              clearLoadout("red");
+              player.sendMessage("§a已清空红方装备");
+            },
+          },
+        ]),
+    },
+    {
+      label: "蓝方装备配置",
+      open: () =>
+        openConfigMenu(player, "蓝方装备配置", [
+          {
+            label: "保存当前玩家装备为蓝方装备",
+            open: () => {
+              const ok = saveLoadout("blue", player);
+              player.sendMessage(ok ? "§a已保存蓝方装备" : "§c保存失败(装备仓库未就绪)");
+            },
+          },
+          {
+            label: "清空蓝方装备",
+            open: () => {
+              clearLoadout("blue");
+              player.sendMessage("§a已清空蓝方装备");
+            },
+          },
+        ]),
     },
     {
       label: "恢复默认",

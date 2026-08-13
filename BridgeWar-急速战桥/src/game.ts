@@ -9,6 +9,7 @@ import {
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { getBridgeConfig, openBridgeConfig } from "./bridge-config";
+import { applyLoadout } from "./loadout";
 import {
   RESPAWN_DELAY_TICKS,
   ROUND_END_DELAY_TICKS,
@@ -167,6 +168,7 @@ async function startRound(
     if (!team) continue;
     player.setGameMode(GameMode.Adventure);
     runtime.teleportPlayer(roomId, player, teamSpawn(team));
+    applyLoadout(team, player);
   }
 
   runtime.announce(
@@ -360,6 +362,7 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
               system.currentTick + RESPAWN_DELAY_TICKS,
             );
             runtime.teleportPlayer(roomId, player, teamSpawn(team));
+            applyLoadout(team, player);
             player.sendMessage("§c你掉入虚空,3 秒内不能得分");
             continue;
           }

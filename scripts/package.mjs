@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
@@ -21,6 +21,12 @@ for (const pack of config.packs) {
   cpSync(path.join(src, "scripts"), path.join(dest, "scripts"), {
     recursive: true,
   });
+  for (const extra of ["entities", "structures", "functions", "texts"]) {
+    const extraPath = path.join(src, extra);
+    if (existsSync(extraPath)) {
+      cpSync(extraPath, path.join(dest, extra), { recursive: true });
+    }
+  }
 
   const zipPath = path.join(dist, `${pack.id}.mcpack`);
   const zipTemp = `${zipPath}.zip`;

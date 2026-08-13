@@ -1,0 +1,27 @@
+{
+  "format_version": "1.20.40",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "bearcade:loadout_dummy",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": { "family": ["bearcade", "loadout"] },
+      "minecraft:health": { "value": 1024, "max": 1024 },
+      "minecraft:persistent": {},
+      "minecraft:collision_box": { "width": 0.0, "height": 0.0 },
+      "minecraft:scale": { "value": 0.01 },
+      "minecraft:inventory": {
+        "inventory_size": 41,
+        "container_type": "inventory",
+        "container_name": "container"
+      },
+      "minecraft:nameable": {
+        "allow_name_tag_renaming": false,
+        "always_show_name": false
+      }
+    }
+  }
+}
