@@ -57,6 +57,20 @@
         { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
       ],
       "packDependencies": ["core"]
+    },
+    {
+      "id": "bridgewar",
+      "dir": "BridgeWar-急速战桥",
+      "name": "Bearcade BridgeWar",
+      "description": "Bearcade 急速战桥小游戏包(开发中)",
+      "headerUuid": "1f434015-345b-4a9a-926d-2c1da5a29681",
+      "moduleUuid": "309f53e1-8d31-452f-8110-979ea9cb1a71",
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      ],
+      "packDependencies": ["core"]
     }
   ]
 }

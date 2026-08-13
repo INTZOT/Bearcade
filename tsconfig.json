@@ -17,6 +17,7 @@
     "Gomoku-五子棋/src/**/*.ts",
     "Template-小游戏模板/src/**/*.ts",
     "GuessNBuild-建筑猜猜乐/src/**/*.ts",
+    "BridgeWar-急速战桥/src/**/*.ts",
     "shared/**/*.ts"
   ]
 }
