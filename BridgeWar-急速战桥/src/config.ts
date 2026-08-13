@@ -16,7 +16,6 @@ export const PARTY_AVAILABLE = true;
 
 // 玩法规则
 export const WIN_SCORE = 5; // 先到 5 分队胜
-export const RESPAWN_DELAY_TICKS = 60; // 掉虚空后 3 秒内不能得分
 export const ROUND_END_DELAY_TICKS = 60; // 回合结束后 3 秒重置并开下一回合
 
 // ===== 场地坐标(待模板场地建好后填写) =====

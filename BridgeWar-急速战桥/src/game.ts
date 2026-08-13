@@ -5,13 +5,13 @@ import {
   DisplaySlotId,
   ObjectiveSortOrder,
   type Player,
+  type EntityHealthComponent,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { getBridgeConfig, openBridgeConfig } from "./bridge-config";
 import { applyLoadout } from "./loadout";
 import {
-  RESPAWN_DELAY_TICKS,
   ROUND_END_DELAY_TICKS,
   TEMPLATE_FROM,
   TEMPLATE_TO,
@@ -29,7 +29,6 @@ interface Session {
   scores: { red: number; blue: number };
   target: number;
   roundActive: boolean;
-  respawnUntil: Map<string, number>;
 }
 
 const sessions = new Map<number, Session>();
@@ -110,6 +109,13 @@ function teamSpawn(team: Team) {
   return team === "red" ? cfg.redSpawn : cfg.blueSpawn;
 }
 
+function healPlayer(player: Player): void {
+  const health = player.getComponent("minecraft:health") as
+    | EntityHealthComponent
+    | undefined;
+  if (health) health.setCurrentValue(health.effectiveMax);
+}
+
 function isInside(
   region: CoreRegion,
   location: { x: number; y: number; z: number },
@@ -161,13 +167,19 @@ async function startRound(
   await runtime.resetRoom(roomId);
   placedBlocks.get(roomId)?.clear();
   session.roundActive = true;
-  session.respawnUntil.clear();
 
   for (const player of runtime.roomPlayers(roomId)) {
     const team = teamOf(session, player.id);
     if (!team) continue;
     player.setGameMode(GameMode.Adventure);
     runtime.teleportPlayer(roomId, player, teamSpawn(team));
+    // 死亡时在己方基地复活,避免回到大厅触发少人结束
+    player.setSpawnPoint({
+      dimension: runtime.roomDim(roomId),
+      x: teamSpawn(team).x,
+      y: teamSpawn(team).y,
+      z: teamSpawn(team).z,
+    });
     applyLoadout(team, player);
   }
 
@@ -236,7 +248,6 @@ export function makeGameHooks(
         scores: { red: 0, blue: 0 },
         target: getBridgeConfig().winScore,
         roundActive: false,
-        respawnUntil: new Map(),
       };
       sessions.set(roomId, session);
       placedBlocks.set(roomId, new Set());
@@ -300,6 +311,22 @@ export function makeGameHooks(
 }
 
 export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
+  // 死亡复活:回基地、回满血、应用装备
+  world.afterEvents.playerSpawn.subscribe((event) => {
+    const runtime = getRuntime();
+    const roomId = runtime.roomIdFromDimension(event.player.dimension.id);
+    if (roomId === undefined) return;
+    const session = sessions.get(roomId);
+    if (!session) return;
+    const team = teamOf(session, event.player.id);
+    if (!team) return;
+    const player = event.player;
+    player.setGameMode(GameMode.Adventure);
+    healPlayer(player);
+    runtime.teleportPlayer(roomId, player, teamSpawn(team));
+    applyLoadout(team, player);
+  });
+
   // 取消友军伤害(同房间同队伍玩家互相攻击不造成伤害)
   world.beforeEvents.entityHurt.subscribe((event) => {
     const attacker = event.damageSource?.damagingEntity;
@@ -355,18 +382,14 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
         for (const player of players) {
           const team = teamOf(session, player.id);
           if (!team) continue;
-          const until = session.respawnUntil.get(player.id) ?? 0;
-          if (player.location.y < -20 && system.currentTick >= until) {
-            session.respawnUntil.set(
-              player.id,
-              system.currentTick + RESPAWN_DELAY_TICKS,
-            );
+          if (player.location.y < -20) {
             runtime.teleportPlayer(roomId, player, teamSpawn(team));
+            healPlayer(player);
             applyLoadout(team, player);
-            player.sendMessage("§c你掉入虚空,3 秒内不能得分");
+            player.sendMessage("§c你掉入虚空,已返回基地并回满血");
             continue;
           }
-          if (session.roundActive && system.currentTick >= until) {
+          if (session.roundActive) {
             const cfg = getBridgeConfig();
             const core =
               team === "red" ? cfg.blueCore : cfg.redCore;
