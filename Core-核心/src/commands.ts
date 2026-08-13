@@ -31,8 +31,8 @@ export function initCommands(
         "sz",
       ]);
       event.customCommandRegistry.registerEnum("bearcade:debug_state", [
-        "true",
-        "false",
+        "enable",
+        "disable",
       ]);
     } catch (error) {
       console.warn("[Bearcade Core] 注册 tmp 枚举失败", error);
@@ -257,7 +257,7 @@ export function initCommands(
             },
           ],
         },
-        (origin, gamename: string, enabled: string) => {
+        (origin, gamename: string, state: string) => {
           const player = origin.sourceEntity;
           if (!player || !(player instanceof Player)) {
             return {
@@ -265,7 +265,30 @@ export function initCommands(
               message: "该命令只能由玩家执行",
             };
           }
-          if (!getRegistry()?.getGame(gamename)) {
+          const enabled = state === "enable";
+          const registry = getRegistry();
+          if (gamename === "all") {
+            if (!registry) {
+              return {
+                status: CustomCommandStatus.Failure,
+                message: "注册表尚未就绪",
+              };
+            }
+            system.run(() => {
+              for (const game of registry.listGames()) {
+                send("game.debug", {
+                  game: game.game,
+                  playerId: player.id,
+                  enabled,
+                });
+              }
+            });
+            return {
+              status: CustomCommandStatus.Success,
+              message: `已对全部游戏${enabled ? "启用" : "关闭"}调试日志`,
+            };
+          }
+          if (!registry?.getGame(gamename)) {
             return {
               status: CustomCommandStatus.Failure,
               message: `未知游戏:${gamename}`,
@@ -275,12 +298,12 @@ export function initCommands(
             send("game.debug", {
               game: gamename,
               playerId: player.id,
-              enabled: enabled === "true",
+              enabled,
             });
           });
           return {
             status: CustomCommandStatus.Success,
-            message: `调试日志已${enabled === "true" ? "开启" : "关闭"}`,
+            message: `调试日志已${enabled ? "开启" : "关闭"}`,
           };
         },
       );
