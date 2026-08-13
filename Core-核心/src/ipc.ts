@@ -51,6 +51,7 @@ export function initIpc(registry: GameRegistry): void {
       case "game.tp":
       case "game.apply":
       case "game.quit":
+      case "party.mode":
         break;
       default:
         console.warn(`[Bearcade Core] 未知操作码:${envelope.op}`);
