@@ -57,6 +57,20 @@ export function openBridgeConfig(
         ),
     },
     {
+      label: "地图边界",
+      open: () =>
+        openRegionEditor(
+          player,
+          "地图边界",
+          cfg.mapBoundary,
+          (value) => {
+            cfg.mapBoundary = value;
+            persist();
+          },
+          backTo(player, runtime),
+        ),
+    },
+    {
       label: "红队出生点",
       open: () =>
         openVec3Editor(

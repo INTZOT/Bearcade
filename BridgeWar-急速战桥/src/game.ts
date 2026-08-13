@@ -147,14 +147,15 @@ function isInside(
   );
 }
 
-function inTemplate(location: { x: number; y: number; z: number }): boolean {
+function inMapBoundary(location: { x: number; y: number; z: number }): boolean {
+  const boundary = getBridgeConfig().mapBoundary;
   return (
-    location.x >= TEMPLATE_FROM.x &&
-    location.x <= TEMPLATE_TO.x &&
-    location.y >= TEMPLATE_FROM.y &&
-    location.y <= TEMPLATE_TO.y &&
-    location.z >= TEMPLATE_FROM.z &&
-    location.z <= TEMPLATE_TO.z
+    location.x >= boundary.from.x &&
+    location.x <= boundary.to.x &&
+    location.y >= boundary.from.y &&
+    location.y <= boundary.to.y &&
+    location.z >= boundary.from.z &&
+    location.z <= boundary.to.z
   );
 }
 
@@ -320,7 +321,7 @@ export function makeGameHooks(
       const session = sessions.get(roomId);
       if (!session || !session.roundActive) return false;
       const loc = event.block.location;
-      if (!inTemplate(loc)) return false;
+      if (!inMapBoundary(loc)) return false;
       const typeId = event.permutationToPlace.type.id;
       if (!BRIDGE_WOOLS.includes(typeId)) return false;
       if (isInProtectedZone(loc)) return false;
@@ -329,7 +330,10 @@ export function makeGameHooks(
     canBreak(event, roomId) {
       const session = sessions.get(roomId);
       if (!session || !session.roundActive) return false;
-      return BRIDGE_WOOLS.includes(event.block.typeId);
+      return (
+        BRIDGE_WOOLS.includes(event.block.typeId) &&
+        inMapBoundary(event.block.location)
+      );
     },
     openConfig(player) {
       openBridgeConfig(player, getRuntime());
@@ -371,6 +375,11 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
     if (roomId === undefined) return;
     const session = sessions.get(roomId);
     if (!session) return;
+    // 回合结束到下一回合开始之间禁止玩家互相造成伤害
+    if (!session.roundActive) {
+      event.cancel = true;
+      return;
+    }
     const victimTeam = teamOf(session, victim.id);
     const attackerTeam = teamOf(session, attacker.id);
     if (victimTeam && victimTeam === attackerTeam) {
@@ -404,6 +413,7 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
             player.sendMessage("§c你掉入虚空,已返回基地并回满血");
             continue;
           }
+          // 回合结束到下一回合开始之间禁止得分
           if (session.roundActive) {
             const cfg = getBridgeConfig();
             const core =

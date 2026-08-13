@@ -59,6 +59,7 @@ export function tickingAreaId(roomId: number): string {
 // ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
 export interface BridgeConfig {
   prepSpawn: { x: number; y: number; z: number };
+  mapBoundary: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number } };
   redSpawn: { x: number; y: number; z: number };
   blueSpawn: { x: number; y: number; z: number };
   redCore: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number } };
@@ -68,6 +69,7 @@ export interface BridgeConfig {
 
 export const BRIDGE_CONFIG_DEFAULTS: BridgeConfig = {
   prepSpawn: PREP_SPAWN,
+  mapBoundary: { from: TEMPLATE_FROM, to: TEMPLATE_TO },
   redSpawn: RED_SPAWN,
   blueSpawn: BLUE_SPAWN,
   redCore: { from: RED_CORE_FROM, to: RED_CORE_TO },
