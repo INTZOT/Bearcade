@@ -46,6 +46,19 @@ function teamColor(team: Team): string {
   return team === "red" ? "§c" : "§9";
 }
 
+/** 玩家名字染色:头顶名牌(nameTag)与聊天名字(chatNamePrefix/Suffix) */
+function setTeamName(player: Player, team?: Team): void {
+  if (team) {
+    player.nameTag = `${teamColor(team)}${player.name}§r`;
+    player.chatNamePrefix = teamColor(team);
+    player.chatNameSuffix = "§r";
+  } else {
+    player.nameTag = player.name;
+    player.chatNamePrefix = undefined;
+    player.chatNameSuffix = undefined;
+  }
+}
+
 function teamOf(session: Session, playerId: string): Team | undefined {
   if (session.teams.red.includes(playerId)) return "red";
   if (session.teams.blue.includes(playerId)) return "blue";
@@ -181,6 +194,7 @@ async function startRound(
       z: teamSpawn(team).z,
     });
     applyLoadout(team, player);
+    setTeamName(player, team);
   }
 
   runtime.announce(
@@ -270,6 +284,7 @@ export function makeGameHooks(
       const runtime = getRuntime();
       for (const player of runtime.roomPlayers(roomId)) {
         player.setGameMode(GameMode.Adventure);
+        setTeamName(player);
       }
       sessions.delete(roomId);
       placedBlocks.delete(roomId);
@@ -325,6 +340,7 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
     healPlayer(player);
     runtime.teleportPlayer(roomId, player, teamSpawn(team));
     applyLoadout(team, player);
+    setTeamName(player, team);
   });
 
   // 取消友军伤害(同房间同队伍玩家互相攻击不造成伤害)
@@ -350,20 +366,6 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
     }
   });
 
-  // 玩家名字按队伍颜色渲染
-  world.beforeEvents.chatSend.subscribe((event) => {
-    const runtime = getRuntime();
-    const roomId = runtime.roomIdFromDimension(event.sender.dimension.id);
-    if (roomId === undefined) return;
-    const session = sessions.get(roomId);
-    if (!session) return;
-    event.cancel = true;
-    const team = teamOf(session, event.sender.id);
-    world.sendMessage(
-      `${team ? teamColor(team) : "§f"}${event.sender.name}§r: ${event.message}`,
-    );
-  });
-
   // 虚空复活 / 核心区得分 / actionbar
   system.runInterval(() => {
     const runtime = getRuntime();
@@ -386,6 +388,7 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
             runtime.teleportPlayer(roomId, player, teamSpawn(team));
             healPlayer(player);
             applyLoadout(team, player);
+            setTeamName(player, team);
             player.sendMessage("§c你掉入虚空,已返回基地并回满血");
             continue;
           }
