@@ -233,5 +233,46 @@ export function initCommands(
     } catch (error) {
       console.warn("[Bearcade Core] 注册 /bearcade:config 失败", error);
     }
+
+    try {
+      event.customCommandRegistry.registerCommand(
+        {
+          name: "bearcade:debug",
+          description: "切换指定游戏的调试日志",
+          permissionLevel: CommandPermissionLevel.Admin,
+          cheatsRequired: false,
+          mandatoryParameters: [
+            {
+              name: "gamename",
+              type: CustomCommandParamType.String,
+            },
+          ],
+        },
+        (origin, gamename: string) => {
+          const player = origin.sourceEntity;
+          if (!player || !(player instanceof Player)) {
+            return {
+              status: CustomCommandStatus.Failure,
+              message: "该命令只能由玩家执行",
+            };
+          }
+          if (!getRegistry()?.getGame(gamename)) {
+            return {
+              status: CustomCommandStatus.Failure,
+              message: `未知游戏:${gamename}`,
+            };
+          }
+          system.run(() => {
+            send("game.debug", { game: gamename, playerId: player.id });
+          });
+          return {
+            status: CustomCommandStatus.Success,
+            message: "已切换调试日志",
+          };
+        },
+      );
+    } catch (error) {
+      console.warn("[Bearcade Core] 注册 /bearcade:debug 失败", error);
+    }
   });
 }

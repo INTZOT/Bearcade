@@ -109,7 +109,8 @@ Core 提供命令:
 - `/bearcade:tmp sz <gamename>`:打开表单配置模板范围的起始点/终点(游戏内配置优先于 config.ts,保存到动态属性);
 - `/bearcade:quit`:在对应游戏房间维度执行,强制中止该房间的对局;
 - `/bearcade:party`:管理员开关**派对模式**;
-- `/bearcade:config <gamename>`:管理员打开指定游戏的**运行时配置界面**(五子棋/建筑猜猜乐/急速战桥已接入)。
+- `/bearcade:config <gamename>`:管理员打开指定游戏的**运行时配置界面**(五子棋/建筑猜猜乐/急速战桥已接入);
+- `/bearcade:debug <gamename>`:管理员切换指定游戏的调试日志(建筑猜猜乐已接入)。
 
 派对模式:开启后普通玩家不能自行选择游戏加入;管理员从游戏列表点击房间时,Core 会把全服在线玩家一起带入该房间(忽略人数上限),且只允许 `partyAvailable=true` 的小游戏(如 gomoku=false、guessnbuild=true);派对模式开局倒计时固定 60 秒,不触发满员缩短。管理员以 `op` tag 判定。
 

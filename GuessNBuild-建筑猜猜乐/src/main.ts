@@ -3,7 +3,7 @@ import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { initGuessGame, makeGameHooks } from "./game";
 import { initQBank } from "./qbank";
 import { initDebugCommand } from "./debugCommand";
-import { isDebug, loadDebugState } from "./debug";
+import { bindDebugRuntime, isDebug } from "./debug";
 import { getGuessConfig, loadGuessConfig } from "./guess-config";
 import {
   DISPLAY_NAME,
@@ -28,6 +28,7 @@ import {
 
 let runtime: MinigameRuntime;
 const getRuntime = () => runtime;
+bindDebugRuntime(getRuntime);
 
 function syncDebugCountdown(on: boolean): void {
   // 调试开启时倒计时 10 秒,关闭后恢复 60 秒默认
@@ -67,7 +68,6 @@ initQBank();
 initDebugCommand(syncDebugCountdown);
 
 world.afterEvents.worldLoad.subscribe(() => {
-  loadDebugState();
   syncDebugCountdown(isDebug());
   loadGuessConfig();
   runtime.config.prepSpawn = getGuessConfig().prepSpawn;

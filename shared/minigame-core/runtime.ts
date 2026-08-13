@@ -34,6 +34,7 @@ export class MinigameRuntime {
   private readonly roomPattern: RegExp;
   private started = false;
   private partyMode = false;
+  private debugEnabled = false;
 
   constructor(config: MinigameConfig, hooks: MinigameHooks = {}) {
     this.config = config;
@@ -141,6 +142,52 @@ export class MinigameRuntime {
         }
         break;
       }
+      case "game.debug": {
+        const on = this.toggleDebug();
+        if (typeof payload.playerId === "string") {
+          const player = world
+            .getAllPlayers()
+            .find((p) => p.id === payload.playerId);
+          player?.sendMessage(`调试日志已${on ? "开启" : "关闭"}`);
+        }
+        break;
+      }
+    }
+  }
+
+  isDebug(): boolean {
+    return this.debugEnabled;
+  }
+
+  toggleDebug(): boolean {
+    this.debugEnabled = !this.debugEnabled;
+    system.run(() => {
+      try {
+        world.setDynamicProperty(
+          `bearcade:debug_${this.config.gameId}`,
+          this.debugEnabled,
+        );
+      } catch (error) {
+        this.log("调试状态持久化失败", error);
+      }
+    });
+    this.log(`调试日志已${this.debugEnabled ? "开启" : "关闭"}`);
+    return this.debugEnabled;
+  }
+
+  private loadDebugState(): void {
+    try {
+      this.debugEnabled =
+        world.getDynamicProperty(`bearcade:debug_${this.config.gameId}`) ===
+        true;
+    } catch {
+      this.debugEnabled = false;
+    }
+  }
+
+  dbg(...args: unknown[]): void {
+    if (this.debugEnabled) {
+      console.warn(`[Bearcade ${this.config.gameId} Debug]`, ...args);
     }
   }
 
@@ -740,6 +787,7 @@ export class MinigameRuntime {
     if (this.started) return;
     this.started = true;
     this.loadPersistedTemplateBounds();
+    this.loadDebugState();
     this.sendGameRegister();
     void this.initRooms();
     system.runInterval(
