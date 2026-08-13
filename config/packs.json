@@ -1,6 +1,6 @@
 {
   "projectVersion": [0, 0, 1],
-  "phase": "Preview",
+  "phase": "Beta",
   "packs": [
     {
       "id": "core",
