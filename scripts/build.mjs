@@ -46,7 +46,7 @@ for (const pack of config.packs) {
     if (!dep) {
       throw new Error(`packDependencies 引用了未定义的包: ${depId}`);
     }
-    return { uuid: dep.headerUuid, version: dep.version };
+    return { uuid: dep.headerUuid, version: dep.version ?? projectVersion };
   });
 
   const manifest = {
