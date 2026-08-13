@@ -744,7 +744,8 @@ export class MinigameRuntime {
   ): "idle" | "running" | "initializing" {
     if (!this.isRoomReady(roomId)) return "initializing";
     const phase = this.getState(roomId).phase;
-    if (phase === "running" || phase === "pending") return "running";
+    // 准备倒计时(pending)仍视为空闲,允许其他玩家继续加入
+    if (phase === "running") return "running";
     if (phase === "resetting") return "initializing";
     return "idle";
   }
