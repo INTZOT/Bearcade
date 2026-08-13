@@ -204,7 +204,8 @@ async function startRound(
   for (const player of runtime.roomPlayers(roomId)) {
     const team = teamOf(session, player.id);
     if (!team) continue;
-    player.setGameMode(GameMode.Adventure);
+    // 对局内用生存模式,方块限制由 before 事件(羊毛/边界/保护区)控制
+    player.setGameMode(GameMode.Survival);
     runtime.teleportPlayer(roomId, player, teamSpawn(team));
     // 死亡时在己方基地复活,避免回到大厅触发少人结束
     player.setSpawnPoint({
@@ -352,7 +353,7 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
     const team = teamOf(session, event.player.id);
     if (!team) return;
     const player = event.player;
-    player.setGameMode(GameMode.Adventure);
+    player.setGameMode(GameMode.Survival);
     healPlayer(player);
     runtime.teleportPlayer(roomId, player, teamSpawn(team));
     applyLoadout(team, player);
