@@ -174,7 +174,15 @@ export class MinigameRuntime {
         this.log("调试状态持久化失败", error);
       }
     });
-    this.log(`调试日志已${enabled ? "开启" : "关闭"}`);
+    const delay = this.effectiveStartDelay();
+    for (const state of this.states.values()) {
+      if (state.phase === "pending") {
+        state.pendingDeadlineTick = system.currentTick + delay;
+      }
+    }
+    this.log(
+      `调试日志已${enabled ? "开启" : "关闭"},开局倒计时 ${Math.round(delay / 20)} 秒`,
+    );
   }
 
   private loadDebugState(): void {
@@ -687,9 +695,13 @@ export class MinigameRuntime {
   }
 
   private effectiveStartDelay(): number {
-    return this.partyMode
-      ? (this.config.partyStartDelayTicks ?? 60 * 20)
-      : (this.config.startDelayTicks ?? 40);
+    if (this.partyMode) {
+      return this.config.partyStartDelayTicks ?? 60 * 20;
+    }
+    if (this.debugEnabled) {
+      return this.config.debugStartDelayTicks ?? 5 * 20;
+    }
+    return this.config.startDelayTicks ?? 40;
   }
 
   setPartyMode(enabled: boolean): void {

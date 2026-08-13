@@ -22,6 +22,8 @@ export interface MinigameConfig {
   minPlayers?: number;
   /** 派对模式下的开局倒计时 tick 数(默认 60 秒) */
   partyStartDelayTicks?: number;
+  /** 调试模式下的开局倒计时 tick 数(默认 5 秒) */
+  debugStartDelayTicks?: number;
   prepSpawn: Vec3;
   templateFrom: Vec3;
   templateTo: Vec3;

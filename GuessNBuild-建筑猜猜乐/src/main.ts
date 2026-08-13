@@ -2,7 +2,7 @@ import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { initGuessGame, makeGameHooks } from "./game";
 import { initQBank } from "./qbank";
-import { bindDebugRuntime, isDebug } from "./debug";
+import { bindDebugRuntime } from "./debug";
 import { getGuessConfig, loadGuessConfig } from "./guess-config";
 import {
   DISPLAY_NAME,
@@ -29,11 +29,6 @@ let runtime: MinigameRuntime;
 const getRuntime = () => runtime;
 bindDebugRuntime(getRuntime);
 
-function syncDebugCountdown(on: boolean): void {
-  // 调试开启时倒计时 10 秒,关闭后恢复 60 秒默认
-  runtime.config.startDelayTicks = (on ? 10 : 60) * 20;
-}
-
 runtime = new MinigameRuntime(
   {
     gameId: GAME_ID,
@@ -55,6 +50,7 @@ runtime = new MinigameRuntime(
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
     startDelayTicks: 60 * 20,
+    debugStartDelayTicks: 10 * 20,
   },
   makeGameHooks(getRuntime),
 );
@@ -66,7 +62,6 @@ system.beforeEvents.startup.subscribe((event) => {
 initQBank();
 
 world.afterEvents.worldLoad.subscribe(() => {
-  syncDebugCountdown(isDebug());
   loadGuessConfig();
   runtime.config.prepSpawn = getGuessConfig().prepSpawn;
   runtime.initWorld();
