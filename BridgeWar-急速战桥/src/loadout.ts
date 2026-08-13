@@ -29,20 +29,32 @@ function loadoutEntity(team: Team): Entity | undefined {
     .find((entity) => entity.nameTag === teamTag(team));
 }
 
+/** 找不到仓库实体时当场重建(兜底) */
+function ensureTeamEntity(team: Team): Entity | undefined {
+  const existing = loadoutEntity(team);
+  if (existing) return existing;
+  try {
+    const dimension = world.getDimension(TEMPLATE_DIMENSION_ID);
+    const entity = dimension.spawnEntity(
+      DUMMY_TYPE as VanillaEntityIdentifier,
+      {
+        x: 0,
+        y: -60,
+        z: team === "red" ? -1 : 1,
+      },
+    );
+    entity.nameTag = teamTag(team);
+    return entity;
+  } catch (error) {
+    console.warn("[Bearcade bridgewar] 装备仓库实体生成失败", error);
+    return undefined;
+  }
+}
+
 export function ensureLoadoutEntities(): void {
-  const dimension = world.getDimension(TEMPLATE_DIMENSION_ID);
   const spawnAll = (): void => {
     for (const team of ["red", "blue"] as const) {
-      if (loadoutEntity(team)) continue;
-      const entity = dimension.spawnEntity(
-        DUMMY_TYPE as VanillaEntityIdentifier,
-        {
-          x: 0,
-          y: -60,
-          z: team === "red" ? -1 : 1,
-        },
-      );
-      entity.nameTag = teamTag(team);
+      ensureTeamEntity(team);
     }
   };
 
@@ -67,7 +79,7 @@ export function ensureLoadoutEntities(): void {
 }
 
 export function saveLoadout(team: Team, player: Player): boolean {
-  const entity = loadoutEntity(team);
+  const entity = ensureTeamEntity(team);
   if (!entity) return false;
   const container = entity.getComponent("minecraft:inventory") as
     | import("@minecraft/server").EntityInventoryComponent
@@ -92,7 +104,7 @@ export function saveLoadout(team: Team, player: Player): boolean {
 }
 
 export function clearLoadout(team: Team): boolean {
-  const entity = loadoutEntity(team);
+  const entity = ensureTeamEntity(team);
   if (!entity) return false;
   const container = entity.getComponent("minecraft:inventory") as
     | import("@minecraft/server").EntityInventoryComponent
@@ -105,7 +117,7 @@ export function clearLoadout(team: Team): boolean {
 }
 
 export function applyLoadout(team: Team, player: Player): void {
-  const entity = loadoutEntity(team);
+  const entity = ensureTeamEntity(team);
   const playerInventory = player.getComponent("minecraft:inventory") as
     | import("@minecraft/server").EntityInventoryComponent
     | undefined;
