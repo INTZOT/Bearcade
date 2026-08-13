@@ -34,7 +34,6 @@ interface Session {
 }
 
 const sessions = new Map<number, Session>();
-const placedBlocks = new Map<number, Set<string>>();
 
 function objectiveId(roomId: number): string {
   return `bearcade:bw_score_${roomId}`;
@@ -199,7 +198,6 @@ async function startRound(
 ): Promise<void> {
   clearFieldEntities(runtime, roomId);
   await runtime.resetRoom(roomId);
-  placedBlocks.get(roomId)?.clear();
   session.roundActive = true;
 
   for (const player of runtime.roomPlayers(roomId)) {
@@ -285,7 +283,6 @@ export function makeGameHooks(
         roundActive: false,
       };
       sessions.set(roomId, session);
-      placedBlocks.set(roomId, new Set());
       ensureObjective(roomId, session.target);
       refreshScoreboard(roomId, session);
 
@@ -308,7 +305,6 @@ export function makeGameHooks(
         setTeamName(player);
       }
       sessions.delete(roomId);
-      placedBlocks.delete(roomId);
       try {
         world.scoreboard.removeObjective(objectiveId(roomId));
       } catch {
@@ -328,20 +324,12 @@ export function makeGameHooks(
       const typeId = event.permutationToPlace.type.id;
       if (!BRIDGE_WOOLS.includes(typeId)) return false;
       if (isInProtectedZone(loc)) return false;
-      placedBlocks
-        .get(roomId)
-        ?.add(`${loc.x},${loc.y},${loc.z}`);
       return true;
     },
     canBreak(event, roomId) {
       const session = sessions.get(roomId);
       if (!session || !session.roundActive) return false;
-      const loc = event.block.location;
-      const key = `${loc.x},${loc.y},${loc.z}`;
-      const set = placedBlocks.get(roomId);
-      if (!set || !set.has(key)) return false;
-      set.delete(key);
-      return true;
+      return BRIDGE_WOOLS.includes(event.block.typeId);
     },
     openConfig(player) {
       openBridgeConfig(player, getRuntime());
