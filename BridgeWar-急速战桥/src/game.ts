@@ -10,7 +10,7 @@ import {
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { getBridgeConfig, openBridgeConfig } from "./bridge-config";
-import { applyLoadout } from "./loadout";
+import { applyLoadout, clearPlayerInventory } from "./loadout";
 import {
   ROUND_END_DELAY_TICKS,
   BRIDGE_WOOLS,
@@ -303,6 +303,7 @@ export function makeGameHooks(
     onBeforeReset(roomId) {
       const runtime = getRuntime();
       for (const player of runtime.roomPlayers(roomId)) {
+        clearPlayerInventory(player);
         player.setGameMode(GameMode.Adventure);
         setTeamName(player);
       }

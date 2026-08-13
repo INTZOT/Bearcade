@@ -158,3 +158,25 @@ export function applyLoadout(team: Team, player: Player): void {
     equippable.setEquipment(EquipmentSlot.Offhand, container.container.getItem(SLOT_OFFHAND));
   }
 }
+
+/** 清空玩家全套物品(背包/快捷栏/盔甲/副手) */
+export function clearPlayerInventory(player: Player): void {
+  const playerInventory = player.getComponent("minecraft:inventory") as
+    | import("@minecraft/server").EntityInventoryComponent
+    | undefined;
+  if (playerInventory?.container) {
+    for (let slot = 0; slot < playerInventory.container.size; slot++) {
+      playerInventory.container.setItem(slot, undefined);
+    }
+  }
+  const equippable = player.getComponent("minecraft:equippable") as
+    | import("@minecraft/server").EntityEquippableComponent
+    | undefined;
+  if (equippable) {
+    equippable.setEquipment(EquipmentSlot.Head, undefined);
+    equippable.setEquipment(EquipmentSlot.Chest, undefined);
+    equippable.setEquipment(EquipmentSlot.Legs, undefined);
+    equippable.setEquipment(EquipmentSlot.Feet, undefined);
+    equippable.setEquipment(EquipmentSlot.Offhand, undefined);
+  }
+}
