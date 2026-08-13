@@ -53,3 +53,14 @@ export function roomDimensionId(roomId: number): string {
 export function tickingAreaId(roomId: number): string {
   return `bearcade:ta_${GAME_ID}_${roomId}`;
 }
+
+// ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
+export interface GuessConfig {
+  prepSpawn: { x: number; y: number; z: number };
+  roundSpawn: { x: number; y: number; z: number };
+}
+
+export const GUESS_CONFIG_DEFAULTS: GuessConfig = {
+  prepSpawn: PREP_SPAWN,
+  roundSpawn: ROUND_SPAWN,
+};

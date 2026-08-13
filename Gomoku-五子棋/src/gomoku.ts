@@ -8,14 +8,10 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import { getGomokuConfig } from "./gomoku-config";
 import {
-  BOARD_Y,
-  GRID_MAX,
-  GRID_MIN,
   STONE_BLACK,
   STONE_WHITE,
-  START_POS_BLACK,
-  START_POS_WHITE,
 } from "./config";
 
 type Cell = "black" | "white" | null;
@@ -27,17 +23,28 @@ interface GomokuState {
   players: { black?: string; white?: string };
 }
 
-const GRID_SIZE = GRID_MAX - GRID_MIN + 1;
 const games = new Map<number, GomokuState>();
 
+function gridSize(): number {
+  const cfg = getGomokuConfig();
+  return cfg.gridMax - cfg.gridMin + 1;
+}
+
 function emptyBoard(): Cell[][] {
-  return Array.from({ length: GRID_SIZE }, () =>
-    Array<Cell>(GRID_SIZE).fill(null),
+  const size = gridSize();
+  return Array.from({ length: size }, () =>
+    Array<Cell>(size).fill(null),
   );
 }
 
 function inGrid(x: number, z: number): boolean {
-  return x >= GRID_MIN && x <= GRID_MAX && z >= GRID_MIN && z <= GRID_MAX;
+  const cfg = getGomokuConfig();
+  return (
+    x >= cfg.gridMin &&
+    x <= cfg.gridMax &&
+    z >= cfg.gridMin &&
+    z <= cfg.gridMax
+  );
 }
 
 function inventoryOf(player: Player): EntityInventoryComponent | undefined {
@@ -92,6 +99,7 @@ function checkWin(
     [1, 1],
     [1, -1],
   ];
+  const size = gridSize();
   for (const [dx, dz] of directions) {
     let count = 1;
     for (const sign of [-1, 1]) {
@@ -99,9 +107,9 @@ function checkWin(
       let nz = cz + dz * sign;
       while (
         nx >= 0 &&
-        nx < GRID_SIZE &&
+        nx < size &&
         nz >= 0 &&
-        nz < GRID_SIZE &&
+        nz < size &&
         board[nx][nz] === color
       ) {
         count++;
@@ -127,14 +135,15 @@ function handlePlace(
   if (!runtime.isRunning(roomId)) return false;
   const state = games.get(roomId);
   if (!state) return false;
+  const cfg = getGomokuConfig();
 
   const { x, y, z } = event.block.location;
-  if (y !== BOARD_Y + 1 || !inGrid(x, z)) {
+  if (y !== cfg.boardY + 1 || !inGrid(x, z)) {
     system.run(() => player.sendMessage("§c棋子只能放在棋盘格上"));
     return false;
   }
-  const cx = x - GRID_MIN;
-  const cz = z - GRID_MIN;
+  const cx = x - cfg.gridMin;
+  const cz = z - cfg.gridMin;
   if (state.board[cx][cz]) {
     system.run(() => player.sendMessage("§c该位置已有棋子"));
     return false;
@@ -197,6 +206,7 @@ export function makeGomokuHooks(
   return {
     onGameStart(roomId, players) {
       const runtime = getRuntime();
+      const cfg = getGomokuConfig();
       // 随机决定黑/白方
       const blackIsFirst = Math.random() < 0.5;
       const black = blackIsFirst ? players[0] : players[1];
@@ -206,8 +216,8 @@ export function makeGomokuHooks(
         turn: "black",
         players: { black: black.id, white: white.id },
       });
-      runtime.teleportPlayer(roomId, black, START_POS_BLACK);
-      runtime.teleportPlayer(roomId, white, START_POS_WHITE);
+      runtime.teleportPlayer(roomId, black, cfg.blackStart);
+      runtime.teleportPlayer(roomId, white, cfg.whiteStart);
       runtime.announce(
         roomId,
         `§a对局开始!黑方:${black.name} / 白方:${white.name},放置压力板落子`,

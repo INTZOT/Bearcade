@@ -128,6 +128,19 @@ export class MinigameRuntime {
         if (player) this.openTemplateBoundsForm(player);
         break;
       }
+      case "game.config": {
+        if (typeof payload.playerId !== "string") return;
+        const player = world
+          .getAllPlayers()
+          .find((p) => p.id === payload.playerId);
+        if (!player) return;
+        if (this.hooks.openConfig) {
+          this.hooks.openConfig(player);
+        } else {
+          player.sendMessage("§c该游戏未提供配置界面");
+        }
+        break;
+      }
     }
   }
 
@@ -651,6 +664,11 @@ export class MinigameRuntime {
     if (state.phase !== "running" && state.phase !== "pending") return false;
     system.run(() => this.endGame(roomId, "强制中断"));
     return true;
+  }
+
+  /** 配置变更后重新向 Core 注册(更新 prepSpawn 等运行时字段) */
+  resendRegister(): void {
+    this.sendGameRegister();
   }
 
   /** 从模板重新复制场地到指定房间(每回合重置用) */

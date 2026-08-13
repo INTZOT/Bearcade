@@ -8,11 +8,11 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import { getGuessConfig } from "./guess-config";
 import {
   BUILDER_GAIN,
   GUESSER_GAIN,
   MIN_PLAYERS,
-  ROUND_SPAWN,
   ROUND_SECONDS,
   TEMPLATE_FROM,
   TEMPLATE_TO,
@@ -147,6 +147,7 @@ function updateActionbars(
 function roundSpawnPositions(
   count: number,
 ): { x: number; y: number; z: number }[] {
+  const center = getGuessConfig().roundSpawn;
   const positions: { x: number; y: number; z: number }[] = [];
   const seen = new Set<string>();
   let radius = 1;
@@ -154,8 +155,8 @@ function roundSpawnPositions(
     const ring: { x: number; y: number; z: number }[] = [];
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
-      const x = Math.round(ROUND_SPAWN.x + radius * Math.cos(angle));
-      const z = Math.round(ROUND_SPAWN.z + radius * Math.sin(angle));
+      const x = Math.round(center.x + radius * Math.cos(angle));
+      const z = Math.round(center.z + radius * Math.sin(angle));
       if (
         x < TEMPLATE_FROM.x ||
         x > TEMPLATE_TO.x ||
@@ -167,7 +168,7 @@ function roundSpawnPositions(
       const key = `${x},${z}`;
       if (!seen.has(key)) {
         seen.add(key);
-        ring.push({ x, y: ROUND_SPAWN.y, z });
+        ring.push({ x, y: center.y, z });
       }
     }
     if (ring.length === 0) break;
@@ -178,7 +179,7 @@ function roundSpawnPositions(
     radius++;
   }
   while (positions.length < count) {
-    positions.push({ ...ROUND_SPAWN });
+    positions.push({ ...center });
   }
   return positions;
 }
@@ -223,7 +224,11 @@ function startRound(
   const players = runtime.roomPlayers(roomId);
   const spawns = roundSpawnPositions(players.length);
   for (const [index, player] of players.entries()) {
-    runtime.teleportPlayer(roomId, player, spawns[index] ?? ROUND_SPAWN);
+    runtime.teleportPlayer(
+      roomId,
+      player,
+      spawns[index] ?? getGuessConfig().roundSpawn,
+    );
   }
   dbg(
     `回合开始 room=${roomId} builder=${builderId} question=${question} deadline=${session.deadlineTick}`,

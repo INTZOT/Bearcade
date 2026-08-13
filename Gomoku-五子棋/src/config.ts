@@ -47,3 +47,22 @@ export function roomDimensionId(roomId: number): string {
 export function tickingAreaId(roomId: number | "template"): string {
   return `bearcade:ta_${GAME_ID}_${roomId}`;
 }
+
+// ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
+export interface GomokuConfig {
+  prepSpawn: { x: number; y: number; z: number };
+  boardY: number;
+  gridMin: number;
+  gridMax: number;
+  blackStart: { x: number; y: number; z: number };
+  whiteStart: { x: number; y: number; z: number };
+}
+
+export const GOMOKU_CONFIG_DEFAULTS: GomokuConfig = {
+  prepSpawn: PREP_SPAWN,
+  boardY: BOARD_Y,
+  gridMin: GRID_MIN,
+  gridMax: GRID_MAX,
+  blackStart: START_POS_BLACK,
+  whiteStart: START_POS_WHITE,
+};

@@ -108,7 +108,8 @@ Core 提供命令:
 - `/bearcade:tmp ap <gamename>`:将指定游戏的模板应用到其全部房间;
 - `/bearcade:tmp sz <gamename>`:打开表单配置模板范围的起始点/终点(游戏内配置优先于 config.ts,保存到动态属性);
 - `/bearcade:quit`:在对应游戏房间维度执行,强制中止该房间的对局;
-- `/bearcade:party`:管理员开关**派对模式**。
+- `/bearcade:party`:管理员开关**派对模式**;
+- `/bearcade:config <gamename>`:管理员打开指定游戏的**运行时配置界面**(五子棋/建筑猜猜乐/急速战桥已接入)。
 
 派对模式:开启后普通玩家不能自行选择游戏加入;管理员从游戏列表点击房间时,Core 会把全服在线玩家一起带入该房间(忽略人数上限),且只允许 `partyAvailable=true` 的小游戏(如 gomoku=false、guessnbuild=true);派对模式开局倒计时固定 60 秒,不触发满员缩短。管理员以 `op` tag 判定。
 
@@ -126,7 +127,7 @@ Core 提供命令:
 1. **注册**:worldLoad 后发送 `game.register`(游戏 ID、显示名、房间数、最大人数、`partyAvailable`、准备房坐标);
 2. **发信**:按规则上报每房间人数与状态(变化即时 + 5 秒心跳);
 3. **送回大厅**:对局结束后由游戏包将玩家传送回主世界出生点。
-4. **兜底中止**:必须响应 Core 的 `/bearcade:quit <gamename>`(强制中止并重置),便于运营与测试。
+4. **兜底中止**:必须响应 Core 的 `/bearcade:quit`(在房间维度执行,强制中止并重置),便于运营与测试。
 5. **模板命令**:必须响应 Core 的 `/bearcade:tmp tp|ap|sz <gamename>`(进入模板维度 / 应用模板 / 表单配置模板范围)。
 
 ## 通信协议

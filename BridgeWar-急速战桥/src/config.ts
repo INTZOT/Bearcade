@@ -51,3 +51,22 @@ export function roomDimensionId(roomId: number): string {
 export function tickingAreaId(roomId: number): string {
   return `bearcade:ta_${GAME_ID}_${roomId}`;
 }
+
+// ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
+export interface BridgeConfig {
+  prepSpawn: { x: number; y: number; z: number };
+  redSpawn: { x: number; y: number; z: number };
+  blueSpawn: { x: number; y: number; z: number };
+  redCore: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number } };
+  blueCore: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number } };
+  winScore: number;
+}
+
+export const BRIDGE_CONFIG_DEFAULTS: BridgeConfig = {
+  prepSpawn: PREP_SPAWN,
+  redSpawn: RED_SPAWN,
+  blueSpawn: BLUE_SPAWN,
+  redCore: { from: RED_CORE_FROM, to: RED_CORE_TO },
+  blueCore: { from: BLUE_CORE_FROM, to: BLUE_CORE_TO },
+  winScore: WIN_SCORE,
+};

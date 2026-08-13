@@ -8,18 +8,12 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import { getBridgeConfig } from "./bridge-config";
 import {
-  BLUE_CORE_FROM,
-  BLUE_CORE_TO,
-  BLUE_SPAWN,
-  RED_CORE_FROM,
-  RED_CORE_TO,
-  RED_SPAWN,
   RESPAWN_DELAY_TICKS,
   ROUND_END_DELAY_TICKS,
   TEMPLATE_FROM,
   TEMPLATE_TO,
-  WIN_SCORE,
 } from "./config";
 
 type Team = "red" | "blue";
@@ -37,8 +31,6 @@ interface Session {
   respawnUntil: Map<string, number>;
 }
 
-const RED_CORE: CoreRegion = { from: RED_CORE_FROM, to: RED_CORE_TO };
-const BLUE_CORE: CoreRegion = { from: BLUE_CORE_FROM, to: BLUE_CORE_TO };
 const sessions = new Map<number, Session>();
 const placedBlocks = new Map<number, Set<string>>();
 
@@ -113,7 +105,8 @@ function clearFieldEntities(
 }
 
 function teamSpawn(team: Team) {
-  return team === "red" ? RED_SPAWN : BLUE_SPAWN;
+  const cfg = getBridgeConfig();
+  return team === "red" ? cfg.redSpawn : cfg.blueSpawn;
 }
 
 function isInside(
@@ -239,7 +232,7 @@ export function makeGameHooks(
       const session: Session = {
         teams: assignTeams(players),
         scores: { red: 0, blue: 0 },
-        target: WIN_SCORE,
+        target: getBridgeConfig().winScore,
         roundActive: false,
         respawnUntil: new Map(),
       };
@@ -368,7 +361,9 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
             continue;
           }
           if (session.roundActive && system.currentTick >= until) {
-            const core = team === "red" ? BLUE_CORE : RED_CORE;
+            const cfg = getBridgeConfig();
+            const core =
+              team === "red" ? cfg.blueCore : cfg.redCore;
             if (isInside(core, player.location)) {
               void scoreRound(runtime, roomId, session, team);
             }

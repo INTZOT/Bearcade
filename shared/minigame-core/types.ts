@@ -50,6 +50,8 @@ export interface MinigameHooks {
   onBeforeReset?(roomId: number): void;
   /** 场地从模板重新复制完成后 */
   onRoomReset?(roomId: number): void;
+  /** 打开该游戏的运行时配置界面(供 /bearcade:config 调用) */
+  openConfig?(player: Player): void;
   /**
    * 房间维度内的方块放置校验:返回 true 放行(合法棋步等),返回 false 一律取消。
    * 注意:该回调运行在 restricted execution 模式,只能同步改内存状态,

@@ -86,7 +86,7 @@ function addPageNav(
   }
   form.button("返回", () => {
     form.close();
-    system.runTimeout(() => openMain(player), 2);
+    system.runTimeout(() => openQBankMain(player), 2);
   });
 }
 
@@ -112,7 +112,7 @@ function openAdd(player: Player): void {
   });
   form.button("返回", () => {
     form.close();
-    system.runTimeout(() => openMain(player), 2);
+    system.runTimeout(() => openQBankMain(player), 2);
   });
   form.show().catch((error) => console.warn("qbank add", error));
 }
@@ -178,12 +178,12 @@ function openClearConfirm(player: Player): void {
   });
   form.button("取消", () => {
     form.close();
-    system.runTimeout(() => openMain(player), 2);
+    system.runTimeout(() => openQBankMain(player), 2);
   });
   form.show().catch((error) => console.warn("qbank clear", error));
 }
 
-function openMain(player: Player): void {
+export function openQBankMain(player: Player): void {
   const form = new CustomForm(player, "建筑猜猜乐 · 题库管理");
   form.header("题库管理");
   form.spacer();
@@ -229,7 +229,7 @@ export function initQBank(): void {
             message: "该命令只能由玩家执行",
           };
         }
-        system.run(() => openMain(player));
+        system.run(() => openQBankMain(player));
         return {
           status: CustomCommandStatus.Success,
           message: "正在打开题库管理",

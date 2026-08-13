@@ -17,6 +17,8 @@
 
 > 派对模式:在 `src/config.ts` 中设置 `PARTY_AVAILABLE`(去除最大人数上限后仍可正常运行才设为 true),Core 的 `/bearcade:party` 会依据该属性决定是否允许管理员带队全员加入。
 
+> 运行时配置:实现 `MinigameHooks.openConfig` 钩子即可接入 `/bearcade:config <gamename>`(可复用 `shared/minigame-core` 的 configStore/configUi)。
+
 开发流程:先 `/bearcade:tmp tp mygame` 进入模板维度建场地;模板范围可用 `/bearcade:tmp sz mygame` 表单配置起始点/终点;场地改好后 `/bearcade:tmp ap mygame` 一键应用到全部房间。
 
 ## 使用步骤

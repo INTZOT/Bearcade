@@ -4,6 +4,7 @@ import { initGuessGame, makeGameHooks } from "./game";
 import { initQBank } from "./qbank";
 import { initDebugCommand } from "./debugCommand";
 import { isDebug, loadDebugState } from "./debug";
+import { getGuessConfig, loadGuessConfig } from "./guess-config";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -68,6 +69,8 @@ initDebugCommand(syncDebugCountdown);
 world.afterEvents.worldLoad.subscribe(() => {
   loadDebugState();
   syncDebugCountdown(isDebug());
+  loadGuessConfig();
+  runtime.config.prepSpawn = getGuessConfig().prepSpawn;
   runtime.initWorld();
   runtime.initEvents();
   initGuessGame(getRuntime);
