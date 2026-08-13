@@ -1,5 +1,6 @@
 import {
   world,
+  system,
   EquipmentSlot,
   type Entity,
   type Player,
@@ -30,15 +31,39 @@ function loadoutEntity(team: Team): Entity | undefined {
 
 export function ensureLoadoutEntities(): void {
   const dimension = world.getDimension(TEMPLATE_DIMENSION_ID);
-  for (const team of ["red", "blue"] as const) {
-    if (loadoutEntity(team)) continue;
-    const entity = dimension.spawnEntity(DUMMY_TYPE as VanillaEntityIdentifier, {
-      x: 0,
-      y: -60,
-      z: team === "red" ? -1 : 1,
-    });
-    entity.nameTag = teamTag(team);
-  }
+  const spawnAll = (): void => {
+    for (const team of ["red", "blue"] as const) {
+      if (loadoutEntity(team)) continue;
+      const entity = dimension.spawnEntity(
+        DUMMY_TYPE as VanillaEntityIdentifier,
+        {
+          x: 0,
+          y: -60,
+          z: team === "red" ? -1 : 1,
+        },
+      );
+      entity.nameTag = teamTag(team);
+    }
+  };
+
+  // 模板维度区块在 worldLoad 初期可能尚未加载,延迟重试
+  let remaining = 30;
+  const trySpawn = (): void => {
+    try {
+      spawnAll();
+    } catch (error) {
+      if (remaining > 0) {
+        remaining--;
+        system.runTimeout(trySpawn, 40);
+      } else {
+        console.warn(
+          "[Bearcade bridgewar] 装备仓库实体生成失败",
+          error,
+        );
+      }
+    }
+  };
+  trySpawn();
 }
 
 export function saveLoadout(team: Team, player: Player): boolean {

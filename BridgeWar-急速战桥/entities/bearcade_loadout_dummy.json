@@ -19,8 +19,7 @@
         "container_name": "container"
       },
       "minecraft:nameable": {
-        "allow_name_tag_renaming": false,
-        "always_show_name": false
+        "allow_name_tag_renaming": false
       }
     }
   }
