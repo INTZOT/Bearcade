@@ -1,0 +1,17 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "§e击灭学派·技能包资源",
+    "description": "击灭学派技能包资源包（基岩版 1.26.40）",
+    "uuid": "a1b2c3d4-0002-4000-8000-000000000001",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 40]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "a1b2c3d4-0002-4000-8000-000000000002",
+      "version": [1, 0, 0]
+    }
+  ]
+}

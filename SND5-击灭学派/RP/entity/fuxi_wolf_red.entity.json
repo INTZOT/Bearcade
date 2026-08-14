@@ -1,0 +1,32 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "jimie:fuxi_wolf_red",
+      "materials": {
+        "default": "wolf"
+      },
+      "textures": {
+        "default": "textures/entity/wolf/wolf"
+      },
+      "geometry": {
+        "default": "geometry.wolf"
+      },
+      "animations": {
+        "walk": "animation.wolf.walk",
+        "look_at_target": "animation.common.look_at_target"
+      },
+      "scripts": {
+        "animate": [
+          "look_at_target",
+          { "walk": "query.modified_move_speed" }
+        ]
+      },
+      "render_controllers": [ "controller.render.jimie_wolf" ],
+      "spawn_egg": {
+        "base_color": "#7a6a51",
+        "overlay_color": "#d8c8b8"
+      }
+    }
+  }
+}

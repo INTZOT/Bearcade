@@ -1,0 +1,2 @@
+# 覆盖父级 .gitignore:本包的 .mcaddon 打包产物一并入库(可随时用 build.ps1 重新生成)
+!*.mcaddon
