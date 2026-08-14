@@ -298,6 +298,12 @@ export function makeGameHooks(
         clearPlayerInventory(player);
         player.setGameMode(GameMode.Adventure);
         setTeamName(player);
+        // 重置对局内设置的队伍出生点重生点,结束后回默认(大厅)
+        try {
+          player.setSpawnPoint(undefined);
+        } catch {
+          // 忽略,不影响重置流程
+        }
       }
       sessions.delete(roomId);
       try {

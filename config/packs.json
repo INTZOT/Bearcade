@@ -71,6 +71,48 @@
         { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
       ],
       "packDependencies": ["core"]
+    },
+    {
+      "id": "snd5",
+      "dir": "SND5-剑与消亡V",
+      "name": "Bearcade SND5",
+      "description": "Bearcade 剑与消亡V 小游戏包(骨架阶段,玩法待定)",
+      "headerUuid": "64212de9-a02f-4723-ae4e-6ceeb933d681",
+      "moduleUuid": "e44f83de-667d-4353-b7f6-72b98075eee9",
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      ],
+      "packDependencies": ["core"]
+    },
+    {
+      "id": "pigcatcher",
+      "dir": "PigCatcher-猪猪争夺战",
+      "name": "Bearcade PigCatcher",
+      "description": "Bearcade 猪猪争夺战小游戏包(骨架阶段,玩法待定)",
+      "headerUuid": "891f4267-9bcd-4eb4-b207-8b9fb2d179e1",
+      "moduleUuid": "75955337-04a7-454b-91b1-b5f7e4736845",
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      ],
+      "packDependencies": ["core"]
+    },
+    {
+      "id": "toolkit",
+      "dir": "Toolkit-开发者工具",
+      "name": "Bearcade Toolkit",
+      "description": "Bearcade 开发者工具包:悬浮公告管理(/btd)与物品获取(/big),纯工具不注册游戏",
+      "headerUuid": "7ec9984a-f5f7-498e-a7c4-4b13c771bc75",
+      "moduleUuid": "ffc6be57-7465-40f6-91b0-566fe78fc21c",
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      ],
+      "packDependencies": []
     }
   ]
 }
