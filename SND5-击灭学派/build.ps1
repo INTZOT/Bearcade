@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $tmp = Join-Path $root "_build"
-$out = Join-Path $root "击灭学派技能包.mcaddon"
+$out = Join-Path $root "SND5技能包.mcaddon"
 $zip = Join-Path $root "_build.zip"
 
 if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }

@@ -1,4 +1,4 @@
-# 交接报告：击灭学派·学派战技能包（Minecraft 基岩版 1.26.40）
+# 交接报告：《剑与消亡V：上密会战（Sword & Dissolution V : Battle of Upper Mysiaen）》（SND5）·学派战技能包（Minecraft 基岩版 1.26.40）
 
 > 最新汇总请先读 `交接报告_2026-08-14.md`（当前状态、路径、系统清单、未决事项与流程约定），历史汇总见 `交接报告_2026-08-13.md`。本文件是逐轮修复流水账。
 
@@ -89,8 +89,8 @@
 ```
 jimie_schools/
   HANDOVER.md                      # 本文件
-  build.ps1                        # 打包脚本（生成 击灭学派技能包.mcaddon）
-  击灭学派技能包.mcaddon           # 已生成（约 25KB）
+  build.ps1                        # 打包脚本（生成 SND5技能包.mcaddon）
+  SND5技能包.mcaddon           # 已生成（约 25KB）
   BP/
     manifest.json                  # 1.26.40；@minecraft/server 2.9.0；@minecraft/server-ui 2.1.0
     items/                         # 21 个自定义物品
@@ -197,7 +197,7 @@ Copy-Item -Path "C:\Users\24827\jimie_schools\RP\*" -Destination "C:\Users\24827
 
 ## 9. 当前校验/测试记录
 
-- 2026-08-12：用户执行三条命令全部通过：67/67 JSON OK；`node --check` OK（node v24.12.0）；`build.ps1` 成功生成 `击灭学派技能包.mcaddon`（25,353 字节）。
+- 2026-08-12：用户执行三条命令全部通过：67/67 JSON OK；`node --check` OK（node v24.12.0）；`build.ps1` 成功生成 `SND5技能包.mcaddon`（25,353 字节）。
 - 实机测试：用户已试玩，反馈“有一些好了，有一些坏了”，**具体坏项与报错尚未提供**。
 - 尚未验证：自定义狼驯服/索敌、指示物实体、佩莉阵眼攻击判定、普林西斯浮空字、布德宗图腾触发、fatal_poison 显示等，均需实机回归。
 

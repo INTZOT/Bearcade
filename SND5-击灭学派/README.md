@@ -1,4 +1,4 @@
-# 击灭学派·学派战技能包（基岩版 1.26.40）
+# 《剑与消亡V：上密会战（Sword & Dissolution V : Battle of Upper Mysiaen）》（SND5）·学派战技能包（基岩版 1.26.40）
 
 行为包 + 资源包 + 脚本。使用 `build.ps1` 打包为 `.mcaddon`。
 

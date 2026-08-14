@@ -593,7 +593,7 @@ function ensureGameSidebar() {
   try {
     let objective = world.scoreboard.getObjective("jimie_game");
     if (objective) world.scoreboard.removeObjective(objective);
-    objective = world.scoreboard.addObjective("jimie_game", "§6击灭学派·夺点战");
+    objective = world.scoreboard.addObjective("jimie_game", "§6SND5·夺点战");
     world.scoreboard.setObjectiveAtDisplaySlot(DisplaySlotId.Sidebar, {
       objective: objective,
       sortOrder: ObjectiveSortOrder.Descending
@@ -1221,7 +1221,7 @@ function showConfigForm(player) {
   formOpen.add(player.id);
   formOpenSince.set(player.id, system.currentTick);
   const form = new ModalFormData();
-  form.title("击灭学派·初始配置");
+  form.title("SND5·初始配置");
   form.dropdown("队伍", ["红队", "蓝队", "自动分配"]);
   form.dropdown("学派", SCHOOLS.map((s) => s.name));
   form.dropdown("圣典/秘典 1", TOMES.map((t) => t.name));
