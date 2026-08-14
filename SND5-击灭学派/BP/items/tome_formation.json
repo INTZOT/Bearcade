@@ -1,0 +1,16 @@
+{
+  "format_version": "1.26.40",
+  "minecraft:item": {
+    "description": {
+      "identifier": "jimie:tome_formation",
+      "menu_category": { "category": "items" }
+    },
+    "components": {
+      "minecraft:icon": "jimie_tome_formation",
+      "minecraft:display_name": { "value": "item.jimie:tome_formation" },
+      "minecraft:max_stack_size": 1,
+      "minecraft:use_modifiers": { "use_duration": 0.1, "movement_modifier": 1.0 },
+      "minecraft:cooldown": { "category": "jimie_tome_formation", "duration": 90, "type": "use" }
+    }
+  }
+}

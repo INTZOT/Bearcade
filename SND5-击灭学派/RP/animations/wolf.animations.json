@@ -1,0 +1,15 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.wolf.walk": {
+      "loop": true,
+      "animation_length": 0.5,
+      "bones": {
+        "leg0": { "rotation": [ "math.sin(query.anim_time * 720.0) * 25.0", 0.0, 0.0 ] },
+        "leg1": { "rotation": [ "math.sin(query.anim_time * 720.0 + 180.0) * 25.0", 0.0, 0.0 ] },
+        "leg2": { "rotation": [ "math.sin(query.anim_time * 720.0 + 180.0) * 25.0", 0.0, 0.0 ] },
+        "leg3": { "rotation": [ "math.sin(query.anim_time * 720.0) * 25.0", 0.0, 0.0 ] }
+      }
+    }
+  }
+}

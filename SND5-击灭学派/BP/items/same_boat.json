@@ -1,0 +1,16 @@
+{
+  "format_version": "1.26.40",
+  "minecraft:item": {
+    "description": {
+      "identifier": "jimie:same_boat",
+      "menu_category": { "category": "items" }
+    },
+    "components": {
+      "minecraft:icon": "jimie_same_boat",
+      "minecraft:display_name": { "value": "item.jimie:same_boat" },
+      "minecraft:max_stack_size": 1,
+      "minecraft:use_modifiers": { "use_duration": 0.1, "movement_modifier": 1.0 },
+      "minecraft:cooldown": { "category": "jimie_same_boat", "duration": 50, "type": "use" }
+    }
+  }
+}

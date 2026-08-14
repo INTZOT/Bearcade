@@ -1,0 +1,16 @@
+{
+  "format_version": "1.26.40",
+  "minecraft:item": {
+    "description": {
+      "identifier": "jimie:slow_field",
+      "menu_category": { "category": "items" }
+    },
+    "components": {
+      "minecraft:icon": "jimie_slow_field",
+      "minecraft:display_name": { "value": "item.jimie:slow_field" },
+      "minecraft:max_stack_size": 1,
+      "minecraft:use_modifiers": { "use_duration": 0.1, "movement_modifier": 1.0 },
+      "minecraft:cooldown": { "category": "jimie_slow_field", "duration": 55, "type": "use" }
+    }
+  }
+}
