@@ -5,7 +5,6 @@
 // ============================================================
 
 export const PACK_NAME = "Bearcade Toolkit";
-// 自定义命令注册名(游戏内可输入 /btd、/cis、/spm,客户端会自动解析前缀)
+// 自定义命令注册名(游戏内可输入 /btd、/cis,客户端会自动解析前缀)
 export const COMMAND_BTD = "toolkit:btd";
 export const COMMAND_CIS = "toolkit:cis";
-export const COMMAND_SPM = "toolkit:spm";

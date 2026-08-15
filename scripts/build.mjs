@@ -21,7 +21,6 @@ const EXTERNALS = [
   "@minecraft/math",
   "@minecraft/server",
   "@minecraft/server-ui",
-  "@minecraft/server-gametest",
   "@minecraft/vanilla-data",
 ];
 

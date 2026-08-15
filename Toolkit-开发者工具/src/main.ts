@@ -1,7 +1,6 @@
 // ============================================================
 // Bearcade Toolkit(开发者工具)入口
-// 纯工具包:自定义命令 /btd(悬浮公告管理)、/cis(CustomItemStack)、
-// /spm(SimulatedPlayerManager 模拟玩家生成)
+// 纯工具包:自定义命令 /btd(悬浮公告管理)、/cis(CustomItemStack)
 // ============================================================
 import {
   system,
@@ -12,7 +11,6 @@ import {
 } from "@minecraft/server";
 import { initNotice, showNoticeAdminMenu } from "./notice";
 import { openCisForm } from "./cis";
-import { registerSpmCommand } from "./simulatedPlayerManager";
 import { COMMAND_BTD, COMMAND_CIS, PACK_NAME } from "./config";
 
 function registerCommands(): void {
@@ -61,11 +59,10 @@ function registerCommands(): void {
 }
 
 registerCommands();
-registerSpmCommand();
 initNotice();
 
 world.afterEvents.worldLoad.subscribe(() => {
   console.warn(
-    `[${PACK_NAME}] 已加载:/btd 悬浮公告管理、/cis 手持物品属性编辑、/spm 模拟玩家管理(仅管理员)`,
+    `[${PACK_NAME}] 已加载:/btd 悬浮公告管理、/cis 手持物品属性编辑(仅管理员)`,
   );
 });
