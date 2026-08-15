@@ -3,8 +3,8 @@
 // - 塌陷状态机:玩家脚下的白色混凝土被踩后进入塌陷
 //   (黄 1s → 橙 1s → 红 1s → 消失),离开后继续塌;
 // - PVP:开局 PVP_DELAY_TICKS 后开启,玩家可互相攻击;
-// - 淘汰:掉到 VOID_Y 以下 → 淘汰 → Camera free 相机跟随存活玩家
-//   (身后视角,运镜缓动平滑跟随,随目标移动/转向实时刷新),
+// - 淘汰:掉到 VOID_Y 以下 → 淘汰 → Camera free 相机引擎绑定跟随存活玩家
+//   (attachToEntity 刚性跟随,人物零相对运动;大幅转向时重新摆位),
 //   手持望远镜(SPECTATE_ITEM)切换观战对象;
 // - 胜负:最后 1 名存活者获胜;全部淘汰则平局。
 // ============================================================
@@ -12,6 +12,7 @@ import {
   system,
   world,
   EasingType,
+  EntityAttachPoint,
   GameMode,
   ItemLockMode,
   ItemStack,
@@ -42,6 +43,10 @@ interface Session {
   floorBlocks: Map<string, CollapseBlock>;
   /** 观战玩家 id -> 观战目标玩家 id */
   spectators: Map<string, string>;
+  /** 观战者 id -> 最后一次摆位时目标的 yaw(用于转向阈值重摆位) */
+  cameraYaw: Map<string, number>;
+  /** 已确认相机绑定失败的观战者(避免重复告警) */
+  attachFailed: Set<string>;
   pvpAnnounced: boolean;
 }
 
@@ -108,34 +113,58 @@ function aliveIds(
 }
 
 /**
- * 观战相机:minecraft:free 相机悬浮在目标身后 6 格、上方 2.6 格。
- * - 位置:由 refreshSpectateCameras 每 2 tick(0.1 秒)刷新 + easeOptions 0.2s 线性缓动,
- *   世界背景平滑滑动;
- * - 朝向:用 facingEntity 让引擎在渲染帧率下持续跟踪目标实体,
- *   人物永远锁定在画面中心——若改用缓动朝向(facingLocation + ease),
- *   朝向滞后量随目标加减速/转向变化,会出现视角内人物漂移抖动。
- * (内置 third_person 预设不接受 targetEntity 跟随,官方仅 free 系相机支持)
+ * 观战相机:free 相机放到目标身后 6 格、上方 2.6 格,并 attachToEntity
+ * 让引擎把相机刚性绑定到目标实体——相机与人物在渲染帧率下同步移动
+ * (同一插值管线),人物在画面中零相对运动,彻底消除"脚本按 tick 采样坐标
+ * + 独立缓动"与"人物插值渲染"相位不一致造成的抽搐。
+ * 目标大幅转向时由 refreshSpectateCameras 重新摆位(阈值 45°)。
+ * (API 文档限定 attach 目标为非玩家实体;对玩家抛错时回退追位+缓动方案)
  */
-function applySpectateCamera(spectator: Player, target: Player): void {
-  try {
+function applySpectateCamera(
+  session: Session,
+  spectator: Player,
+  target: Player,
+): void {
+  const behind = (): { x: number; y: number; z: number } => {
     const view = target.getViewDirection();
     const loc = target.location;
+    return {
+      x: loc.x - view.x * 6,
+      y: loc.y + 2.6,
+      z: loc.z - view.z * 6,
+    };
+  };
+  try {
     spectator.camera.setCamera("minecraft:free", {
-      location: {
-        x: loc.x - view.x * 6,
-        y: loc.y + 2.6,
-        z: loc.z - view.z * 6,
-      },
+      location: behind(),
       facingEntity: target,
-      // 缓动时长略大于刷新间隔:相机永远处于"追向最新目标"的运镜中
-      easeOptions: { easeTime: 0.2, easeType: EasingType.Linear },
     });
+    spectator.camera.attachToEntity({
+      entity: target,
+      locator: EntityAttachPoint.Eyes,
+    });
+    session.attachFailed.delete(spectator.id);
   } catch (error) {
-    console.warn("[Bearcade collapse] 观战相机设置失败", error);
+    if (!session.attachFailed.has(spectator.id)) {
+      session.attachFailed.add(spectator.id);
+      console.warn(
+        "[Bearcade collapse] 相机绑定目标失败,回退追位+缓动模式",
+        error,
+      );
+    }
+    try {
+      spectator.camera.setCamera("minecraft:free", {
+        location: behind(),
+        facingEntity: target,
+        easeOptions: { easeTime: 0.2, easeType: EasingType.Linear },
+      });
+    } catch (fallbackError) {
+      console.warn("[Bearcade collapse] 观战相机设置失败", fallbackError);
+    }
   }
 }
 
-/** 让淘汰玩家观战指定目标(free 相机跟随) */
+/** 让淘汰玩家观战指定目标(引擎绑定跟随) */
 function setSpectateTarget(
   runtime: MinigameRuntime,
   roomId: number,
@@ -148,7 +177,14 @@ function setSpectateTarget(
     return;
   }
   session.spectators.set(spectator.id, target.id);
-  applySpectateCamera(spectator, target);
+  session.cameraYaw.delete(spectator.id);
+  // 先清相机(解除旧目标绑定),再对新目标重新放置与绑定
+  try {
+    spectator.camera.clear();
+  } catch {
+    // 忽略
+  }
+  applySpectateCamera(session, spectator, target);
   spectator.sendMessage(`§7正在观战 §e${target.name}§7(手持望远镜切换)`);
 }
 
@@ -317,7 +353,10 @@ function tickSpectators(
   }
 }
 
-/** 观战相机刷新(1 tick 一次):按各观战者当前目标应用跟随相机,配合 easeOptions 运镜平滑 */
+/**
+ * 观战相机维护(2 tick 一次):相机已由 attachToEntity 刚性跟随目标,
+ * 这里只需在目标大幅转向(>45°)时重新摆位到其身后
+ */
 function refreshSpectateCameras(
   runtime: MinigameRuntime,
   roomId: number,
@@ -333,7 +372,15 @@ function refreshSpectateCameras(
     const target = runtime
       .roomPlayers(roomId)
       .find((p) => p !== undefined && p.id === targetId);
-    if (target) applySpectateCamera(spectator, target);
+    if (!target) continue;
+    const yaw = target.getRotation().y;
+    const last = session.cameraYaw.get(specId);
+    const delta =
+      last === undefined ? 180 : Math.abs(((yaw - last + 540) % 360) - 180);
+    if (delta > 45) {
+      applySpectateCamera(session, spectator, target);
+      session.cameraYaw.set(specId, yaw);
+    }
   }
 }
 
@@ -350,6 +397,8 @@ export function makeCollapseHooks(
         pvpTick: system.currentTick + pvpDelayTicks,
         floorBlocks: new Map(),
         spectators: new Map(),
+        cameraYaw: new Map(),
+        attachFailed: new Set(),
         pvpAnnounced: false,
       };
       sessions.set(roomId, session);
@@ -464,8 +513,8 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
     }
   }, 2);
 
-  // 观战相机刷新:2 tick(0.1 秒)输入一次目标位置,
-  // 配合 applySpectateCamera 的 easeOptions 运镜缓动(0.2 秒),平滑追尾
+  // 观战相机维护:2 tick(0.1 秒)检查一次目标转向,大幅转向(>45°)时重新摆位;
+  // 平时相机由 attachToEntity 刚性跟随目标,无需高频刷新
   system.runInterval(() => {
     for (const [roomId, session] of [...sessions.entries()]) {
       try {
