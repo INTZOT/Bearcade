@@ -12,13 +12,25 @@ const config = JSON.parse(
 let failed = false;
 
 for (const pack of config.packs) {
-  // 各包 PACK_ID 定义位置不同:小游戏包在 src/config.ts,Core 在 src/types.ts(CORE_PACK_ID)
+  if (pack.type === "resource") {
+    console.log(`- ${pack.id}:资源包,不参与 IPC,跳过 packId 校验`);
+    continue;
+  }
+  // 各包 PACK_ID 定义位置不同:小游戏包在 src/config.ts,Core 的 CORE_PACK_ID 唯一常量在 shared/minigame-core/types.ts(Core/src/types.ts 仅转发)
   const candidates = [
     { file: path.join(root, pack.dir, "src", "config.ts"), pattern: /export const PACK_ID\s*=\s*"([^"]+)"/ },
     { file: path.join(root, pack.dir, "src", "types.ts"), pattern: /export const CORE_PACK_ID\s*=\s*"([^"]+)"/ },
+    {
+      // Core 的 CORE_PACK_ID 唯一常量已下沉到 shared/minigame-core/types.ts,
+      // Core/src/types.ts 仅 re-export;这里直接校验共享常量,避免三处漂移。
+      file: path.join(root, "shared", "minigame-core", "types.ts"),
+      pattern: /export const CORE_PACK_ID\s*=\s*"([^"]+)"/,
+      onlyFor: "core",
+    },
   ];
   let found = false;
-  for (const { file, pattern } of candidates) {
+  for (const { file, pattern, onlyFor } of candidates) {
+    if (onlyFor && onlyFor !== pack.id) continue;
     let source = "";
     try {
       source = readFileSync(file, "utf8");

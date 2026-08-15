@@ -1,8 +1,8 @@
 export const IPC_CHANNEL = "bearcade:ipc";
 export const REGISTRY_KEY = "bearcade:registry";
 export const LOBBY_DIMENSION_ID = "minecraft:overworld";
-/** Core 包的 manifest header UUID,IPC 来源校验用(与 config/packs.json 的 core.headerUuid 保持一致) */
-export const CORE_PACK_ID = "9ce781fb-ff67-4e21-904d-6a5b8b457703";
+/** Core 包的 manifest header UUID,唯一常量定义在 shared/minigame-core/types.ts,这里只转发 */
+export { CORE_PACK_ID } from "../../shared/minigame-core/types";
 
 export type RoomStatus = "initializing" | "idle" | "running";
 

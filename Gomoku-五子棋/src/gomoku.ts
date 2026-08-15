@@ -9,6 +9,11 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import {
+  clearHudTitle,
+  hudMessage,
+  setHudTitle,
+} from "../../shared/minigame-core/scoreboardHud";
 import { getGomokuConfig, openGomokuConfig } from "./gomoku-config";
 import {
   STONE_BLACK,
@@ -70,6 +75,30 @@ function clearTokens(runtime: MinigameRuntime, roomId: number): void {
   }
 }
 
+function refreshHud(
+  runtime: MinigameRuntime,
+  roomId: number,
+  state: GomokuState,
+): void {
+  for (const roomPlayer of runtime.roomPlayers(roomId)) {
+    const turnColor = state.turn;
+    const myTurn = state.players[turnColor] === roomPlayer.id;
+    setHudTitle(
+      roomPlayer,
+      hudMessage([
+        { text: "§e五子棋§r" },
+        { text: "\n" },
+        {
+          text: myTurn
+            ? `§a轮到你落子 · ${turnColor === "black" ? "黑方" : "白方"}`
+            : `§7等待对方落子 · ${turnColor === "black" ? "黑方" : "白方"}`,
+        },
+      ]),
+      6000,
+    );
+  }
+}
+
 function giveTurn(
   runtime: MinigameRuntime,
   roomId: number,
@@ -95,7 +124,8 @@ function giveTurn(
   }
   const name = color === "black" ? "黑" : "白";
   player.sendMessage(`§a轮到你落子(${name}方)`);
-  player.onScreenDisplay.setActionBar(`§a轮到你落子 · ${name}方`);
+  const state = games.get(roomId);
+  if (state) refreshHud(runtime, roomId, state);
 }
 
 function checkWin(
@@ -237,10 +267,14 @@ export function makeGomokuHooks(
         roomId,
         `§a对局开始!黑方:${black.name} / 白方:${white.name},放置压力板落子`,
       );
+      refreshHud(runtime, roomId, games.get(roomId)!);
       giveTurn(runtime, roomId, black, "black");
     },
     onBeforeReset(roomId) {
       const runtime = getRuntime();
+      for (const player of runtime.roomPlayers(roomId)) {
+        clearHudTitle(player);
+      }
       // 恢复冒险模式(回大厅后 Core 也会兜底初始化)
       for (const player of runtime.roomPlayers(roomId)) {
         if (player !== undefined) {

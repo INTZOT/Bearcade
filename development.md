@@ -4,7 +4,7 @@
 
 ## 1. 总体原则
 
-- 一个目录 = 一个 mcaddon,根目录下每个子目录都是独立的包。
+- 一个目录 = 一个 mcpack,根目录下每个子目录都是独立的包;`npm run package` 可再合并全部包为 `bearcade.mcaddon`。
 - 全局能力一律放在 `Core-核心`,小游戏包不重复实现全局逻辑。
 - 小游戏包之间**禁止相互依赖**;需要共享能力时,统一下沉到 Core 或由 Core 提供接口。
 - **共享逻辑放 `shared/minigame-core`**:维度注册、模板复制与常加载、房间状态机、Core 上报、命令、结束回大厅等通用房间逻辑统一封装在 `shared/minigame-core`(构建期内联进每个小游戏包,产物仍自包含);修改共享代码后只需 `npm run build` 重新构建,所有包同步生效,禁止在包内复制第二份。
@@ -12,8 +12,8 @@
 - 每个小游戏必须使用**容器化房间**:一个维度 = 一个游戏 = 一个房间,房间之间互不干扰。
 - Core 只负责「接收上报、DDUI 展示、入房校验、传送至准备区域」,对局内的一切逻辑属于小游戏包,不得要求 Core 处理。
 - **玩法与对局流程不做统一规范**:房间内部如何准备、开局、结算、设计规则,由开发者自行发挥。
-- 小游戏包必须满足三条强制契约:**注册游戏信息**(§5.2)、**向 Core 发信**(§3.4)、**对局结束后将玩家传送回大厅**(§4.4)。
-- 强制中止、进入模板维度、应用模板命令由 **Core 统一提供**(`/bearcade:quit <gamename>`、`/bearcade:tmp tp|ap <gamename>`),小游戏包只需响应对应 IPC 指令(已封装在 `shared/minigame-core`)。
+- 小游戏包必须满足五条强制契约:**注册游戏信息**(§5.2)、**向 Core 发信**(§3.4)、**对局结束后将玩家传送回大厅**(§4.4)、**响应强制中止**(§4.4)、**响应模板命令**(§3.2)。
+- 强制中止、进入模板维度、应用模板命令由 **Core 统一提供**(`/bearcade:quit`(无参数,按当前维度路由)、`/bearcade:tmp tp|ap|sz <gamename>`),小游戏包只需响应对应 IPC 指令(已封装在 `shared/minigame-core`)。
 
 ## 2. 包目录规范
 
@@ -27,6 +27,7 @@
 | `Collapse-豆腐渣地板/` | 小游戏包 | 豆腐渣地板,踩踏塌陷 + PVP 淘汰,玩法已实现(模板场地待建) |
 | `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡V,骨架阶段,玩法待定 |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
+| `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,右上角每玩家独立记分板 |
 
 新增小游戏时,在根目录新建独立目录,命名沿用 `英文标识-中文说明` 的风格(如 `Gomoku-五子棋`)。
 
@@ -39,6 +40,7 @@
   | `entities/` | 自定义实体定义 | 示例:BridgeWar 的 `entities/bearcade_loadout_dummy.json`(装备仓库实体) |
   | `items/` | 自定义物品 | — |
   | `blocks/` | 自定义方块 | — |
+  | `Cameras/` | 相机预设 | 注意目录名必须大写 `Cameras`/`Presets`;示例:Collapse 的 `Cameras/Presets/spectate.json` |
   | `recipes/` | 合成配方 | — |
   | `spawn_rules/` | 生物刷怪规则 | — |
   | `loot_tables/` | 战利品表 | — |
@@ -48,8 +50,11 @@
   | `structures/` | 结构文件 | — |
   | `functions/` | 函数(mcfunction) | — |
   | `texts/` | 语言文本 | — |
+  | `features/` `feature_rules/` `biomes/` | 世界生成 | 未来地形/结构生成用,已登记在 `EXTRA_DIRS` |
 
 - **处理方式**:`npm run build` 只生成 `manifest.json` 与打包 `scripts/`,定义文件目录**原样保留在包目录内**,由 `npm run package`(产出 mcpack)与 `npm run deploy`(部署到开发包目录)自动随包复制;脚本侧统一从 `scripts/extras.mjs` 的 `EXTRA_DIRS` 读取目录清单,**新增定义类型目录时只需在该文件登记**;
+- **客户端表现**:自定义物品/方块/实体的 client 定义、贴图、模型、动画等放同目录 `resource-pack/` 的 `items/`、`blocks.json`、`entity/`、`models/`、`textures/` 等目录,目录清单见 `scripts/extras.mjs` 的 `RESOURCE_DIRS` / `RESOURCE_ROOT_FILES`;
+- **完整规范**:引入自定义物品/方块/实体前,必读 [docs/addon-content.md](docs/addon-content.md),包含目录对照、最小 JSON 示例、资源包配对、脚本交互与故障排查清单;
 - 定义文件目录与 `scripts/`、`manifest.json` 一样**随包分发**,不单独入库管理;
 - 注意区分:`docs/` 目录下存放的是 **ScriptAPI 类型定义快照**(`@minecraft/*` 的 `.d.ts` 与官方文档),那是给脚本开发用的类型声明,**不是**行为包 JSON 定义文件,两者不要混放。
 
@@ -267,13 +272,13 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
 - 当前可配置项:
   - 五子棋:准备房间坐标、棋盘位置(棋盘 Y / x-z 范围)、黑方开局坐标、白方开局坐标;
   - 建筑猜猜乐:题库管理、准备房间坐标、每回合开局传送坐标;
-  - 急速战桥:准备房间坐标、红/蓝队出生点、红/蓝队核心区、获胜所需分数。
+  - 急速战桥:准备房间坐标、地图边界、红/蓝队出生点、红/蓝队核心区、获胜所需分数。
   - 急速战桥装备:红/蓝方装备配置(通过模板维度内自定义实体保存玩家全套物品,开局/复活自动覆盖)。
   - 猪猪争夺战:准备房间坐标、地图边界、猪刷新点、初始猪数/刷新数量/刷新间隔、游戏时长、核心区吸引半径/强度、四队出生点与核心区、四队装备配置;
-  - 豆腐渣地板:准备房间坐标、场地中心、顶层地板 Y、场地大小、PVP 开启延迟、塌陷阶段时长、虚空淘汰高度。
+  - 豆腐渣地板:准备房间坐标、场地中心、顶层地板 Y、场地大小、PVP 开启延迟、塌陷阶段时长、虚空淘汰高度、观战玩家位置。
 - **对局中禁止修改**:存在运行中/倒计时对局时,配置界面拒绝打开(共享运行时 `hasActiveGame` 守卫)。
 
-调试命令:`/bearcade:debug <gamename|all> enable|disable`(管理员)经 `game.debug` IPC 显式开启/关闭该游戏的调试日志;`all` 时 Core 会批量下发到全部已注册游戏(共享运行时统一管理,GuessNBuild 已接入;旧 `/bearcade:gnb_debug` 已移除)。
+调试命令:`/bearcade:debug <gamename|all> enable|disable`(管理员)经 `game.debug` IPC 显式开启/关闭该游戏的调试日志;`all` 时 Core 会批量下发到全部已注册游戏(共享运行时统一管理;旧 `/bearcade:gnb_debug` 已移除)。
 
 ### 4.7 返回大厅数据初始化与断线处理(强制契约)
 
@@ -284,7 +289,7 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
   2. 恢复游戏模式为冒险(Adventure);
   3. 清除对局内设置的重生点(`setSpawnPoint(undefined)`);
   4. 还原名牌与聊天染色(`nameTag` / `chatNamePrefix` / `chatNameSuffix`);
-  5. 清除全部效果(`clearEffects`);
+  5. 清除全部效果(当前版本无 `clearEffects`,逐个 `removeEffect`);
   6. 随后重新发放钟物品。
 - 游戏包自身的清理逻辑(onBeforeReset 等)保留,Core 为**最终兜底**;游戏包不得假设玩家回大厅时背包/模式/重生点未被 Core 处理。
 - 玩家**进入**房间维度时,Core 自动移除大厅钟(避免占用对局背包格),返回大厅时重新发放。
@@ -293,6 +298,15 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
 
 - 玩家断线即视为退出当前对局;游戏包状态机负责对局侧收尾(运行中人数低于最少人数、任一队伍无人等场景立即结束对局并重置);
 - 玩家重连时,Core 检查其所在维度:不在主世界(断线时位于房间/模板维度)则自动传送回大厅并执行上述数据初始化;已在大厅则直接执行初始化;初始化后重新发放钟,玩家以全新状态重新选择游戏加入。
+
+### 4.8 每玩家独立记分板(JSON UI HUD)
+
+- **不使用全局 Sidebar**:`DisplaySlotId.Sidebar` 全服唯一,多房间/多游戏会互相覆盖。所有小游戏不再调用 `setObjectiveAtDisplaySlot`,也不在 reset 时 `clearObjectiveAtDisplaySlot`。
+- **数据源仍是 scoreboard objective**:每房间独立 objective(如 `bearcade:gnb_score_1`),真实玩家用玩家身份写分,队伍分用假玩家名(如 `bw_r1`)。写分统一走 `shared/minigame-core/scoreboardHud.ts` 的 `setObjectiveScore`,内部缓存 `ScoreboardIdentity`,避免 `setScore(字符串)` 反复创建假玩家身份。
+- **显示通道是 `player.setTitle` + rawtext score**:`hudMessage([...scoreToken(name, objectiveId)...])` 把分数 token 注入每位玩家自己的 title;title 是每玩家实例,天然按房间隔离。
+- **JSON UI 负责排版**:每个 `<游戏>/resource-pack/ui/hud_screen.json` 覆写原版 `hud_title_text` 控件,把居中大标题改为右上角小字号右对齐面板(标签绑定仍为 `#hud_title_text_string`);资源包目录与行为包目录一一对应。
+- **集成约定**:`config/packs.json` 中每个资源包条目 `type: "resource"`,其 `dir` 指向 `<游戏>/resource-pack`(`gomoku_hud` ↔ `Gomoku-五子棋/resource-pack` 等);`build.mjs` 只为行为包跑 esbuild;`package.mjs` 把 `ui/` 打入独立 `<gameid>_hud.mcpack` 并并入 `bearcade.mcaddon`;`deploy.mjs` 把行为包部署到 `development_behavior_packs`,配对资源包还原为 `<游戏>-资源包` 后部署到相邻的 `development_resource_packs`(可用 `MC_DEV_RESOURCE_PACKS` 覆盖);指定任一行为包 ID 会自动带上配对 `_hud` 资源包。
+- 所有小游戏结束时在 `onBeforeReset` 调用 `clearHudTitle`;Core 玩家回大厅时也兜底清 title/actionbar/camera。
 
 ## 5. 通信协议规范
 
@@ -305,7 +319,7 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
 信封格式:{ "op": string, "packId": string, "payload": object }
 ```
 
-- `packId`:发送方 mcaddon 的 manifest header UUID,用于来源校验;
+- `packId`:发送方行为包的 manifest header UUID,用于来源校验;
 - 所有消息由发送方序列化为 JSON,接收方解析必须容错(失败丢弃并记录日志);
 - `system.sendScriptEvent` 的 `id` 必须是带命名空间的合法标识(命名空间错误会抛 `NamespaceNameError`),`bearcade:ipc` 符合要求;
 - 除 §5.2、§5.3 定义的操作码外,任何未知操作码一律丢弃。
@@ -393,9 +407,9 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 
 ## 6. 工程与发布
 
-- 每个包独立构建、独立发布为 `.mcaddon`,构建产物统一收集到根目录 `dist/packages/`;
+- 每个包独立构建、独立发布为 `.mcpack`(行为包与一对一的 `<gameid>_hud` 资源包分别产出),`npm run package` 同时产出合并全部包的 `bearcade.mcaddon`,构建产物统一收集到根目录 `dist/packages/`;
 - **包版本统一管理**:所有包的 manifest 版本由 `config/packs.json` 的 `projectVersion` 统一写入(当前 **Beta v0.0.1**),日常迭代不逐包升 manifest 版本,直接构建覆盖部署;正式发版时才统一提升 `projectVersion`;
-- `npm run deploy` 部署到开发行为包目录(默认 Levilauncher 1.26.42.01 的全局 `Users\Shared`,可用 `MC_DEV_PACKS` 覆盖),世界重载或 `/reload` 后生效;
+- `npm run deploy` 部署到开发包目录:行为包 → `development_behavior_packs`,配对 `resource-pack/` → 还原为 `<游戏>-资源包` 后写入相邻的 `development_resource_packs`;Windows 使用 Levilauncher 1.26.42.01 默认路径,其他平台必须设置 `MC_DEV_PACKS`(资源包可用 `MC_DEV_RESOURCE_PACKS` 覆盖);世界重载或 `/reload` 后生效;
 - 游戏包 manifest 使用包依赖(`packDependencies`)声明依赖 `Core-核心`(header UUID + 版本),保证 Core 先加载;
 - 类型定义以仓库 `docs/` 为准(同步自 Beatorini 包内最新定义):当前为 `@minecraft/server` 2.10.0-beta.1.26.43-stable、`@minecraft/server-ui` 2.2.0-beta.1.26.43-stable、`@minecraft/common` 1.3.0、`@minecraft/vanilla-data` 1.26.40(对应 MC 1.26.42/1.26.43);该定义为预发布版本,启用时需匹配对应实验开关;manifest 依赖版本与 `min_engine_version` 必须与所选定义对齐;若改用稳定版,须先核对 API 差异;
 - manifest 由 `scripts/build.mjs` 生成:dependencies 声明 `@minecraft/server` 2.10.0-beta 与 `@minecraft/server-ui` 2.2.0-beta,`min_engine_version` 为 [1, 26, 40];实测不包含 `capabilities` 字段也可正常加载(无需 `script_eval`);
@@ -414,7 +428,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 
 - 新增或修改包时,只改动自己的目录,不触碰其他包的内容。
 - 提交说明中注明影响范围(所属包)。
-- 每包提交前必须通过类型检查与构建,并验证 `.mcaddon` 可正常安装加载。
+- 每包提交前必须通过类型检查与构建,并验证该包的 `.mcpack` 可正常安装加载。
 - 修改任何跨包契约(消息格式、维度命名、状态枚举)时,必须同步更新本文档与 README.md。
 - 所有涉及 ScriptAPI 的实现必须以 `docs/` 目录的类型定义为准;升级或更换版本前先核对 API 差异。
 - 包目录内的 `manifest.json` 与 `scripts/` 是构建产物,**不入库**(已加入 .gitignore);克隆后先 `npm install && npm run build` 再部署/打包。
@@ -429,14 +443,14 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
    - 有仓库权限:基于 master 开分支(`feat/<gameid>`),提交后发 Pull Request;
    - 无权限:把游戏目录打包发来,由管理员合入;
 4. **管理员合入检查清单**:
-   - Pull Request 会自动运行 `npm ci && npm run typecheck && npm run build`(GitHub Actions),通过后才合并;`.mcpack` 打包依赖 Windows PowerShell,仍在本地执行,不纳入 CI;
+   - Pull Request 会自动运行 `npm ci && npm run typecheck && npm run check && npm run build && npm run package`(GitHub Actions),通过后才合并;打包使用跨平台 archiver,不依赖 Windows PowerShell;
    - 只新增游戏目录,未改动 Core / 其他游戏;
    - `config/packs.json` 中新增条目 `packDependencies: ["core"]`,UUID 不与现有包重复;
    - 游戏 ID、结构 ID、维度名符合命名规范(`bearcade:<gameid>_n` 等);
    - tsconfig `include` 已加新包源码;
    - `npm run typecheck && npm run check && npm run build` 通过;
    - 部署到开发环境实测:入房、状态上报、结束回大厅、`/bearcade:quit` 强制中止、模板命令均正常;
-5. **合入后**:管理员合并到 master,开发套件(`npm run distribute`)会自动包含新游戏。
+5. **合入后**:管理员合并到 master;`npm run distribute` 只打包 Core + 模板作为开发套件,内部小游戏不进入 devkit,按 `npm run package` 单独发布。
 
 > 构建产物(manifest/scripts)不入库;合入时不要提交它们,合并后由 `npm run build` 统一生成。
 
@@ -520,10 +534,14 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-14 | 新增 SND5-剑与消亡V 小游戏包骨架(复制模板,复用 shared/minigame-core,玩法待定) |
 | 2026-08-14 | 新增 PigCatcher-猪猪争夺战(四队驱猪进核心区,钓鱼竿/胡萝卜钓竿/拴绳交互,计时结算,可运行)与 Toolkit-开发者工具(悬浮公告 /btd、手持物品属性编辑 /cis) |
 | 2026-08-15 | IPC 来源校验收紧:Core 与游戏包均拒绝玩家/命令方块/NPC 来源,游戏包另校验信封 packId 必须为 Core 的 UUID;模板捕获/放置改为串行队列,杜绝并发重置竞态;`/bearcade:tmp ap` 拒绝在运行中/倒计时房间执行;PigCatcher 鱼钩解拴状态按房间隔离;共享 `clearAllPlayerItems` 统一两包结束清物品(含盔甲/副手);GuessNBuild 建造/落点边界改读运行时模板范围;模板范围表单校验 y 与常加载区相交;配置界面增加对局中禁改守卫;Gomoku 背包满时自动腾格发棋子;派对模式带队校验全服在线人数 ≥ minPlayers |
-| 2026-08-15 | 工程改进:watch 监听补全新包与 shared/;打包改用跨平台 archiver(替代 Windows PowerShell);deploy 必须显式设置 MC_DEV_PACKS;distribute 保留 projectVersion/phase;新增 `npm run check` 校验 packId 一致性(已接入 CI);清理各包 config.ts 未用维度函数;修正 packs.json/README/本文档中的过时描述 |
+| 2026-08-15 | 工程改进:watch 监听目标改由 packs.json 派生并串行重建;打包改用跨平台 archiver(替代 Windows PowerShell);deploy 在 Windows 使用默认路径、其他平台要求 MC_DEV_PACKS;distribute 自动重新 package、校验 projectVersion 与 package.json 版本一致;新增 `npm run check` 校验 packId 一致性(含 shared 中的 CORE_PACK_ID,已接入 CI);清理各包 config.ts 未用维度函数 |
 | 2026-08-15 | 新增契约:返回大厅强制数据初始化(任意路径回到主世界,Core 统一清空全套物品/恢复冒险模式/清除重生点/名牌染色/效果并补发钟;进入房间维度自动移除大厅钟);断线一律视为退出游戏,重连自动传送回大厅并初始化,不提供热重连 |
 | 2026-08-15 | 行为包定义文件处理规范:实体/物品/方块等 JSON 定义放包目录对应文件夹,打包与部署自动包含;目录清单抽到 `scripts/extras.mjs` 统一登记(新增 items/blocks/recipes/spawn_rules/loot_tables/tags/trading/dialogue 等);模板 README 与本文档 §2.1 补充说明 |
 | 2026-08-15 | 猪猪争夺战道具/装备改为实体储存(与战桥一致):四队独立仓库实体(`bearcade:pigcatcher_loadout_dummy` + nameTag 分队),`/bearcade:config` 新增"XX队装备配置"(保存/清空),开局/复活按队 `applyLoadout` 覆盖全套物品;移除默认三件套兜底(未配置即空背包);development.md 新增 §2.2 装备储存实体规范 |
 | 2026-08-15 | 新增 Collapse-豆腐渣地板(派对游戏,2 房/2~16 人/party 可用):多层地板踩踏塌陷状态机(黄→橙→红各 1 秒→消失,离开后继续塌)、开局 60 秒后开启 PVP(徒手)、掉虚空淘汰并进入 Camera 第三人称观战(手持望远镜切换观战对象)、最后存活者获胜/全员淘汰平局;场地大小等全部接入 `/bearcade:config collapse`(场地中心/顶层 Y/场地大小/PVP 延迟/塌陷时长/淘汰高度),层数由模板场地决定 |
-| 2026-08-15 | 猪猪争夺战鱼钩解拴改用事件驱动:实测 `entityHitEntity` 对鱼钩勾中不派发,`entityHurt(before)` 在 0 伤害投射命中时可靠触发(damage=0、cause=projectile、damagingEntity=投掷者玩家);解拴逻辑移入 `entityHurt` 猪分支,抢在无敌 cancel 前经 `system.run` 延迟 unleash,邻近鱼钩实体二次确认防误解拴;删除 `entityHitEntity` 死代码,轮询保留作"先勾后拴"兜底;debug 模式放宽维度检查便于大厅测试;`deploy.mjs` 恢复本机默认部署路径(MC_DEV_PACKS 可覆盖);新增 §11 ScriptAPI 实战参考 |
+| 2026-08-15 | 猪猪争夺战鱼钩解拴改用事件驱动:实测 `entityHitEntity` 对鱼钩勾中不派发,`entityHurt(before)` 在 0 伤害投射命中时可靠触发(damage=0、cause=projectile、damagingEntity=投掷者玩家);解拴逻辑移入 `entityHurt` 猪分支,抢在无敌 cancel 前经 `system.run` 延迟 unleash,邻近鱼钩实体二次确认防误解拴;删除 `entityHitEntity` 死代码,轮询保留作"先勾后拴"兜底;debug 模式放宽维度检查便于大厅测试;新增 §11 ScriptAPI 实战参考 |
 | 2026-08-15 | 新建 `docs/lessons.md` 实战参考:汇总开发踩坑与解决(事件上下文/维度结构/UI/状态机/安全/工具链/调试技巧),§11 改为指向该文件 |
+| 2026-08-15 | 修复与清理:相机预设目录大小写;`/bearcade:tmp ap` 修复路径同步重置房间状态;战桥回合重置失败兜底;返回大厅清相机/actionbar;删除 `/bearcade:spec` 调试命令;模板范围变更后清理旧房间方块;维度注册幂等容错;Core 注册表严格校验与持久化容错;派对传送失败回滚预留;区域编辑器归一化 from/to;Core UUID 唯一常量下沉 shared 并纳入 check;对局钩子异常兜底;GuessNBuild 重置期间结束竞态;清理死代码并开启 noUnusedLocals/noUnusedParameters;装备清空失败如实提示;Gomoku 棋盘 Y 上限校验;Toolkit 命令注册容错与公告数据归一化;watch 由 packs.json 派生并串行重建;distribute 自动重打包、版本强一致、排除本地文档快照;deploy 非 Windows 强制 MC_DEV_PACKS;删除 `SND5游戏开发文档.md` 与 `docs/specs/` 废文档;统一 mcpack 文案并同步各包 README |
+| 2026-08-15 | 引入每玩家独立记分板(JSON UI + rawtext score):资源包内嵌为各游戏目录下的 `resource-pack/`,构建/部署时再拆分为一对一 `<游戏>-资源包`;新增 `shared/minigame-core/scoreboardHud.ts`;全部小游戏停止使用全局 Sidebar,改为每房间 objective + `setTitle` rawtext score;构建/打包/部署/分发/watch 支持 `type:"resource"` 资源包;教训与避坑沉淀到 `docs/lessons.md` §10~§11 |
+| 2026-08-15 | 完善自定义内容规范:新增 `docs/addon-content.md`(自定义物品/方块/实体的目录对照、JSON 示例、资源包配对、脚本交互、检查清单与故障排查);`scripts/extras.mjs` 扩为行为包 `EXTRA_DIRS` + 资源包 `RESOURCE_DIRS`/`RESOURCE_ROOT_FILES`,支持 `features/feature_rules/biomes`、`entity/models/animations/animation_controllers/render_controllers/attachables/particles/sounds/materials/font` 及根 `blocks.json` 等自动打包部署 |
+| 2026-08-15 | 文件结构优化:配对资源包从独立顶层 `*-资源包` 目录收敛为各游戏目录内的 `resource-pack/` 子目录,新增游戏只需一个顶层目录;`config/packs.json` 资源包 `dir` 指向 `<游戏>/resource-pack`;build/package 仍产出独立 `<gameid>_hud.mcpack`,deploy 自动还原为 `<游戏>-资源包` 部署,distribute/watch/.gitignore 同步适配 |

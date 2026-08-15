@@ -61,11 +61,13 @@ function openBoardEditor(player: Player, runtime: MinigameRuntime): void {
       !Number.isInteger(nmin) ||
       !Number.isInteger(nmax) ||
       ny < -64 ||
-      ny > 320 ||
+      ny > 318 ||
       nmin >= nmax ||
       nmax - nmin + 1 > 64
     ) {
-      player.sendMessage("§c参数不合法(需整数,min<max,跨度 ≤64)");
+      player.sendMessage(
+        "§c参数不合法(需整数,min<max,跨度 ≤64,且棋盘 Y+1 不能超过 319)",
+      );
       return;
     }
     form.close();

@@ -5,9 +5,20 @@ import {
   type RegisterPayload,
   type RoomInfo,
   type RoomReport,
+  type Vec3,
 } from "./types";
 
 const STALE_MS = 15_000;
+
+function isVec3(value: unknown): value is Vec3 {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Partial<Vec3>;
+  return (
+    typeof v.x === "number" &&
+    typeof v.y === "number" &&
+    typeof v.z === "number"
+  );
+}
 
 function roomKey(game: string, roomId: number): string {
   return `${game}:${roomId}`;
@@ -37,14 +48,26 @@ export class GameRegistry {
         >;
         if (
           typeof entry.game !== "string" ||
+          !/^[a-z0-9_]+$/.test(entry.game) ||
           typeof entry.displayName !== "string" ||
           typeof entry.packId !== "string" ||
           typeof entry.roomCount !== "number" ||
+          !Number.isInteger(entry.roomCount) ||
+          entry.roomCount < 1 ||
           typeof entry.maxPlayers !== "number" ||
-          typeof entry.prepSpawn !== "object"
+          !Number.isInteger(entry.maxPlayers) ||
+          entry.maxPlayers < 1 ||
+          (entry.minPlayers !== undefined &&
+            (typeof entry.minPlayers !== "number" ||
+              !Number.isInteger(entry.minPlayers) ||
+              entry.minPlayers < 1)) ||
+          (entry.partyAvailable !== undefined &&
+            typeof entry.partyAvailable !== "boolean") ||
+          !isVec3(entry.prepSpawn)
         ) {
           continue;
         }
+        if ((entry.minPlayers ?? 2) > entry.maxPlayers) continue;
         this.createEntry(
           entry.game,
           entry.displayName,
@@ -73,7 +96,11 @@ export class GameRegistry {
       partyAvailable: entry.partyAvailable,
       prepSpawn: entry.prepSpawn,
     }));
-    world.setDynamicProperty(REGISTRY_KEY, JSON.stringify(snapshot));
+    try {
+      world.setDynamicProperty(REGISTRY_KEY, JSON.stringify(snapshot));
+    } catch (error) {
+      console.warn("[Bearcade Core] 注册表持久化失败", error);
+    }
   }
 
   private createEntry(
@@ -128,6 +155,7 @@ export class GameRegistry {
       (payload.partyAvailable !== undefined &&
         typeof payload.partyAvailable !== "boolean") ||
       !payload.prepSpawn ||
+      (payload.minPlayers ?? 2) > payload.maxPlayers ||
       typeof payload.prepSpawn.x !== "number" ||
       typeof payload.prepSpawn.y !== "number" ||
       typeof payload.prepSpawn.z !== "number"

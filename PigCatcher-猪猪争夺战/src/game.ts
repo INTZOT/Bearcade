@@ -1,7 +1,5 @@
 import {
-  DisplaySlotId,
   GameMode,
-  ObjectiveSortOrder,
   system,
   world,
   type Entity,
@@ -9,6 +7,15 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import {
+  clearHudTitle,
+  ensureObjective as ensureHudObjective,
+  hudMessage,
+  releaseObjective,
+  scoreToken,
+  setHudTitle,
+  setObjectiveScore,
+} from "../../shared/minigame-core/scoreboardHud";
 import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
 import { applyLoadout } from "./loadout";
 import { getPigConfig, openPigConfig } from "./pigcatcher-config";
@@ -160,7 +167,6 @@ function applyPull(
   strength: number,
 ): void {
   const dx = target.x - pig.location.x;
-  const dy = target.y - pig.location.y;
   const dz = target.z - pig.location.z;
   const horizontal = Math.sqrt(dx * dx + dz * dz);
   if (horizontal < 0.3) return;
@@ -176,15 +182,17 @@ function applyPull(
   }
 }
 
+function teamScoreName(roomId: number, team: Team): string {
+  return `pc_${roomId}_${team}`;
+}
+
+function timerScoreName(roomId: number): string {
+  return `pc_${roomId}_time`;
+}
+
 function ensureObjective(roomId: number): void {
-  const id = objectiveId(roomId);
-  const existing = world.scoreboard.getObjective(id);
-  if (existing) world.scoreboard.removeObjective(id);
-  const objective = world.scoreboard.addObjective(id, "猪猪争夺战 · 实时猪数");
-  world.scoreboard.setObjectiveAtDisplaySlot(DisplaySlotId.Sidebar, {
-    objective,
-    sortOrder: ObjectiveSortOrder.Descending,
-  });
+  // 分数数据仅作 rawtext score 数据源,不再占用全局 Sidebar 显示槽
+  ensureHudObjective(objectiveId(roomId), "猪猪争夺战 · 实时猪数");
 }
 
 function refreshScoreboard(
@@ -194,17 +202,11 @@ function refreshScoreboard(
   const objective = world.scoreboard.getObjective(objectiveId(roomId));
   if (!objective) return;
   for (const team of TEAMS) {
-    objective.setScore(TEAM_NAMES[team], counts[team]);
+    setObjectiveScore(objective, teamScoreName(roomId, team), counts[team]);
   }
 }
 
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function updateActionbars(
+function updateHud(
   runtime: MinigameRuntime,
   roomId: number,
   session: Session,
@@ -218,20 +220,46 @@ function updateActionbars(
         20,
     ),
   );
+  const objective = world.scoreboard.getObjective(objectiveId(roomId));
+  if (objective) {
+    setObjectiveScore(objective, timerScoreName(roomId), remain);
+  }
   for (const player of runtime.roomPlayers(roomId)) {
     const team = teamOf(session, player.id);
     if (!team) continue;
-    player.onScreenDisplay.setActionBar(
-      `${TEAM_COLORS[team]}${TEAM_NAMES[team]}§r · ${formatTime(remain)} · ` +
-        `红${counts.red} 黄${counts.yellow} 蓝${counts.blue} 绿${counts.green}`,
-    );
+    const parts = [
+      { text: "§e猪猪争夺战§r " },
+      { text: "\n" },
+      { text: "§c红 " },
+      objective
+        ? scoreToken(teamScoreName(roomId, "red"), objectiveId(roomId))
+        : { text: String(counts.red) },
+      { text: " §e黄 " },
+      objective
+        ? scoreToken(teamScoreName(roomId, "yellow"), objectiveId(roomId))
+        : { text: String(counts.yellow) },
+      { text: " §9蓝 " },
+      objective
+        ? scoreToken(teamScoreName(roomId, "blue"), objectiveId(roomId))
+        : { text: String(counts.blue) },
+      { text: " §a绿 " },
+      objective
+        ? scoreToken(teamScoreName(roomId, "green"), objectiveId(roomId))
+        : { text: String(counts.green) },
+      { text: "\n" },
+      { text: "剩余 " },
+      objective
+        ? scoreToken(timerScoreName(roomId), objectiveId(roomId))
+        : { text: String(remain) },
+      { text: ` 秒 | ${TEAM_COLORS[team]}${TEAM_NAMES[team]}§r` },
+    ];
+    setHudTitle(player, hudMessage(parts));
   }
 }
 
 function finishGame(
   runtime: MinigameRuntime,
   roomId: number,
-  session: Session,
   counts: Record<Team, number>,
 ): void {
   const max = Math.max(...TEAMS.map((t) => counts[t]));
@@ -315,17 +343,11 @@ export function makePigCatcherHooks(
           // 忽略,不影响重置流程
         }
       }
+      for (const player of runtime.roomPlayers(roomId)) {
+        clearHudTitle(player);
+      }
       sessions.delete(roomId);
-      try {
-        world.scoreboard.removeObjective(objectiveId(roomId));
-      } catch {
-        // 目标可能已不存在
-      }
-      try {
-        world.scoreboard.clearObjectiveAtDisplaySlot(DisplaySlotId.Sidebar);
-      } catch {
-        // 无侧边栏目标时忽略
-      }
+      releaseObjective(objectiveId(roomId));
     },
     openConfig(player) {
       openPigConfig(player, getRuntime());
@@ -544,11 +566,11 @@ export function initPigCatcher(getRuntime: () => MinigameRuntime): void {
           }
         }
         refreshScoreboard(roomId, counts);
-        updateActionbars(runtime, roomId, session, counts);
+        updateHud(runtime, roomId, session, counts);
         // 时间到
         if (system.currentTick - session.startTick >= cfg.gameDurationTicks) {
           session.finished = true;
-          finishGame(runtime, roomId, session, counts);
+          finishGame(runtime, roomId, counts);
         }
       } catch (error) {
         console.warn(

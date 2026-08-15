@@ -12,6 +12,7 @@ import {
 } from "@minecraft/server";
 // Core 复用共享纯工具函数(构建期内联,产物仍自包含)
 import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
+import { clearHudTitle } from "../../shared/minigame-core/scoreboardHud";
 import type { GameRegistry } from "./registry";
 import { openMainMenu } from "./ui";
 import { LOBBY_DIMENSION_ID } from "./types";
@@ -94,6 +95,24 @@ function initPlayerData(player: Player): void {
   } catch {
     // 忽略
   }
+  try {
+    // 清除对局/调试期间可能绑定的相机(如 Collapse 观战相机)
+    player.camera.clear();
+  } catch {
+    // 忽略
+  }
+  try {
+    // 清除对局 actionbar,避免回到大厅后仍显示对局信息
+    player.onScreenDisplay.setActionBar("");
+  } catch {
+    // 忽略
+  }
+  try {
+    // 清除对局 HUD 标题(JSON UI 右上角记分板)
+    clearHudTitle(player);
+  } catch {
+    // 忽略
+  }
 }
 
 function handleDimensionChange(
@@ -121,10 +140,7 @@ function handleDimensionChange(
   }
 }
 
-function handleSpawn(
-  registry: GameRegistry,
-  event: PlayerSpawnAfterEvent,
-): void {
+function handleSpawn(event: PlayerSpawnAfterEvent): void {
   if (event.player.dimension.id === LOBBY_DIMENSION_ID) {
     ensureClock(event.player);
   }
@@ -176,7 +192,7 @@ export function initLobby(registry: GameRegistry): void {
   });
 
   world.afterEvents.playerSpawn.subscribe((event) => {
-    handleSpawn(registry, event);
+    handleSpawn(event);
   });
 
   world.afterEvents.playerLeave.subscribe((event) => {

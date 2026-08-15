@@ -24,7 +24,7 @@ export const PIG_INITIAL_COUNT = 5; // 开局初始猪数(无上限)
 export const PIG_SPAWN_BATCH = 1; // 每个刷新周期补充的猪数(无上限)
 export const PIG_RESPAWN_INTERVAL_TICKS = 20 * 20; // 每 20 秒补充一批
 export const LURE_RADIUS = 6; // 核心区胡萝卜引力场半径(格)
-export const LURE_STRENGTH = 0.15; // 核心区引力场每 tick 冲量(远弱于钓鱼竿牵引)
+export const LURE_STRENGTH = 0.15; // 核心区引力场每 tick 冲量
 
 // 队伍
 export type Team = "red" | "yellow" | "blue" | "green";

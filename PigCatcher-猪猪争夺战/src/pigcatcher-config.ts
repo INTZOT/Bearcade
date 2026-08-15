@@ -237,8 +237,12 @@ export function openPigConfig(
           {
             label: "清空该队装备",
             open: () => {
-              clearLoadout(t);
-              player.sendMessage(`§a已清空${TEAM_NAMES[t]}装备`);
+              const ok = clearLoadout(t);
+              player.sendMessage(
+                ok
+                  ? `§a已清空${TEAM_NAMES[t]}装备`
+                  : `§c清空失败(${TEAM_NAMES[t]}装备仓库未就绪)`,
+              );
             },
           },
         ]),

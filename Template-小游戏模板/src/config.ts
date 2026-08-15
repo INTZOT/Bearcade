@@ -26,7 +26,7 @@ export const TICKING_FROM = { x: -7, y: -1, z: -7 };
 export const TICKING_TO = { x: 7, y: 65, z: 7 };
 // 从模板捕获的结构标识
 export const STRUCTURE_ID = "bearcade:mygame_room";
-// 开发命令 /bearcade:mygame 进入模板维度的落点
+// 开发命令 /bearcade:tmp tp mygame 进入模板维度的落点
 export const TEMPLATE_SPAWN = { x: 0, y: 100, z: 0 };
 // 开局站位(与 MAX_PLAYERS 对应,可自行增删)
 export const START_POSITIONS = [

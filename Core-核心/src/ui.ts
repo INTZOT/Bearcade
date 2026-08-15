@@ -213,6 +213,7 @@ function handleJoin(player: Player, entry: GameEntry, roomId: number): void {
       );
       return;
     }
+    const previousReserved = partyRoom.reserved;
     partyRoom.reserved = Math.max(partyRoom.reserved, allPlayers.length);
     const dimensionId = registryForUi.roomDimensionId(entry.game, roomId);
     try {
@@ -230,6 +231,8 @@ function handleJoin(player: Player, entry: GameEntry, roomId: number): void {
       }
       showNotice(player, `已带领 ${allPlayers.length} 名玩家加入房间 ${roomId}`);
     } catch (error) {
+      // 回滚本次带队预留;下一次 room.status 上报仍会以实际上报人数为准
+      partyRoom.reserved = previousReserved;
       console.warn(
         `[Bearcade Core] 派对传送失败:${player.name} -> ${dimensionId}`,
         error,

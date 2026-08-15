@@ -2,6 +2,7 @@ import {
   system,
   world,
   Player,
+  BlockVolume,
   ScriptEventSource,
   type DimensionRegistry,
   type ScriptEventCommandMessageAfterEvent,
@@ -14,7 +15,6 @@ type Phase = "idle" | "pending" | "running" | "resetting";
 
 interface RoomState {
   phase: Phase;
-  players: string[];
   pendingDeadlineTick?: number;
 }
 
@@ -36,6 +36,11 @@ export class MinigameRuntime {
   private started = false;
   private partyMode = false;
   private debugEnabled = false;
+  /** 模板范围变更后,各房间在下一次重置前需要清理的旧范围(避免缩小/移动后残留旧场地) */
+  private pendingRoomClears = new Map<
+    number,
+    { from: Vec3; to: Vec3 }[]
+  >();
 
   constructor(config: MinigameConfig, hooks: MinigameHooks = {}) {
     this.config = config;
@@ -51,11 +56,21 @@ export class MinigameRuntime {
 
   initStartup(event: StartupContext): void {
     for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
-      event.dimensionRegistry.registerCustomDimension(
-        this.roomDimensionId(roomId),
-      );
+      try {
+        event.dimensionRegistry.registerCustomDimension(
+          this.roomDimensionId(roomId),
+        );
+      } catch (error) {
+        this.log(`房间维度 ${roomId} 注册失败(可能已注册)`, error);
+      }
     }
-    event.dimensionRegistry.registerCustomDimension(this.templateDimensionId());
+    try {
+      event.dimensionRegistry.registerCustomDimension(
+        this.templateDimensionId(),
+      );
+    } catch (error) {
+      this.log("模板维度注册失败(可能已注册)", error);
+    }
 
     this.log(
       `已注册 ${this.config.roomCount} 个房间维度与模板维度`,
@@ -244,13 +259,19 @@ export class MinigameRuntime {
     }
     try {
       await this.resetRoomsFromTemplate(roomIds);
-      // 应用模板后全部房间场地就绪(含此前初始化失败的房间,提供修复路径)
+      // 应用模板后全部房间场地就绪(含此前初始化失败的房间,提供修复路径)。
+      // 同时把停留在 resetting 的房间状态恢复为 idle,否则失败重置经 ap 修复后仍永远显示初始化中。
       for (const roomId of roomIds) {
         this.ready.set(roomId, true);
+        this.states.set(roomId, { phase: "idle" });
       }
       this.log("已应用模板到全部房间");
     } catch (error) {
       this.log("应用模板失败", error);
+      const player = playerId
+        ? world.getAllPlayers().find((p) => p.id === playerId)
+        : undefined;
+      player?.sendMessage("§c应用模板失败,详情见内容日志");
     }
     this.sendRoomStatus();
   }
@@ -272,7 +293,26 @@ export class MinigameRuntime {
     }
   }
 
+  private sameVec3(a: Vec3, b: Vec3): boolean {
+    return a.x === b.x && a.y === b.y && a.z === b.z;
+  }
+
   private applyTemplateBounds(from: Vec3, to: Vec3): void {
+    const previousFrom = { ...this.config.templateFrom };
+    const previousTo = { ...this.config.templateTo };
+    if (
+      !this.sameVec3(previousFrom, from) ||
+      !this.sameVec3(previousTo, to)
+    ) {
+      // 旧范围可能已在每个房间中留下方块;给每个房间登记待清理范围,
+      // 由该房间下一次重置(结束重置或 /bearcade:tmp ap)时清理。
+      const oldRange = { from: previousFrom, to: previousTo };
+      for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
+        const ranges = this.pendingRoomClears.get(roomId) ?? [];
+        ranges.push(oldRange);
+        this.pendingRoomClears.set(roomId, ranges);
+      }
+    }
     this.config.templateFrom = from;
     this.config.templateTo = to;
     this.config.roomCopyOrigin = from;
@@ -457,7 +497,7 @@ export class MinigameRuntime {
   private getState(roomId: number): RoomState {
     let state = this.states.get(roomId);
     if (!state) {
-      state = { phase: "idle", players: [] };
+      state = { phase: "idle" };
       this.states.set(roomId, state);
     }
     return state;
@@ -610,12 +650,51 @@ export class MinigameRuntime {
     return run;
   }
 
+  /** 确保房间游玩区有常加载区域(ap 修复缺失常加载区的房间时使用;已存在则不动) */
+  private async ensureRoomTickingArea(roomId: number): Promise<void> {
+    const dim = this.roomDim(roomId);
+    const areaId = this.tickingAreaId(roomId);
+    if (!world.tickingAreaManager.hasTickingArea(areaId)) {
+      await world.tickingAreaManager.createTickingArea(areaId, {
+        dimension: dim,
+        from: this.config.tickingFrom,
+        to: this.config.tickingTo,
+      });
+    }
+  }
+
+  private clearRoomBlocks(
+    dimension: ReturnType<MinigameRuntime["roomDim"]>,
+    ranges: { from: Vec3; to: Vec3 }[],
+  ): void {
+    for (const range of ranges) {
+      dimension.fillBlocks(
+        new BlockVolume(range.from, range.to),
+        "minecraft:air",
+        { ignoreChunkBoundErrors: true },
+      );
+    }
+  }
+
   private async resetRoomsFromTemplate(roomIds: number[]): Promise<void> {
     await this.enqueueReset(async () => {
       const tiles = await this.captureTemplateTiles();
       for (const roomId of roomIds) {
         const dim = this.roomDim(roomId);
+        await this.ensureRoomTickingArea(roomId);
+        const pendingClears = this.pendingRoomClears.get(roomId);
+        if (pendingClears && pendingClears.length > 0) {
+          try {
+            this.clearRoomBlocks(dim, pendingClears);
+          } catch (error) {
+            this.log(`房间 ${roomId} 旧场地清理失败`, error);
+            throw error;
+          }
+        }
         this.placeTiles(dim, tiles);
+        // 清理+放置都成功后才移除该房间的待清理记录;
+        // 多房间时每个房间独立清理一次,互不影响。
+        this.pendingRoomClears.delete(roomId);
       }
     });
   }
@@ -644,8 +723,12 @@ export class MinigameRuntime {
     }
     state.phase = "running";
     state.pendingDeadlineTick = undefined;
-    state.players = players.map((p) => p.id);
-    this.hooks.onGameStart?.(roomId, players);
+    try {
+      this.hooks.onGameStart?.(roomId, players);
+    } catch (error) {
+      this.log(`房间 ${roomId} 开局钩子异常`, error);
+      this.endGame(roomId, "开局失败", "§c开局初始化失败,即将返回大厅…");
+    }
     this.sendRoomStatus();
   }
 
@@ -665,7 +748,11 @@ export class MinigameRuntime {
   }
 
   private async finishReset(roomId: number): Promise<void> {
-    this.hooks.onBeforeReset?.(roomId);
+    try {
+      this.hooks.onBeforeReset?.(roomId);
+    } catch (error) {
+      this.log(`房间 ${roomId} 结算清理钩子异常(继续送玩家回大厅)`, error);
+    }
 
     const lobbyDim = world.getDimension(
       this.config.lobbyDimensionId ?? "minecraft:overworld",
@@ -698,9 +785,13 @@ export class MinigameRuntime {
       this.sendRoomStatus();
       return;
     }
-    this.hooks.onRoomReset?.(roomId);
+    try {
+      this.hooks.onRoomReset?.(roomId);
+    } catch (error) {
+      this.log(`房间 ${roomId} 重置后钩子异常`, error);
+    }
     this.ready.set(roomId, true);
-    this.states.set(roomId, { phase: "idle", players: [] });
+    this.states.set(roomId, { phase: "idle" });
     this.log(`房间 ${roomId} 已重置`);
     this.sendRoomStatus();
   }

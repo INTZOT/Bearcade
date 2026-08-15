@@ -14,5 +14,37 @@ export const EXTRA_DIRS = [
   "structures",
   "functions",
   "texts",
-  "cameras",
+  "features",
+  "feature_rules",
+  "biomes",
+  "Cameras",
+];
+
+// 资源包文件目录清单:源码内嵌在 <游戏>/resource-pack,构建/部署时拆分为 <游戏>-资源包 并随包复制这些目录。
+// 自定义物品/方块/实体时,行为包定义放 items/blocks/entities,
+// 对应的客户端定义与贴图/模型放下面这些资源包目录。
+export const RESOURCE_DIRS = [
+  "ui",
+  "textures",
+  "texts",
+  "items",
+  "blocks",
+  "entity",
+  "models",
+  "animations",
+  "animation_controllers",
+  "render_controllers",
+  "attachables",
+  "particles",
+  "sounds",
+  "materials",
+  "font",
+];
+
+// 资源包根目录级文件:自定义方块/音效/客户端生物群系等会用到
+export const RESOURCE_ROOT_FILES = [
+  "blocks.json",
+  "sounds.json",
+  "biomes_client.json",
+  "contents.json",
 ];

@@ -62,7 +62,7 @@
 - 菜单切换时先 `close()` 当前表单,再延迟 2 tick 打开新表单,避免 DDUI 连续显示问题。
 
 ### 3.3 受限上下文不能开表单
-- 自定义命令回调里 `new CustomForm(...).show()` 会抛错;先 `system.run` 延迟再打开(参考 qbank、Toolkit 命令)。
+- 自定义命令回调里 `new CustomForm(...).show()` 会抛错;先 `system.run` 延迟再打开(参考 GuessNBuild 配置菜单、Toolkit 命令)。
 
 ## 4. 房间状态机与对局
 
@@ -180,3 +180,39 @@
 - 行为包 JSON(含 camera 预设)改动后需**完整重启/重进世界**才重新加载,`/reload` 可能不生效;
 - 实验开关开启后**不能关闭**,正式服建图时就开;
 - 预设 JSON 的 `radius` 等参数与脚本侧几何(如运镜起点计算)要**双处一致**,改一处必须同步另一处。
+
+## 10. 每玩家独立记分板:JSON UI + rawtext score(本轮引入)
+
+### 10.1 为什么不能用全局 Sidebar
+
+- `DisplaySlotId.Sidebar` 是全服唯一显示槽,`setObjectiveAtDisplaySlot` 不接受 player/房间参数;
+- 多房间/多小游戏同时运行时,后设置者覆盖前者;一个房间 reset 时 `clearObjectiveAtDisplaySlot` 还会误清另一个房间的显示。
+
+### 10.2 最终方案(已覆盖全部小游戏)
+
+- **数据层**:仍使用每房间独立 scoreboard objective(真实玩家用玩家身份,队伍/计时用假玩家名),但**不挂 Sidebar**。
+- **传输层**:`player.onScreenDisplay.setTitle({ rawtext: [..., { score: { name, objective } }, ...] })`。rawtext score 是按玩家解析的,title 又是每玩家实例,因此每个玩家看到的是自己房间的分数,多房间天然隔离。
+- **表现层**:与行为包同目录的 `resource-pack/ui/hud_screen.json` 覆写原版 `hud_title_text`,把居中大标题重排版为右上角小字号右对齐面板;label 继续绑定引擎变量 `#hud_title_text_string`,不引入自定义 binding。
+- 公共实现集中在 `shared/minigame-core/scoreboardHud.ts`:`ensureObjective` / `setObjectiveScore` / `releaseObjective` / `scoreToken` / `hudMessage` / `setHudTitle` / `clearHudTitle`。
+
+### 10.3 避坑
+
+- `RawMessage.rawtext` 的元素是 `RawMessage[]`,字符串要显式包成 `{ text: "..." }`;换行用 `{ text: "\n" }`(注意 Python/批处理脚本写入 TS 源文件时反斜杠可能被转义成真实换行,写入后用 `repr`/`cat -v` 复核)。
+- 假玩家分数不要每次 `setScore(字符串)`:按 `getParticipants()` 找 `ScoreboardIdentity` 并缓存;objective 移除时清理缓存。
+- title 刷新用 `fadeInDuration: 0 / fadeOutDuration: 0`,stay 用 80 tick 左右,按 10~20 tick 刷新即可,不需要每 tick 重设。
+- 资源包 manifest 的 module type 是 `"resources"`,**没有 entry**;行为包才有 `scripts/main.js` 入口。构建脚本必须按 `pack.type` 分流。
+- 资源包与行为包**一对一分包,但源码不拆两个顶层目录**:每个小游戏目录内放 `resource-pack/`(如 `Gomoku-五子棋/resource-pack`),build/package 生成独立 `<gameid>_hud.mcpack`,deploy 还原为 `Gomoku-五子棋-资源包`;不要做全局 HUD 资源包;deploy/package 都要按配对关系处理(指定行为包自动带 `_hud` 资源包)。
+- 资源包部署目录是 `development_resource_packs`(与 `development_behavior_packs` 相邻),不要混放。
+- 本项目每个 `resource-pack` 只放一个 `namespace: "hud"` 的小 `ui/hud_screen.json`,覆写 `hud_title_text` 控件;若目标引擎对同名控件不按后加载覆盖,退回复制完整原版 `hud_screen.json` 再改。
+- JSON UI 文件允许 `//` 注释;校验时要用 json5/jsonc,不能直接 `json.load`。
+- 资源包 UI 改动后通常需要**完整重启/重进世界**才生效,`/reload` 可能不重新加载 UI 定义。
+
+## 11. 本轮修复速查(可复用结论)
+
+- **Cameras 目录大小写**:引擎按精确路径加载,源码必须 `Cameras/Presets`,打包/部署清单也必须用 `"Cameras"`;小写路径在 Windows 上能复制但产物路径错误,在 Linux 上则直接漏打包。
+- **模板 ap 修复路径**:`applyTemplateToAllRooms` 成功后除了置 `ready`,还必须把卡在 `resetting` 的房间状态重置为 `idle`,并补齐缺失的房间 ticking area。
+- **模板范围变更残留**:旧范围要在“每个房间”下次重置前各清理一次;若只记一个全局待清列表,先结束的房间会把它消费掉,其他房间仍残留旧场地。
+- **before/after 钩子都要兜底**:`onGameStart` 抛错会让房间卡在 running;`onBeforeReset` 抛错会阻止玩家回大厅。运行时统一 try/catch 并走 `endGame`/继续传送。
+- **异步重置竞态**:`await resetRoom` 恢复后要先检查 `runtime.getPhase` 是否仍为 running、session 是否仍是当前对象,再决定是否继续开新回合。
+- **回大厅清理契约要覆盖 UI 残留**:除物品/模式/重生点/名牌/效果外,还要清 camera、actionbar 与 HUD title。
+- **资源配置与版本单一来源**:资源包同样注册进 `config/packs.json`;`package.json.version` 与 `projectVersion` 强制一致;watch 目标按 pack 类型派生(`src/` vs `ui/`)。

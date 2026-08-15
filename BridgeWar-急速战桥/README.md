@@ -1,6 +1,6 @@
 # 急速战桥(BridgeWar)
 
-Bearcade 小游戏包(开发中)。房间管理复用 `shared/minigame-core`,玩法在 [src/game.ts](src/game.ts)。
+Bearcade 小游戏包(可运行)。房间管理复用 `shared/minigame-core`,玩法在 [src/game.ts](src/game.ts)。
 
 ## 已确认规则
 
@@ -16,7 +16,7 @@ Bearcade 小游戏包(开发中)。房间管理复用 `shared/minigame-core`,玩
 - 对局内玩家使用生存模式,放置/破坏由脚本保护控制(冒险模式会直接禁止放置);
 - 回合结束到下一回合开始期间禁止玩家互相造成伤害、禁止得分;
 - 地图边界可配置(`/bearcade:config bridgewar` → 地图边界),仅允许在地图边界内放置/破坏羊毛;
-- 玩家头顶名牌与聊天名字按队伍颜色渲染(红/蓝),sidebar 显示两队比分与目标分;
+- 玩家头顶名牌与聊天名字按队伍颜色渲染(红/蓝);两队比分与目标分经每玩家独立 HUD(右上角,JSON UI)显示;
 - 核心区/出生点/获胜分数可通过 `/bearcade:config bridgewar` 在游戏内配置(代码默认值在 `src/config.ts`);模板场地建好后核对。
 - 红/蓝队装备配置:管理员先穿好/带好目标装备与背包,在 `/bearcade:config bridgewar` 的「红方/蓝方装备配置」里"保存当前玩家装备";配置存于模板维度内的自定义实体,每回合开始与掉虚空复活时自动覆盖玩家全套物品(背包/快捷栏/盔甲/副手)。
 

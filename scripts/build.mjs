@@ -26,20 +26,23 @@ const EXTERNALS = [
 
 for (const pack of config.packs) {
   const dir = path.join(root, pack.dir);
-  const entry = path.join(dir, "src", "main.ts");
   const version = pack.version ?? projectVersion;
+  const isResource = pack.type === "resource";
 
-  await mkdir(path.join(dir, "scripts"), { recursive: true });
-  await build({
-    entryPoints: [entry],
-    bundle: true,
-    format: "esm",
-    target: "es2020",
-    external: EXTERNALS,
-    sourcemap: true,
-    outfile: path.join(dir, "scripts", "main.js"),
-    logLevel: "info",
-  });
+  if (!isResource) {
+    const entry = path.join(dir, "src", "main.ts");
+    await mkdir(path.join(dir, "scripts"), { recursive: true });
+    await build({
+      entryPoints: [entry],
+      bundle: true,
+      format: "esm",
+      target: "es2020",
+      external: EXTERNALS,
+      sourcemap: true,
+      outfile: path.join(dir, "scripts", "main.js"),
+      logLevel: "info",
+    });
+  }
 
   const packDeps = (pack.packDependencies ?? []).map((depId) => {
     const dep = config.packs.find((item) => item.id === depId);
@@ -58,16 +61,24 @@ for (const pack of config.packs) {
       version,
       min_engine_version: pack.minEngineVersion,
     },
-    modules: [
-      {
-        type: "script",
-        language: "javascript",
-        uuid: pack.moduleUuid,
-        version,
-        entry: "scripts/main.js",
-      },
-    ],
-    dependencies: [...(pack.dependencies ?? []), ...packDeps],
+    modules: isResource
+      ? [
+          {
+            type: "resources",
+            uuid: pack.moduleUuid,
+            version,
+          },
+        ]
+      : [
+          {
+            type: "script",
+            language: "javascript",
+            uuid: pack.moduleUuid,
+            version,
+            entry: "scripts/main.js",
+          },
+        ],
+    dependencies: isResource ? [] : [...(pack.dependencies ?? []), ...packDeps],
   };
 
   await writeFile(

@@ -2,12 +2,19 @@ import {
   system,
   world,
   GameMode,
-  DisplaySlotId,
-  ObjectiveSortOrder,
   type Player,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import {
+  clearHudTitle,
+  ensureObjective as ensureHudObjective,
+  hudMessage,
+  releaseObjective,
+  scoreToken,
+  setHudTitle,
+  setObjectiveScore,
+} from "../../shared/minigame-core/scoreboardHud";
 import { getGuessConfig, openGuessConfig } from "./guess-config";
 import {
   BUILDER_GAIN,
@@ -56,27 +63,23 @@ function playerName(
 }
 
 function ensureObjective(roomId: number, target: number): void {
-  const id = objectiveId(roomId);
-  const existing = world.scoreboard.getObjective(id);
-  if (existing) {
-    world.scoreboard.removeObjective(id);
-  }
-  const objective = world.scoreboard.addObjective(
-    id,
+  // 分数数据仅作 rawtext score 数据源,不再占用全局 Sidebar 显示槽
+  ensureHudObjective(
+    objectiveId(roomId),
     `建筑猜猜乐 · 目标 ${target} 分`,
   );
-  world.scoreboard.setObjectiveAtDisplaySlot(DisplaySlotId.Sidebar, {
-    objective,
-    sortOrder: ObjectiveSortOrder.Descending,
-  });
 }
 
 function setScore(roomId: number, playerId: string, score: number): void {
   const objective = world.scoreboard.getObjective(objectiveId(roomId));
   const player = world.getAllPlayers().find((p) => p.id === playerId);
   if (objective && player) {
-    objective.setScore(player, score);
+    setObjectiveScore(objective, player, score);
   }
+}
+
+function timerName(roomId: number): string {
+  return `gnb_t${roomId}`;
 }
 
 function clearFieldEntities(
@@ -121,7 +124,7 @@ function setGameModes(
   }
 }
 
-function updateActionbars(
+function updateHud(
   runtime: MinigameRuntime,
   roomId: number,
   session: Session,
@@ -131,12 +134,31 @@ function updateActionbars(
     Math.ceil((session.deadlineTick - system.currentTick) / 20),
   );
   const hintLength = session.question.trim().length;
+  const objective = world.scoreboard.getObjective(objectiveId(roomId));
+  if (objective) {
+    setObjectiveScore(objective, timerName(roomId), remain);
+  }
   for (const player of runtime.roomPlayers(roomId)) {
     const score = session.scores.get(player.id) ?? 0;
-    player.onScreenDisplay.setActionBar(
-      player.id === session.builderId
-        ? `§e剩余 ${remain} 秒 | 你是建筑者 | 你的分数 ${score}`
-        : `§e剩余 ${remain} 秒 | 答案 ${hintLength} 个字 | 你的分数 ${score}`,
+    setHudTitle(
+      player,
+      hudMessage([
+        { text: "§e建筑猜猜乐§r 目标 " },
+        { text: String(session.target) },
+        { text: "\n" },
+        { text: "你的分数 " },
+        objective ? scoreToken(player.name, objectiveId(roomId)) : { text: String(score) },
+        { text: "  |  剩余 " },
+        objective ? scoreToken(timerName(roomId), objectiveId(roomId)) : { text: String(remain) },
+        { text: " 秒" },
+        { text: "\n" },
+        {
+          text:
+            player.id === session.builderId
+              ? "§a你是建筑者"
+              : `§7答案 ${hintLength} 个字`,
+        },
+      ]),
     );
   }
 }
@@ -218,7 +240,7 @@ function startRound(
       );
     }
   }
-  updateActionbars(runtime, roomId, session);
+  updateHud(runtime, roomId, session);
   // 每回合开始把玩家传送到场地中心(方块中心由运行时自动 +0.5)
   const players = runtime.roomPlayers(roomId);
   const spawns = roundSpawnPositions(players.length, {
@@ -247,6 +269,15 @@ async function nextRound(
     dbg(`重置场地 room=${roomId}`);
     clearFieldEntities(runtime, roomId);
     await runtime.resetRoom(roomId);
+    // 重置期间若对局已被判定结束(runtime 进入 resetting),不再开启新回合,
+    // 避免 await 恢复后短暂重启对局又立刻被送回大厅。
+    if (
+      runtime.getPhase(roomId) !== "running" ||
+      sessions.get(roomId) !== session
+    ) {
+      dbg(`重置完成但对局已结束,不再开启新回合 room=${roomId}`);
+      return;
+    }
     dbg(`场地重置完成 room=${roomId}`);
     startRound(runtime, roomId, session);
   } catch (error) {
@@ -390,17 +421,11 @@ export function makeGameHooks(
       for (const player of runtime.roomPlayers(roomId)) {
         player.setGameMode(GameMode.Adventure);
       }
+      for (const player of runtime.roomPlayers(roomId)) {
+        clearHudTitle(player);
+      }
       sessions.delete(roomId);
-      try {
-        world.scoreboard.removeObjective(objectiveId(roomId));
-      } catch {
-        // 目标可能已不存在,忽略
-      }
-      try {
-        world.scoreboard.clearObjectiveAtDisplaySlot(DisplaySlotId.Sidebar);
-      } catch {
-        // 无侧边栏目标时忽略
-      }
+      releaseObjective(objectiveId(roomId));
     },
     canPlace(event, roomId) {
       return canEdit(getRuntime(), roomId, event.player, event.block.location);
@@ -449,7 +474,7 @@ export function initGuessGame(getRuntime: () => MinigameRuntime): void {
       } else if (!players.some((p) => p.id === session.builderId)) {
         void roundEnd(runtime, roomId, session, "builder_left");
       } else {
-        updateActionbars(runtime, roomId, session);
+        updateHud(runtime, roomId, session);
       }
     }
   }, 20);

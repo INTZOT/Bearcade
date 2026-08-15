@@ -2,20 +2,25 @@ import {
   system,
   world,
   GameMode,
-  DisplaySlotId,
-  ObjectiveSortOrder,
   type Player,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import {
+  clearHudTitle,
+  ensureObjective as ensureHudObjective,
+  hudMessage,
+  releaseObjective,
+  scoreToken,
+  setHudTitle,
+  setObjectiveScore,
+} from "../../shared/minigame-core/scoreboardHud";
 import { getBridgeConfig, openBridgeConfig } from "./bridge-config";
 import { applyLoadout, clearPlayerInventory } from "./loadout";
 import {
   ROUND_END_DELAY_TICKS,
   BRIDGE_WOOLS,
   SPAWN_PROTECT_RADIUS,
-  TEMPLATE_FROM,
-  TEMPLATE_TO,
 } from "./config";
 
 type Team = "red" | "blue";
@@ -76,28 +81,26 @@ function playerName(
   );
 }
 
+function teamScoreName(roomId: number, team: Team): string {
+  return team === "red" ? `bw_r${roomId}` : `bw_b${roomId}`;
+}
+
 function ensureObjective(roomId: number, target: number): void {
-  const id = objectiveId(roomId);
-  const existing = world.scoreboard.getObjective(id);
-  if (existing) world.scoreboard.removeObjective(id);
-  const objective = world.scoreboard.addObjective(
-    id,
+  // 分数数据仅作 rawtext score 数据源,不再占用全局 Sidebar 显示槽
+  ensureHudObjective(
+    objectiveId(roomId),
     `急速战桥 · 目标 ${target} 分`,
   );
-  world.scoreboard.setObjectiveAtDisplaySlot(DisplaySlotId.Sidebar, {
-    objective,
-    sortOrder: ObjectiveSortOrder.Descending,
-  });
 }
 
 function setScore(roomId: number, participant: string, score: number): void {
   const objective = world.scoreboard.getObjective(objectiveId(roomId));
-  if (objective) objective.setScore(participant, score);
+  if (objective) setObjectiveScore(objective, participant, score);
 }
 
 function refreshScoreboard(roomId: number, session: Session): void {
-  setScore(roomId, "红队", session.scores.red);
-  setScore(roomId, "蓝队", session.scores.blue);
+  setScore(roomId, teamScoreName(roomId, "red"), session.scores.red);
+  setScore(roomId, teamScoreName(roomId, "blue"), session.scores.blue);
 }
 
 function clearFieldEntities(
@@ -170,16 +173,32 @@ function isInProtectedZone(
   return false;
 }
 
-function updateActionbars(
+function updateHud(
   runtime: MinigameRuntime,
   roomId: number,
   session: Session,
 ): void {
+  const objective = world.scoreboard.getObjective(objectiveId(roomId));
   for (const player of runtime.roomPlayers(roomId)) {
     const team = teamOf(session, player.id);
     if (!team) continue;
-    player.onScreenDisplay.setActionBar(
-      `${teamColor(team)}${teamName(team)}§r · 比分 ${session.scores.red}:${session.scores.blue} · 目标 ${session.target}`,
+    setHudTitle(
+      player,
+      hudMessage([
+        { text: "§e急速战桥§r 目标 " },
+        { text: String(session.target) },
+        { text: "\n" },
+        { text: "§c红 " },
+        objective
+          ? scoreToken(teamScoreName(roomId, "red"), objectiveId(roomId))
+          : { text: String(session.scores.red) },
+        { text: "  §9蓝 " },
+        objective
+          ? scoreToken(teamScoreName(roomId, "blue"), objectiveId(roomId))
+          : { text: String(session.scores.blue) },
+        { text: "\n" },
+        { text: `${teamColor(team)}${teamName(team)}§r` },
+      ]),
     );
   }
 }
@@ -189,32 +208,46 @@ async function startRound(
   roomId: number,
   session: Session,
 ): Promise<void> {
-  clearFieldEntities(runtime, roomId);
-  await runtime.resetRoom(roomId);
-  session.roundActive = true;
+  try {
+    clearFieldEntities(runtime, roomId);
+    await runtime.resetRoom(roomId);
+    session.roundActive = true;
 
-  for (const player of runtime.roomPlayers(roomId)) {
-    const team = teamOf(session, player.id);
-    if (!team) continue;
-    // 对局内用生存模式,方块限制由 before 事件(羊毛/边界/保护区)控制
-    player.setGameMode(GameMode.Survival);
-    runtime.teleportPlayer(roomId, player, teamSpawn(team));
-    // 死亡时在己方基地复活,避免回到大厅触发少人结束
-    player.setSpawnPoint({
-      dimension: runtime.roomDim(roomId),
-      x: teamSpawn(team).x,
-      y: teamSpawn(team).y,
-      z: teamSpawn(team).z,
-    });
-    applyLoadout(team, player);
-    setTeamName(player, team);
+    for (const player of runtime.roomPlayers(roomId)) {
+      const team = teamOf(session, player.id);
+      if (!team) continue;
+      // 对局内用生存模式,方块限制由 before 事件(羊毛/边界/保护区)控制
+      player.setGameMode(GameMode.Survival);
+      runtime.teleportPlayer(roomId, player, teamSpawn(team));
+      // 死亡时在己方基地复活,避免回到大厅触发少人结束
+      player.setSpawnPoint({
+        dimension: runtime.roomDim(roomId),
+        x: teamSpawn(team).x,
+        y: teamSpawn(team).y,
+        z: teamSpawn(team).z,
+      });
+      applyLoadout(team, player);
+      setTeamName(player, team);
+    }
+
+    runtime.announce(
+      roomId,
+      `§a回合开始!红队 ${session.teams.red.length} 人 / 蓝队 ${session.teams.blue.length} 人,冲进对方核心区得分!`,
+    );
+    updateHud(runtime, roomId, session);
+  } catch (error) {
+    // 回合场地重置失败:结束本局,避免 roundActive=false 导致房间永久卡在 running
+    console.warn(`[Bearcade bridgewar] 回合开始失败 room=${roomId}`, error);
+    try {
+      runtime.endGame(
+        roomId,
+        "回合重置失败",
+        "§c回合场地重置失败,游戏结束",
+      );
+    } catch {
+      // 状态可能已被其他路径置为 resetting,忽略
+    }
   }
-
-  runtime.announce(
-    roomId,
-    `§a回合开始!红队 ${session.teams.red.length} 人 / 蓝队 ${session.teams.blue.length} 人,冲进对方核心区得分!`,
-  );
-  updateActionbars(runtime, roomId, session);
 }
 
 async function scoreRound(
@@ -305,17 +338,11 @@ export function makeGameHooks(
           // 忽略,不影响重置流程
         }
       }
+      for (const player of runtime.roomPlayers(roomId)) {
+        clearHudTitle(player);
+      }
       sessions.delete(roomId);
-      try {
-        world.scoreboard.removeObjective(objectiveId(roomId));
-      } catch {
-        // 目标可能已不存在
-      }
-      try {
-        world.scoreboard.clearObjectiveAtDisplaySlot(DisplaySlotId.Sidebar);
-      } catch {
-        // 无侧边栏目标时忽略
-      }
+      releaseObjective(objectiveId(roomId));
     },
     canPlace(event, roomId) {
       const session = sessions.get(roomId);
@@ -425,7 +452,7 @@ export function initBridgeWar(getRuntime: () => MinigameRuntime): void {
             }
           }
         }
-        updateActionbars(runtime, roomId, session);
+        updateHud(runtime, roomId, session);
       } catch (error) {
         console.warn(
           `[Bearcade bridgewar] 对局 tick 异常 room=${roomId}`,

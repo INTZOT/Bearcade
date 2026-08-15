@@ -107,9 +107,18 @@ export function openRegionEditor(
       return;
     }
     form.close();
+    // 用户可能把两个对角填反:统一归一化为 from=min, to=max,保证区域判定可用
     onSave({
-      from: { x: values[0]!, y: values[1]!, z: values[2]! },
-      to: { x: values[3]!, y: values[4]!, z: values[5]! },
+      from: {
+        x: Math.min(values[0]!, values[3]!),
+        y: Math.min(values[1]!, values[4]!),
+        z: Math.min(values[2]!, values[5]!),
+      },
+      to: {
+        x: Math.max(values[0]!, values[3]!),
+        y: Math.max(values[1]!, values[4]!),
+        z: Math.max(values[2]!, values[5]!),
+      },
     });
     player.sendMessage("§a已保存");
   });

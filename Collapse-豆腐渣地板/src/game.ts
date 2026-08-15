@@ -21,6 +21,11 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import {
+  clearHudTitle,
+  hudMessage,
+  setHudTitle,
+} from "../../shared/minigame-core/scoreboardHud";
 import { getCollapseConfig, openCollapseConfig } from "./collapse-config";
 import {
   FLOOR_BLOCK,
@@ -110,7 +115,7 @@ function aliveIds(
 // ===== 观战相机:follow_orbit 预设 + attach 引擎绑定 =====
 // 依赖:世界实验开关 "Creator Cameras: New Third Person Presets"
 // + 世界作弊(/camera 命令需要 cheats);自定义预设见
-// cameras/presets/spectate.json(继承 follow_orbit,半径 6)
+// Cameras/Presets/spectate.json(继承 follow_orbit,半径 6)
 
 /** 附加命令用临时 tag(观战者 / 目标,命令执行后移除) */
 const SPEC_OWNER_TAG = "bearcade:spec_owner";
@@ -214,8 +219,6 @@ function transitionSpectateCamera(spectator: Player, target: Player): void {
 
 /** 让淘汰玩家观战指定目标(follow_orbit 引擎绑定,切换带平滑运镜) */
 function setSpectateTarget(
-  runtime: MinigameRuntime,
-  roomId: number,
   session: Session,
   spectator: Player,
   target: Player | undefined,
@@ -232,6 +235,51 @@ function setSpectateTarget(
 /** 观战台位置(淘汰玩家本体传送至此,可经 /bearcade:config 配置) */
 function spectateSpot(): { x: number; y: number; z: number } {
   return getCollapseConfig().spectateSpot;
+}
+
+/** 每玩家独立 JSON UI HUD:存活数 / PVP 状态 / 观战目标 */
+function updateHud(
+  runtime: MinigameRuntime,
+  roomId: number,
+  session: Session,
+): void {
+  const alive = alivePlayers(runtime, roomId, session);
+  const pvpSeconds = Math.max(
+    0,
+    Math.ceil((session.pvpTick - system.currentTick) / 20),
+  );
+  for (const player of runtime.roomPlayers(roomId)) {
+    const isAlive = session.alive.has(player.id);
+    if (isAlive) {
+      setHudTitle(
+        player,
+        hudMessage([
+          { text: "§e豆腐渣地板§r" },
+          { text: "\n" },
+          { text: `存活 ${alive.length} 人` },
+          { text: "\n" },
+          session.pvpAnnounced
+            ? { text: "§cPVP 已开启" }
+            : { text: `§7PVP ${pvpSeconds} 秒后开启` },
+        ]),
+      );
+      continue;
+    }
+    const targetId = session.spectators.get(player.id);
+    const target = runtime
+      .roomPlayers(roomId)
+      .find((p) => p !== undefined && p.id === targetId);
+    setHudTitle(
+      player,
+      hudMessage([
+        { text: "§7你已淘汰" },
+        { text: "\n" },
+        { text: target ? `观战 §e${target.name}` : "§7等待对局结束" },
+        { text: "\n" },
+        { text: `存活 ${alive.length} 人` },
+      ]),
+    );
+  }
 }
 
 /** 淘汰玩家:进入观战(冒险模式 + 观战台 + 第三人称跟随,望远镜可切换) */
@@ -262,7 +310,7 @@ function eliminatePlayer(
     // 忽略
   }
   const targets = alivePlayers(runtime, roomId, session);
-  setSpectateTarget(runtime, roomId, session, player, targets[0]);
+  setSpectateTarget(session, player, targets[0]);
   runtime.announce(roomId, `§c${player.name} 掉出场地,被淘汰!`);
 }
 
@@ -371,6 +419,13 @@ function tickSpectators(
       .roomPlayers(roomId)
       .find((p) => p !== undefined && p.id === specId);
     if (!spectator) {
+      // 玩家已经离开房间(手动回大厅/断线):清除其观战相机,避免相机绑定残留
+      const gone = world.getAllPlayers().find((p) => p.id === specId);
+      try {
+        gone?.camera.clear();
+      } catch {
+        // 忽略
+      }
       session.spectators.delete(specId);
       continue;
     }
@@ -389,7 +444,7 @@ function tickSpectators(
         spectator.camera.clear();
         continue;
       }
-      setSpectateTarget(runtime, roomId, session, spectator, next);
+      setSpectateTarget(session, spectator, next);
     }
   }
 }
@@ -430,6 +485,7 @@ export function makeCollapseHooks(
       const session = sessions.get(roomId);
       for (const player of runtime.roomPlayers(roomId)) {
         if (player === undefined) continue;
+        clearHudTitle(player);
         // 清除淘汰玩家的观战相机与物品,恢复默认视角
         try {
           player.camera.clear();
@@ -476,6 +532,22 @@ export function makeCollapseHooks(
 
 export function initCollapse(getRuntime: () => MinigameRuntime): void {
   const runtime = getRuntime();
+  let hudTick = 0;
+
+  // 观战玩家离开房间维度(手动传送/回大厅/断线重连)时立即清除相机绑定;
+  // Core 回大厅初始化也会兜底 camera.clear,这里保证离开维度瞬间即解绑。
+  world.afterEvents.playerDimensionChange.subscribe((event) => {
+    const roomId = runtime.roomIdFromDimension(event.fromDimension.id);
+    if (roomId === undefined) return;
+    const session = sessions.get(roomId);
+    if (!session?.spectators.has(event.player.id)) return;
+    session.spectators.delete(event.player.id);
+    try {
+      event.player.camera.clear();
+    } catch {
+      // 忽略
+    }
+  });
 
   // 对局主循环:塌陷推进 / PVP 开启 / 淘汰判定 / 观战维护 / 胜负
   // 间隔 2 tick(0.1 秒):快速奔跑时玩家脚下的地板也能及时检测,
@@ -489,6 +561,10 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
         }
         tickFloor(runtime, roomId, session);
         tickPvp(runtime, roomId, session);
+        // HUD 每 10 tick(0.5 秒)刷新一次,避免 2 tick 循环频繁重设 title
+        if (hudTick % 5 === 0) {
+          updateHud(runtime, roomId, session);
+        }
 
         // 离场清理:掉线/回大厅的存活玩家视为淘汰(避免残留在 alive 集合占名额)
         const inRoomIds = new Set(
@@ -519,6 +595,7 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
         );
       }
     }
+    hudTick++;
   }, 2);
 
   // 观战切换:淘汰玩家手持望远镜使用 → 切换观战对象
@@ -538,7 +615,7 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
     const target = runtime
       .roomPlayers(roomId)
       .find((p) => p !== undefined && p.id === nextId);
-    setSpectateTarget(runtime, roomId, session, player, target);
+    setSpectateTarget(session, player, target);
   });
 
   // PVP 伤害控制:未开启时取消玩家间伤害;淘汰者不参与伤害

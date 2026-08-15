@@ -8,21 +8,20 @@ Bearcade 小游戏包,**第一版已可运行**。房间管理复用 `shared/min
 - 每回合随机抽题(不连续重复),建筑者(创造模式)获知完整答案并建造,猜测者(旁观模式)看到字数提示并在聊天栏答题;
 - 答对:猜对者 +2、建筑者 +1,回合结束并播报;答错消息照常广播;超时或建筑者离开无人得分;
 - 每回合结束清空场地实体、从模板重置场地,建筑者按加入顺序轮换,全员传送回场地中心;
-- 目标分按人数(3~5 人 11 分 / 6~9 人 9 分 / 10~16 人 7 分),达标结束,侧边栏实时显示分数与目标;
-- 题库管理 `/bearcade:qbank`(添加/查看/删除/清空,持久化);
-- 调试开关 `/bearcade:gnb_debug`(详细回合日志)。
+- 目标分按人数(3~5 人 11 分 / 6~9 人 9 分 / 10~16 人 7 分),达标结束;分数与回合信息经每玩家独立 HUD(右上角,JSON UI)实时显示;
+- 题库管理在 `/bearcade:config guessnbuild` 中(添加/查看/删除/清空,持久化);
+- 调试开关 `/bearcade:debug guessnbuild enable|disable`(详细回合日志)。
 
 ## 常用命令
 
 ```text
-/bearcade:qbank            管理员:题库管理
-/bearcade:config guessnbuild  管理员:游戏配置(含题库/坐标)
+/bearcade:config guessnbuild                管理员:游戏配置(含题库/坐标)
 /bearcade:debug guessnbuild enable|disable  管理员:开启/关闭调试日志
 /bearcade:debug all enable|disable          管理员:批量控制全部游戏调试日志
-/bearcade:quit             在房间维度强制中止
-/bearcade:tmp tp guessnbuild   进入模板维度
-/bearcade:tmp sz guessnbuild   表单配置模板范围
-/bearcade:tmp ap guessnbuild   应用模板到全部房间
+/bearcade:quit                             在房间维度强制中止
+/bearcade:tmp tp guessnbuild                进入模板维度
+/bearcade:tmp sz guessnbuild                表单配置模板范围
+/bearcade:tmp ap guessnbuild                应用模板到全部房间
 ```
 
 ## 开发流程

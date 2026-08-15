@@ -227,19 +227,6 @@ function applyProperties(
   return true;
 }
 
-/** 炼药锅染色辅助:发水桶 + 匹配染料 + 操作步骤 */
-function giveCauldronAssist(player: Player, dyeId: string): void {
-  const container = player.getComponent("minecraft:inventory")?.container;
-  if (container) {
-    container.addItem(new ItemStack("minecraft:water_bucket", 1));
-    if (dyeId) container.addItem(new ItemStack(dyeId, 1));
-  }
-  player.sendMessage(
-    `§e当前版本 SAPI 无法直接给原版皮革装备染色,已发水桶${dyeId ? "+染料" : ""}。` +
-      "炼药锅染色:放锅→水桶倒水→染料丢进锅→手持皮革装备点锅。",
-  );
-}
-
 /** 对玩家主手物品应用属性并写回 */
 function applyToHeldItem(player: Player, input: ItemProps): void {
   const container = player.getComponent("minecraft:inventory")?.container;

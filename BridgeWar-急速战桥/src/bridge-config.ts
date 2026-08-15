@@ -158,8 +158,10 @@ export function openBridgeConfig(
           {
             label: "清空红方装备",
             open: () => {
-              clearLoadout("red");
-              player.sendMessage("§a已清空红方装备");
+              const ok = clearLoadout("red");
+              player.sendMessage(
+                ok ? "§a已清空红方装备" : "§c清空失败(装备仓库未就绪)",
+              );
             },
           },
         ]),
@@ -178,8 +180,10 @@ export function openBridgeConfig(
           {
             label: "清空蓝方装备",
             open: () => {
-              clearLoadout("blue");
-              player.sendMessage("§a已清空蓝方装备");
+              const ok = clearLoadout("blue");
+              player.sendMessage(
+                ok ? "§a已清空蓝方装备" : "§c清空失败(装备仓库未就绪)",
+              );
             },
           },
         ]),

@@ -25,6 +25,8 @@
 
 需要自定义实体、物品、方块、合成配方、刷怪规则、战利品表、函数、语言文本等定义时,直接放在包目录下与 `src/` 平级的对应文件夹(`entities/`、`items/`、`blocks/`、`recipes/`、`spawn_rules/`、`loot_tables/`、`tags/`、`trading/`、`dialogue/`、`structures/`、`functions/`、`texts/`),**无需任何额外配置**——`npm run package` 与 `npm run deploy` 会自动把这些目录随包复制(目录清单见仓库 `scripts/extras.mjs`)。参考示例:BridgeWar 的自定义实体 `BridgeWar-急速战桥/entities/bearcade_loadout_dummy.json`。
 
+> 配对资源包已内嵌在 `resource-pack/`(JSON UI HUD、贴图、模型等),不要另建第二个顶层目录;`npm run package`/`npm run deploy` 会自动拆成 `MyGame-我的游戏-资源包`。
+
 > `docs/` 目录下的是 ScriptAPI 类型定义快照(`@minecraft/*` 的 `.d.ts`),是给脚本开发用的类型声明,与行为包 JSON 定义文件是两回事,不要混放。
 
 ## 使用步骤
@@ -32,8 +34,8 @@
 1. 复制 `Template-小游戏模板` 目录,重命名(如 `MyGame-我的游戏`);
 2. 全局替换 `mygame` 为你的游戏 ID(小写字母/数字/下划线,如 `mygame`);
 3. 修改 [src/config.ts](src/config.ts):`DISPLAY_NAME`、`ROOM_COUNT`、`MAX_PLAYERS`,并重新生成 `PACK_ID` 与 manifest UUID;
-4. 在 `config/packs.json` 注册你的包(参考 template 条目),`npm run build` 生成 manifest;
-5. 部署后进游戏 `/reload`,执行 `/bearcade:mygame` 进入模板维度建场地;
+4. 在 `config/packs.json` 注册你的包(参考 template + template_hud 两条:行为包 `dir` 为游戏目录,资源包 `dir` 为 `<游戏目录>/resource-pack`),`npm run build` 生成 manifest;
+5. 部署后进游戏 `/reload`,执行 `/bearcade:tmp tp mygame` 进入模板维度建场地;
 6. 填写 config 里的坐标(模板范围、复制原点、准备房间、常加载区域);
 7. 在 [src/game.ts](src/game.ts) 的 `TODO` 处实现你的玩法;
 8. `npm run typecheck && npm run build && npm run package`,分发时连同 Core 包与 `development.md` 一起给出。

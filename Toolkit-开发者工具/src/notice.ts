@@ -50,12 +50,46 @@ const COLOR_PRESETS = [
 // id -> TextPrimitive[]
 const noticeShapes = new Map<string, TextPrimitive[]>();
 
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+/** 旧公告数据兼容:逐字段校验并补齐缺省值,非法条目丢弃,避免脏数据导致渲染异常 */
+function normalizeNotice(item: unknown): NoticeEntry | undefined {
+  if (typeof item !== "object" || item === null) return undefined;
+  const raw = item as Partial<NoticeEntry>;
+  if (typeof raw.id !== "string" || raw.id.length === 0) return undefined;
+  const text = raw.text ?? "";
+  return {
+    id: raw.id,
+    text: typeof text === "string" ? text : String(text),
+    x: finiteNumber(raw.x, 0),
+    y: finiteNumber(raw.y, 0),
+    z: finiteNumber(raw.z, 0),
+    scale: finiteNumber(raw.scale, 1),
+    colorIndex:
+      typeof raw.colorIndex === "number" && Number.isInteger(raw.colorIndex)
+        ? raw.colorIndex
+        : 0,
+    background: typeof raw.background === "boolean" ? raw.background : true,
+    bgAlpha: finiteNumber(raw.bgAlpha, 0.45),
+    billboard: typeof raw.billboard === "boolean" ? raw.billboard : true,
+    rotationY: finiteNumber(raw.rotationY, 0),
+    dimensionId:
+      typeof raw.dimensionId === "string" ? raw.dimensionId : undefined,
+  };
+}
+
 function getNotices(): NoticeEntry[] {
   const raw = world.getDynamicProperty(NOTICE_LIST_KEY);
   if (typeof raw !== "string" || raw.length === 0) return [];
   try {
     const list = JSON.parse(raw) as unknown;
-    return Array.isArray(list) ? (list as NoticeEntry[]) : [];
+    if (!Array.isArray(list)) return [];
+    return list.flatMap((item) => {
+      const entry = normalizeNotice(item);
+      return entry ? [entry] : [];
+    });
   } catch {
     return [];
   }

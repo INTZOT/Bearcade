@@ -1,0 +1,28 @@
+{
+  "namespace": "hud",
+
+  "hud_title_text": {
+    "type": "label",
+    "anchor_from": "top_right",
+    "anchor_to": "top_right",
+    "offset": [ -4, 4 ],
+    "size": [ 240, "default" ],
+    "max_size": [ 240, 160 ],
+    "text": "#text",
+    "layer": 31,
+    "localize": false,
+    "font_size": "small",
+    "font_type": "default",
+    "color": "$title_command_text_color",
+    "shadow": true,
+    "text_alignment": "right",
+    "enable_profanity_filter": true,
+    "bindings": [
+      {
+        "binding_name": "#hud_title_text_string",
+        "binding_name_override": "#text",
+        "binding_type": "global"
+      }
+    ]
+  }
+}

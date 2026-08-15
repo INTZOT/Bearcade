@@ -1,5 +1,9 @@
 {
-  "projectVersion": [0, 0, 1],
+  "projectVersion": [
+    0,
+    0,
+    1
+  ],
   "phase": "Beta",
   "packs": [
     {
@@ -9,12 +13,23 @@
       "description": "Bearcade 小游戏服务器核心:大厅、DDUI 菜单、入房校验与房间状态汇聚",
       "headerUuid": "9ce781fb-ff67-4e21-904d-6a5b8b457703",
       "moduleUuid": "24e35e86-c463-40d1-950b-5c7a0f15e355",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": []
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [],
+      "type": "behavior"
     },
     {
       "id": "gomoku",
@@ -23,12 +38,25 @@
       "description": "Bearcade 五子棋小游戏包(当前阶段:房间与模板维度注册)",
       "headerUuid": "cae46db7-ef95-477a-841c-5c29d38eefe5",
       "moduleUuid": "91f71048-555d-4beb-8460-759401953142",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": ["core"]
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     },
     {
       "id": "template",
@@ -37,12 +65,25 @@
       "description": "Bearcade 小游戏模板包:复制后替换 mygame 即可开发新小游戏",
       "headerUuid": "95076440-41a8-49f8-9aeb-f57f4edd0db5",
       "moduleUuid": "606ae45a-4410-4625-adba-f1532e850615",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": ["core"]
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     },
     {
       "id": "guessnbuild",
@@ -51,12 +92,25 @@
       "description": "Bearcade 建筑猜猜乐小游戏包(第一版可运行)",
       "headerUuid": "452ba546-30fd-45d4-bfc5-cee80429ecfc",
       "moduleUuid": "d0dacf88-20f6-42d9-be62-b7853db7147c",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": ["core"]
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     },
     {
       "id": "bridgewar",
@@ -65,12 +119,25 @@
       "description": "Bearcade 急速战桥小游戏包(玩法已实现,可运行)",
       "headerUuid": "1f434015-345b-4a9a-926d-2c1da5a29681",
       "moduleUuid": "309f53e1-8d31-452f-8110-979ea9cb1a71",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": ["core"]
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     },
     {
       "id": "snd5",
@@ -79,12 +146,25 @@
       "description": "Bearcade 剑与消亡V 小游戏包(骨架阶段,玩法待定)",
       "headerUuid": "64212de9-a02f-4723-ae4e-6ceeb933d681",
       "moduleUuid": "e44f83de-667d-4353-b7f6-72b98075eee9",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": ["core"]
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     },
     {
       "id": "collapse",
@@ -93,12 +173,25 @@
       "description": "Bearcade 豆腐渣地板小游戏包(派对玩法,玩法已实现)",
       "headerUuid": "aae0fcae-3e6d-402a-ba37-0a4186396c3b",
       "moduleUuid": "0cdaaf3d-4153-4f19-bbab-3f72643fe5ec",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": ["core"]
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     },
     {
       "id": "pigcatcher",
@@ -107,12 +200,25 @@
       "description": "Bearcade 猪猪争夺战小游戏包(玩法已实现,可运行)",
       "headerUuid": "891f4267-9bcd-4eb4-b207-8b9fb2d179e1",
       "moduleUuid": "75955337-04a7-454b-91b1-b5f7e4736845",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": ["core"]
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     },
     {
       "id": "toolkit",
@@ -121,11 +227,134 @@
       "description": "Bearcade 开发者工具包:悬浮公告管理(/btd)与手持物品属性编辑(/cis),纯工具不注册游戏",
       "headerUuid": "7ec9984a-f5f7-498e-a7c4-4b13c771bc75",
       "moduleUuid": "ffc6be57-7465-40f6-91b0-566fe78fc21c",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [],
+      "type": "behavior"
+    },
+    {
+      "id": "gomoku_hud",
+      "type": "resource",
+      "dir": "Gomoku-五子棋/resource-pack",
+      "name": "Bearcade Gomoku HUD",
+      "description": "Bearcade Gomoku HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "35515079-01eb-4e33-aaa3-0b42663d6318",
+      "moduleUuid": "2b743470-bab7-40f0-930a-dba422c6ee68",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "guessnbuild_hud",
+      "type": "resource",
+      "dir": "GuessNBuild-建筑猜猜乐/resource-pack",
+      "name": "Bearcade GuessNBuild HUD",
+      "description": "Bearcade GuessNBuild HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "b51829c1-3379-4578-bf97-d144b433800c",
+      "moduleUuid": "da50d250-88b2-41b1-b5e9-1ba35541662b",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "bridgewar_hud",
+      "type": "resource",
+      "dir": "BridgeWar-急速战桥/resource-pack",
+      "name": "Bearcade BridgeWar HUD",
+      "description": "Bearcade BridgeWar HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "e3a58963-16f5-4ba5-b300-5bd361334743",
+      "moduleUuid": "204c6a7b-c9b6-4e30-9e9e-4651396ed46c",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "pigcatcher_hud",
+      "type": "resource",
+      "dir": "PigCatcher-猪猪争夺战/resource-pack",
+      "name": "Bearcade PigCatcher HUD",
+      "description": "Bearcade PigCatcher HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "fb263b8e-5339-426c-8ea8-f61a87a431de",
+      "moduleUuid": "c258c44f-e8ab-44c5-9516-9871d037b429",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "collapse_hud",
+      "type": "resource",
+      "dir": "Collapse-豆腐渣地板/resource-pack",
+      "name": "Bearcade Collapse HUD",
+      "description": "Bearcade Collapse HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "8f39f5a7-c144-4b9b-8b21-e85db5b1390d",
+      "moduleUuid": "f8eaa986-51e7-49de-9bd6-842881788c68",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "snd5_hud",
+      "type": "resource",
+      "dir": "SND5-剑与消亡V/resource-pack",
+      "name": "Bearcade SND5 HUD",
+      "description": "Bearcade SND5 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "de0fc5f0-e7f2-4329-894e-b46550447f53",
+      "moduleUuid": "118455b6-1d16-4423-a328-1870dd1daaf4",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "template_hud",
+      "type": "resource",
+      "dir": "Template-小游戏模板/resource-pack",
+      "name": "Bearcade Template HUD",
+      "description": "Bearcade Template HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "c572494e-0ae6-4dd4-84e0-68e7e9ff6f28",
+      "moduleUuid": "f081d86e-be48-4e58-b198-520dd8c03ae7",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
       "packDependencies": []
     }
   ]
