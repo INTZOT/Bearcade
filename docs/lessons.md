@@ -114,3 +114,30 @@
 - 内容日志:游戏内 `/contentlog` 打开面板,脚本 `console.warn` 输出;
 - 游戏包调试开关:`/bearcade:debug <gamename|all> enable|disable`(持久化到动态属性,重载后仍生效,测完记得关);
 - 定位"事件是否派发/字段归属"类问题:临时打点(`console.warn` 打印 `typeId`/`damageSource`/`dimension`),实测后删除,不要凭猜测改逻辑(参考 §1.2 的排查过程)。
+
+## 8. 模拟玩家(SimulatedPlayer):引擎限制与功能回滚
+
+> 2026-08-15,源自 Toolkit `/spm`(生成/列表/删除模拟玩家)功能从实现到回滚的完整过程。功能已整体回滚(commit `0f1cab0`),如需重做可从 `b32d1c1` 找回实现,但须先验证引擎版本是否开放模拟玩家对象访问。
+
+**目标**:生成模拟玩家凑开局人数,并参与对局(入队/站场/装备)。
+
+**实测结论(当前引擎 1.26.42 的限制)**:
+
+- 模拟玩家在**大厅(overworld)**是完整 Player 对象:可枚举、可 `getEntity`、可操作(tag/名字/坐标均可读);
+- 一旦进入**自定义维度**(`bearcade:*`),所有对象获取途径失效:
+  - `dimension.getPlayers()` / `world.getAllPlayers()`:返回 **undefined 占位**(`length` 仍计入,可凑人数);
+  - `dimension.getEntities({type:"minecraft:player"})`:不返回模拟玩家;
+  - `world.getEntity(id)`:返回 `invalid`;
+  - **动态属性跨包不可见**:一个包写入的键,另一个包 `getDynamicProperty` 读到 `undefined`(不能靠它跨包传递 id 记录);
+- 因此模拟玩家只能"占人数"(开局判定/状态上报/菜单人数正常),**无法入队/站场/传送/装备**;列表/删除也仅在大厅有效。
+
+**事件行为陷阱**:模拟玩家会触发 `playerSpawn`/`playerDimensionChange`/`entityHurt` 等事件,但事件实体字段为 **undefined**(`event.player`/`hurtEntity`),`sendMessage`/`onScreenDisplay` 为 undefined——订阅这些事件的处理器必须判空防御(回滚时随功能一并移除,重做需加回)。
+
+**排查方法论(可复用)**:
+
+1. 现象驱动:先写临时诊断打点(内容日志打印各 API 的返回值构成),不要猜;
+2. 逐层排除:事件字段缺失 → 枚举占位 → `getEntity` invalid → 动态属性跨包隔离,一层层缩小范围;
+3. 计数兜底:人数统计用 `getPlayers().length`(占位)与实体枚举维度过滤取最大值,可规避可见性不稳定;
+4. **跨包共享数据优先用实体自身属性(tag)与世界级枚举,不要依赖跨包动态属性**(实测隔离);
+5. **自定义维度中的实体对象可见性要在设计阶段验证**,实现完成后再发现等于返工;
+6. 引擎能力边界确认后及时止损回滚,不硬撑。
