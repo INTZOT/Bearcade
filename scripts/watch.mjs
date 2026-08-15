@@ -9,6 +9,7 @@ const targets = [
   "Template-小游戏模板/src",
   "GuessNBuild-建筑猜猜乐/src",
   "BridgeWar-急速战桥/src",
+  "Collapse-豆腐渣地板/src",
   "PigCatcher-猪猪争夺战/src",
   "SND5-剑与消亡V/src",
   "Toolkit-开发者工具/src",

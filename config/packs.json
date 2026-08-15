@@ -87,6 +87,20 @@
       "packDependencies": ["core"]
     },
     {
+      "id": "collapse",
+      "dir": "Collapse-豆腐渣地板",
+      "name": "Bearcade Collapse",
+      "description": "Bearcade 豆腐渣地板小游戏包(派对玩法,玩法已实现)",
+      "headerUuid": "aae0fcae-3e6d-402a-ba37-0a4186396c3b",
+      "moduleUuid": "0cdaaf3d-4153-4f19-bbab-3f72643fe5ec",
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      ],
+      "packDependencies": ["core"]
+    },
+    {
       "id": "pigcatcher",
       "dir": "PigCatcher-猪猪争夺战",
       "name": "Bearcade PigCatcher",

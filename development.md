@@ -24,6 +24,7 @@
 | `GuessNBuild-建筑猜猜乐/` | 小游戏包 | 建筑猜猜乐,3~16 人,第一版可运行 |
 | `BridgeWar-急速战桥/` | 小游戏包 | 急速战桥,红蓝两队核心区得分,可运行 |
 | `PigCatcher-猪猪争夺战/` | 小游戏包 | 猪猪争夺战,四队驱猪进核心区,可运行 |
+| `Collapse-豆腐渣地板/` | 小游戏包 | 豆腐渣地板,踩踏塌陷 + PVP 淘汰,玩法已实现(模板场地待建) |
 | `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡V,骨架阶段,玩法待定 |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 
@@ -149,6 +150,7 @@ bearcade:gomoku_template
 | GuessNBuild | 2 | `bearcade:guessnbuild_1` ~ `bearcade:guessnbuild_2` |
 | BridgeWar | 4 | `bearcade:bridgewar_1` ~ `bearcade:bridgewar_4` |
 | PigCatcher | 2 | `bearcade:pigcatcher_1` ~ `bearcade:pigcatcher_2` |
+| Collapse | 2 | `bearcade:collapse_1` ~ `bearcade:collapse_2` |
 | SND5 | 2 | `bearcade:snd5_1` ~ `bearcade:snd5_2` |
 | Template | 2 | `bearcade:mygame_1` ~ `bearcade:mygame_2` |
 
@@ -267,7 +269,8 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
   - 建筑猜猜乐:题库管理、准备房间坐标、每回合开局传送坐标;
   - 急速战桥:准备房间坐标、红/蓝队出生点、红/蓝队核心区、获胜所需分数。
   - 急速战桥装备:红/蓝方装备配置(通过模板维度内自定义实体保存玩家全套物品,开局/复活自动覆盖)。
-  - 猪猪争夺战:准备房间坐标、地图边界、猪刷新点、初始猪数/刷新数量/刷新间隔、游戏时长、核心区吸引半径/强度、四队出生点与核心区。
+  - 猪猪争夺战:准备房间坐标、地图边界、猪刷新点、初始猪数/刷新数量/刷新间隔、游戏时长、核心区吸引半径/强度、四队出生点与核心区、四队装备配置;
+  - 豆腐渣地板:准备房间坐标、场地中心、顶层地板 Y、场地大小、PVP 开启延迟、塌陷阶段时长、虚空淘汰高度。
 - **对局中禁止修改**:存在运行中/倒计时对局时,配置界面拒绝打开(共享运行时 `hasActiveGame` 守卫)。
 
 调试命令:`/bearcade:debug <gamename|all> enable|disable`(管理员)经 `game.debug` IPC 显式开启/关闭该游戏的调试日志;`all` 时 Core 会批量下发到全部已注册游戏(共享运行时统一管理,GuessNBuild 已接入;旧 `/bearcade:gnb_debug` 已移除)。
@@ -521,5 +524,6 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-15 | 新增契约:返回大厅强制数据初始化(任意路径回到主世界,Core 统一清空全套物品/恢复冒险模式/清除重生点/名牌染色/效果并补发钟;进入房间维度自动移除大厅钟);断线一律视为退出游戏,重连自动传送回大厅并初始化,不提供热重连 |
 | 2026-08-15 | 行为包定义文件处理规范:实体/物品/方块等 JSON 定义放包目录对应文件夹,打包与部署自动包含;目录清单抽到 `scripts/extras.mjs` 统一登记(新增 items/blocks/recipes/spawn_rules/loot_tables/tags/trading/dialogue 等);模板 README 与本文档 §2.1 补充说明 |
 | 2026-08-15 | 猪猪争夺战道具/装备改为实体储存(与战桥一致):四队独立仓库实体(`bearcade:pigcatcher_loadout_dummy` + nameTag 分队),`/bearcade:config` 新增"XX队装备配置"(保存/清空),开局/复活按队 `applyLoadout` 覆盖全套物品;移除默认三件套兜底(未配置即空背包);development.md 新增 §2.2 装备储存实体规范 |
+| 2026-08-15 | 新增 Collapse-豆腐渣地板(派对游戏,2 房/2~16 人/party 可用):多层地板踩踏塌陷状态机(黄→橙→红各 1 秒→消失,离开后继续塌)、开局 60 秒后开启 PVP(徒手)、掉虚空淘汰并进入 Camera 第三人称观战(手持望远镜切换观战对象)、最后存活者获胜/全员淘汰平局;场地大小等全部接入 `/bearcade:config collapse`(场地中心/顶层 Y/场地大小/PVP 延迟/塌陷时长/淘汰高度),层数由模板场地决定 |
 | 2026-08-15 | 猪猪争夺战鱼钩解拴改用事件驱动:实测 `entityHitEntity` 对鱼钩勾中不派发,`entityHurt(before)` 在 0 伤害投射命中时可靠触发(damage=0、cause=projectile、damagingEntity=投掷者玩家);解拴逻辑移入 `entityHurt` 猪分支,抢在无敌 cancel 前经 `system.run` 延迟 unleash,邻近鱼钩实体二次确认防误解拴;删除 `entityHitEntity` 死代码,轮询保留作"先勾后拴"兜底;debug 模式放宽维度检查便于大厅测试;`deploy.mjs` 恢复本机默认部署路径(MC_DEV_PACKS 可覆盖);新增 §11 ScriptAPI 实战参考 |
 | 2026-08-15 | 新建 `docs/lessons.md` 实战参考:汇总开发踩坑与解决(事件上下文/维度结构/UI/状态机/安全/工具链/调试技巧),§11 改为指向该文件 |
