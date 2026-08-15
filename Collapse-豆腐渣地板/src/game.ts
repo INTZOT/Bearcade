@@ -132,8 +132,9 @@ function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
  * - 脚本侧维护相机位置 camPos,每 tick 向 desired 走一半:
  *   camPos += (desired - camPos) × CAMERA_SMOOTH —— 指数平滑曲线,
  *   速度连续无拐点,避免"引擎缓动每轮重启"造成的速度突变(人物抽搐来源之一);
- * - 朝向 facingEntity 由引擎跟踪目标,人物锁定画面中心;
- * - 无 easeOptions,相机位置完全由脚本逐 tick 精确控制。
+ * - 朝向:每 tick 由相机位置看向目标眼睛的向量反算 yaw/pitch(与 /tp 同约定),
+ *   不用 facingEntity(实测去掉 easeOptions 后 facingEntity 不生效,
+ *   free 预设默认旋转朝天);位置与朝向完全由脚本逐 tick 精确控制。
  */
 function updateSpectateCamera(
   session: Session,
@@ -149,9 +150,23 @@ function updateSpectateCamera(
       z: cur.z + (desired.z - cur.z) * CAMERA_SMOOTH,
     };
     session.camPos.set(spectator.id, next);
+    // 朝向向量:相机 → 目标眼睛
+    const eye = {
+      x: target.location.x,
+      y: target.location.y + 1.6,
+      z: target.location.z,
+    };
+    const dx = eye.x - next.x;
+    const dy = eye.y - next.y;
+    const dz = eye.z - next.z;
+    const dist = Math.hypot(dx, dz);
+    // /tp 约定:rot_y(yaw)0 = 南(+z),顺时针为正;rot_x(pitch)正 = 向下
+    // (若实测朝向反了,把 yaw/pitch 的符号取反即可,纯数值校准)
+    const yaw = (Math.atan2(-dx, dz) * 180) / Math.PI;
+    const pitch = (Math.atan2(-dy, dist) * 180) / Math.PI;
     spectator.camera.setCamera("minecraft:free", {
       location: next,
-      facingEntity: target,
+      rotation: { x: pitch, y: yaw },
     });
   } catch (error) {
     console.warn("[Bearcade collapse] 观战相机设置失败", error);
