@@ -145,3 +145,38 @@
 4. **跨包共享数据优先用实体自身属性(tag)与世界级枚举,不要依赖跨包动态属性**(实测隔离);
 5. **自定义维度中的实体对象可见性要在设计阶段验证**,实现完成后再发现等于返工;
 6. 引擎能力边界确认后及时止损回滚,不硬撑。
+
+## 9. 观战相机(Camera API):脚本跟随的引擎限制与最终方案
+
+> 2026-08-15,源自 Collapse 观战机制从"脚本驱动自由相机"到"follow_orbit 引擎绑定"的完整排查(commit 4425c7c → bf2ca54 → eec1bff)。结论可直接复用:任何"相机跟随玩家"需求都按 9.1 做,不要走 9.3 的弯路。
+
+### 9.1 最终方案(可用,已集成进 Collapse)
+
+- **预设**:`minecraft:follow_orbit`(或 `third_person_boom`)——引擎原生"围绕目标公转、鼠标可环绕、随目标移动",相机由引擎在渲染帧率下跟随,零脚本负担、零抖动;
+- **绑定目标**:脚本 API `attachToEntity` 文档限定**非玩家实体**(对玩家静默无效,不报错),必须走命令:`/camera @s attach_to_entity <目标>`(**命令层无玩家限制**);执行用 `dimension.runCommand` + 双方临时 tag(服务器上下文,免玩家权限,仅需世界作弊);
+- **自定义预设**:需要半径/起始角可控时,在包内放 `Cameras/Presets/*.json`(`inherit_from: "minecraft:follow_orbit"`,字段 `radius`/`starting_rot_x`/`starting_rot_y`);**目录必须大写 `Cameras`/`Presets`**,小写会导致 "Invalid camera preset";
+- **切换目标运镜**:先用 `setCamera("minecraft:free", { location: 环绕起点, rotation: 看向目标, easeOptions })` 缓动飞过去(引擎从当前相机状态插值,无需知道当前位置),延时后 `setCamera(预设)` + attach——环绕起点由预设几何(半径×起始角)精确算出,到达即 attach,无 snap;
+- 依赖:世界实验开关 **"Creator Cameras: New Third Person Presets"**(世界级、开启后不可逆)+ 世界作弊(/camera 命令需要)。
+
+### 9.2 脚本驱动自由相机的根本限制(为什么前面全失败)
+
+- 相机位置来自服务器 **tick 采样**(10~20Hz 离散坐标),人物身体由引擎在**渲染帧率**下独立插值——两条运动路径相位不同步,人物相对相机微抖;**这是方案级限制,缓动/平滑参数无法根治**;
+- 尝试过:线性缓动(0.1~0.2s 各种组合)、1/2/3 tick 刷新、二分逼近(指数平滑,位置+瞄准点)、playAnimation 样条——都只能缓解"镜头台阶"或"人物漂移"之一,无法同时消除;
+- 结论:**需要"相机跟随人物"时直接上引擎级机制(follow_orbit + attach),不要在自由相机上堆平滑**。
+
+### 9.3 各 API 实测结论(避坑)
+
+| API | 实测行为 |
+| --- | --- |
+| `setCamera("minecraft:free", { location, facingEntity })` | **无 easeOptions 时 facingEntity 不生效**,free 预设默认旋转朝天;带 easeOptions 时可用 |
+| `setCamera(..., { facingLocation })` | 同上,且缓动朝向滞后会造成人物在画面内漂移 |
+| `setCamera(..., { targetEntity })` | 仅 free 相机"持续看向目标"语义;对 `third_person`/`follow_orbit` **无效**(仍环绕/看向自己) |
+| `camera.attachToEntity({ entity: 玩家 })` | 对玩家**静默无效**(不抛错,相机原地不动) |
+| `playAnimation(样条)` | 旋转关键帧间隔**必须 > 0.05s**(疑似按 tick 量化,0.09s 仍报错);控制点数量有校验(Linear≥2/3、Catmull-Rom≥4);每 tick 重播的段间衔接/起始 snap 问题难解 |
+| `/camera ... attach_to_entity` / `targetEntity` | **命令层无玩家限制**,是脚本 API 限制的绕行通道 |
+
+### 9.4 运维要点
+
+- 行为包 JSON(含 camera 预设)改动后需**完整重启/重进世界**才重新加载,`/reload` 可能不生效;
+- 实验开关开启后**不能关闭**,正式服建图时就开;
+- 预设 JSON 的 `radius` 等参数与脚本侧几何(如运镜起点计算)要**双处一致**,改一处必须同步另一处。
