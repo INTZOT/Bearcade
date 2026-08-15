@@ -12,6 +12,7 @@ import {
   system,
   world,
   EasingType,
+  LinearSpline,
   GameMode,
   ItemLockMode,
   ItemStack,
@@ -121,8 +122,12 @@ function aliveIds(
 const CAMERA_SMOOTH = 0.6;
 /** 瞄准点(目标眼睛)平滑系数:同样二分逼近,消除 20Hz 采样跳变 */
 const EYE_SMOOTH = 0.6;
-/** 引擎插值缓动时长:略大于 1 tick(0.05s),让相机在渲染帧率下连续滑动 */
-const CAMERA_EASE_TIME = 0.06;
+/**
+ * 样条动画时长(秒):略小于 1 tick(0.05s)——每段在下次重启前刚好播完,
+ * 段间无缝衔接(引擎位置 = 本段终点 = 下段起点,无 snap),引擎在渲染帧率下插值。
+ * 若实测出现"卡顿/回跳",说明重启时序抖动,可调小到 0.04 或调大到 0.05 对比。
+ */
+const SPLINE_DURATION = 0.045;
 
 /** 期望相机位置向量:目标身后 6 格、上方 2.6 格 */
 function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
@@ -135,13 +140,35 @@ function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
   };
 }
 
+/** 从相机位置看向瞄准点的旋转角(/tp 约定:rot_y 0=南+顺时针,rot_x 正=向下);yaw 按 prevYaw 解缠 */
+function lookAt(
+  cam: { x: number; y: number; z: number },
+  eye: { x: number; y: number; z: number },
+  prevYaw: number | undefined,
+): { x: number; y: number; z: number } {
+  const dx = eye.x - cam.x;
+  const dy = eye.y - cam.y;
+  const dz = eye.z - cam.z;
+  const dist = Math.hypot(dx, dz);
+  let yaw = (Math.atan2(-dx, dz) * 180) / Math.PI;
+  if (prevYaw !== undefined) {
+    let delta = yaw - prevYaw;
+    while (delta > 180) delta -= 360;
+    while (delta < -180) delta += 360;
+    yaw = prevYaw + delta;
+  }
+  const pitch = (Math.atan2(-dy, dist) * 180) / Math.PI;
+  return { x: pitch, y: yaw, z: 0 };
+}
+
 /**
- * 观战相机:二分逼近平滑 + 引擎小缓动插值。
- * - 相机位置与瞄准点(目标眼睛)都做二分逼近:输入轨迹连续无跳变;
- * - easeOptions(0.06s,略大于 1 tick)让引擎在渲染帧率下插值——
- *   消除"20Hz 离散 setCamera"的台阶感,且输入已平滑,缓动拐点极小;
- * - yaw 做 ±180° 解缠:避免缓动在朝北时绕 360° 长路旋转;
- * - 不用 facingEntity(去掉 easeOptions 后不生效,free 预设默认朝天)。
+ * 观战相机:playAnimation 样条动画方案。
+ * - 每 tick 构建一段 LinearSpline(当前相机位 → 二分逼近后的期望位),
+ *   progressKeyFrames 线性走完整段,引擎在渲染帧率下沿线段插值;
+ * - 动画时长略小于 1 tick:每段播完即接下一段,段间无缝,消除 20Hz 台阶感;
+ * - 旋转由 rotationKeyFrames 驱动(样条动画期间引擎接管旋转),
+ *   起止角 = 看向二分平滑瞄准点的 yaw/pitch(与 /tp 同约定,yaw 解缠);
+ * - 不用 facingEntity(实测不生效时 free 预设默认朝天)。
  */
 function updateSpectateCamera(
   session: Session,
@@ -172,28 +199,38 @@ function updateSpectateCamera(
     };
     session.eyePos.set(spectator.id, eye);
 
-    // 朝向向量:相机 → 平滑瞄准点
-    const dx = eye.x - next.x;
-    const dy = eye.y - next.y;
-    const dz = eye.z - next.z;
-    const dist = Math.hypot(dx, dz);
-    // /tp 约定:rot_y(yaw)0 = 南(+z),顺时针为正;rot_x(pitch)正 = 向下
-    let yaw = (Math.atan2(-dx, dz) * 180) / Math.PI;
-    // yaw ±180° 解缠:保持数值连续,防止缓动绕 360° 长路
-    const prevYaw = session.prevYaw.get(spectator.id);
-    if (prevYaw !== undefined) {
-      let delta = yaw - prevYaw;
-      while (delta > 180) delta -= 360;
-      while (delta < -180) delta += 360;
-      yaw = prevYaw + delta;
-    }
-    session.prevYaw.set(spectator.id, yaw);
-    const pitch = (Math.atan2(-dy, dist) * 180) / Math.PI;
+    // 本段起止朝向
+    const startRot = lookAt(cur, eye, session.prevYaw.get(spectator.id));
+    const endRot = lookAt(next, eye, startRot.y);
+    session.prevYaw.set(spectator.id, endRot.y);
 
-    spectator.camera.setCamera("minecraft:free", {
-      location: next,
-      rotation: { x: pitch, y: yaw },
-      easeOptions: { easeTime: CAMERA_EASE_TIME, easeType: EasingType.Linear },
+    // 样条动画:引擎渲染帧率插值,本段结束位置 = 下段起点,无缝衔接
+    const spline = new LinearSpline();
+    spline.controlPoints = [cur, next];
+    spectator.camera.playAnimation(spline, {
+      animation: {
+        progressKeyFrames: [
+          { timeSeconds: 0, alpha: 0, easingFunc: EasingType.Linear },
+          {
+            timeSeconds: SPLINE_DURATION,
+            alpha: 1,
+            easingFunc: EasingType.Linear,
+          },
+        ],
+        rotationKeyFrames: [
+          {
+            timeSeconds: 0,
+            rotation: startRot,
+            easingFunc: EasingType.Linear,
+          },
+          {
+            timeSeconds: SPLINE_DURATION,
+            rotation: endRot,
+            easingFunc: EasingType.Linear,
+          },
+        ],
+      },
+      totalTimeSeconds: SPLINE_DURATION,
     });
   } catch (error) {
     console.warn("[Bearcade collapse] 观战相机设置失败", error);
