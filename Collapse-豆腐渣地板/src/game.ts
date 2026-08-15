@@ -111,11 +111,10 @@ function aliveIds(
  * 观战相机:minecraft:free 相机悬浮在目标身后 6 格、上方 2.6 格。
  * - 位置:由 refreshSpectateCameras 每 2 tick(0.1 秒)刷新 + easeOptions 0.2s 线性缓动,
  *   世界背景平滑滑动;
- * - 朝向:用 targetEntity 让引擎持续看向目标实体(/camera targetEntity 语义:
- *   "continuously look at ... while maintaining its current position"),
- *   人物锁定在画面中心,由引擎在渲染帧率下跟踪。
- * (setCamera 选项是"多选一"联合类型,无 location+targetEntity 组合成员,
- * 这里按实际用法断言;实测若 targetEntity 不生效再退回 facingEntity)
+ * - 朝向:用 facingEntity 让引擎在渲染帧率下持续跟踪目标实体,
+ *   人物永远锁定在画面中心——若改用缓动朝向(facingLocation + ease),
+ *   朝向滞后量随目标加减速/转向变化,会出现视角内人物漂移抖动。
+ * (内置 third_person 预设不接受 targetEntity 跟随,官方仅 free 系相机支持)
  */
 function applySpectateCamera(spectator: Player, target: Player): void {
   try {
@@ -127,10 +126,10 @@ function applySpectateCamera(spectator: Player, target: Player): void {
         y: loc.y + 2.6,
         z: loc.z - view.z * 6,
       },
-      targetEntity: target,
+      facingEntity: target,
       // 缓动时长略大于刷新间隔:相机永远处于"追向最新目标"的运镜中
       easeOptions: { easeTime: 0.2, easeType: EasingType.Linear },
-    } as unknown as Parameters<Player["camera"]["setCamera"]>[1]);
+    });
   } catch (error) {
     console.warn("[Bearcade collapse] 观战相机设置失败", error);
   }
