@@ -40,7 +40,7 @@ function loadoutEntity(team: Team): Entity | undefined {
     .find((entity) => entity.nameTag === teamTag(team));
 }
 
-/** 找不到仓库实体时当场重建(兜底) */
+/** 找不到仓库实体时当场重建(兜底);失败返回 undefined(不在此打日志,由调用方处理) */
 function ensureTeamEntity(team: Team): Entity | undefined {
   const existing = loadoutEntity(team);
   if (existing) return existing;
@@ -53,34 +53,29 @@ function ensureTeamEntity(team: Team): Entity | undefined {
     );
     entity.nameTag = teamTag(team);
     return entity;
-  } catch (error) {
-    console.warn("[Bearcade pigcatcher] 装备仓库实体生成失败", error);
+  } catch {
+    // 模板维度区块可能尚未加载(LocationInUnloadedChunkError),返回 undefined 交由上层重试
     return undefined;
   }
 }
 
 export function ensureLoadoutEntities(): void {
-  const spawnAll = (): void => {
-    for (const team of TEAMS) {
-      ensureTeamEntity(team);
-    }
-  };
-
-  // 模板维度区块在 worldLoad 初期可能尚未加载,延迟重试
+  // 模板维度区块在 worldLoad 初期可能尚未加载,spawnEntity 抛
+  // LocationInUnloadedChunkError(被 ensureTeamEntity 吞掉转 undefined),
+  // 因此按返回值统计失败并延迟重试,全部成功即结束;30 次(约 60 秒)后仍失败才告警
   let remaining = 30;
   const trySpawn = (): void => {
-    try {
-      spawnAll();
-    } catch (error) {
-      if (remaining > 0) {
-        remaining--;
-        system.runTimeout(trySpawn, 40);
-      } else {
-        console.warn(
-          "[Bearcade pigcatcher] 装备仓库实体生成失败",
-          error,
-        );
-      }
+    let failed = false;
+    for (const team of TEAMS) {
+      if (!ensureTeamEntity(team)) failed = true;
+    }
+    if (failed && remaining > 0) {
+      remaining--;
+      system.runTimeout(trySpawn, 40);
+    } else if (failed) {
+      console.warn(
+        "[Bearcade pigcatcher] 装备仓库实体生成失败(重试 30 次后仍未成功)",
+      );
     }
   };
   trySpawn();
