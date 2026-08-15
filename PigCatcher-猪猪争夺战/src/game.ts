@@ -1,7 +1,6 @@
 import {
   DisplaySlotId,
   GameMode,
-  ItemStack,
   ObjectiveSortOrder,
   system,
   world,
@@ -11,6 +10,7 @@ import {
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
+import { applyLoadout } from "./loadout";
 import { getPigConfig, openPigConfig } from "./pigcatcher-config";
 import {
   TEAMS,
@@ -105,19 +105,6 @@ function assignTeams(players: Player[]): Record<Team, string[]> {
     teams[TEAMS[index % TEAMS.length]].push(player.id);
   });
   return teams;
-}
-
-function giveTools(player: Player): void {
-  const inventory = player.getComponent("minecraft:inventory");
-  const container = inventory?.container;
-  if (!container) return;
-  try {
-    container.addItem(new ItemStack("minecraft:fishing_rod", 1));
-    container.addItem(new ItemStack("minecraft:carrot_on_a_stick", 1));
-    container.addItem(new ItemStack("minecraft:lead", 3));
-  } catch (error) {
-    console.warn("[Bearcade pigcatcher] 发放道具失败", error);
-  }
 }
 
 /** 清空玩家全套物品(背包/盔甲/副手),统一走共享实现 */
@@ -295,7 +282,7 @@ export function makePigCatcherHooks(
           y: spawn.y,
           z: spawn.z,
         });
-        giveTools(player);
+        applyLoadout(team, player);
         setTeamName(player, team);
       }
       for (let i = 0; i < cfg.pigInitialCount; i++) spawnPig(runtime, roomId);
@@ -366,7 +353,7 @@ export function initPigCatcher(getRuntime: () => MinigameRuntime): void {
       y: spawn.y,
       z: spawn.z,
     });
-    giveTools(player);
+    applyLoadout(team, player);
     setTeamName(player, team);
   });
 

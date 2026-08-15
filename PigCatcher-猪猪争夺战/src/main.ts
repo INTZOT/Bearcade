@@ -2,6 +2,7 @@ import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { initPigCatcher, makePigCatcherHooks } from "./game";
 import { getPigConfig, loadPigConfig } from "./pigcatcher-config";
+import { ensureLoadoutEntities } from "./loadout";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -58,6 +59,7 @@ system.beforeEvents.startup.subscribe((event) => {
 world.afterEvents.worldLoad.subscribe(() => {
   loadPigConfig();
   runtime.config.prepSpawn = getPigConfig().prepSpawn;
+  ensureLoadoutEntities();
   runtime.initWorld();
   runtime.initEvents();
   initPigCatcher(getRuntime);

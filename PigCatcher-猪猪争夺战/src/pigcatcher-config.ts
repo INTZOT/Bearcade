@@ -18,6 +18,7 @@ import {
   type PigConfig,
   type Team,
 } from "./config";
+import { clearLoadout, saveLoadout } from "./loadout";
 
 let cfg: PigConfig = { ...PIG_CONFIG_DEFAULTS };
 
@@ -213,6 +214,34 @@ export function openPigConfig(
           },
           backTo(player, runtime),
         ),
+    });
+  }
+  // 队伍装备配置(实体储存,与战桥一致):管理员穿好队服+道具后保存,开局/复活按队覆盖
+  for (const team of TEAMS) {
+    const t = team as Team;
+    entries.push({
+      label: `${TEAM_NAMES[t]}装备配置`,
+      open: () =>
+        openConfigMenu(player, `${TEAM_NAMES[t]}装备配置`, [
+          {
+            label: "保存当前玩家装备为该队装备",
+            open: () => {
+              const ok = saveLoadout(t, player);
+              player.sendMessage(
+                ok
+                  ? `§a已保存${TEAM_NAMES[t]}装备`
+                  : "§c保存失败(装备仓库未就绪)",
+              );
+            },
+          },
+          {
+            label: "清空该队装备",
+            open: () => {
+              clearLoadout(t);
+              player.sendMessage(`§a已清空${TEAM_NAMES[t]}装备`);
+            },
+          },
+        ]),
     });
   }
 
