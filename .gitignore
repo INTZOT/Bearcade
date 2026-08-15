@@ -4,6 +4,10 @@ dist/
 *.mcaddon
 .env
 
+# 第三方官方文档快照(约 9.4MB,不入库;需要时手动下载)
+docs/bedrock-creator-docs.md
+docs/minecraft-creator.md
+
 # 构建产物(由 npm run build 生成,不入库)
 */scripts/
 */manifest.json
