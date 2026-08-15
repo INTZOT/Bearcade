@@ -123,11 +123,11 @@ const CAMERA_SMOOTH = 0.6;
 /** 瞄准点(目标眼睛)平滑系数:同样二分逼近,消除 20Hz 采样跳变 */
 const EYE_SMOOTH = 0.6;
 /**
- * 样条动画时长(秒):略小于 1 tick(0.05s)——每段在下次重启前刚好播完,
- * 段间无缝衔接(引擎位置 = 本段终点 = 下段起点,无 snap),引擎在渲染帧率下插值。
- * 若实测出现"卡顿/回跳",说明重启时序抖动,可调小到 0.04 或调大到 0.05 对比。
+ * 样条动画时长(秒):引擎要求旋转关键帧间隔 > 0.05s,且须 ≤ 刷新间隔(0.1s)
+ * 才能"每段播完再重启、段间无缝"。0.09s 满足两者,留 0.01s 时序余量。
+ * (若实测出现卡顿回跳,可调小到 0.06~0.08;出现停顿感,可调到 0.095)
  */
-const SPLINE_DURATION = 0.045;
+const SPLINE_DURATION = 0.09;
 
 /** 期望相机位置向量:目标身后 6 格、上方 2.6 格 */
 function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
@@ -577,8 +577,8 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
     }
   }, 2);
 
-  // 观战相机更新:1 tick(0.05 秒)一次——向量 + 二分逼近(指数平滑),
-  // 更新频率越高,指数曲线越接近连续,相机位置逐 tick 精确设置
+  // 观战相机更新:2 tick(0.1 秒)一次——每段样条(0.09s)播完即接下一段,
+  // 输入由二分逼近平滑,引擎在渲染帧率下插值
   system.runInterval(() => {
     for (const [roomId, session] of [...sessions.entries()]) {
       try {
@@ -591,7 +591,7 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
         );
       }
     }
-  }, 1);
+  }, 2);
 
   // 观战切换:淘汰玩家手持望远镜使用 → 切换观战对象
   world.afterEvents.itemUse.subscribe((event) => {
