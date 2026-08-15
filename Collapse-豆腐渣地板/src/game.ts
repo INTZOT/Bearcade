@@ -108,10 +108,12 @@ function aliveIds(
 }
 
 /**
- * 观战相机:minecraft:free 相机悬浮在目标身后 6 格、上方 2.6 格,
- * 持续看向目标眼睛;由 refreshSpectateCameras 每 1 tick(0.05 秒)刷新目标位置,
- * 并通过 easeOptions 运镜缓动(0.15 秒线性)让相机在两次刷新之间连续追尾,
- * 避免离散跳变造成的镜头抖动。
+ * 观战相机:minecraft:free 相机悬浮在目标身后 6 格、上方 2.6 格。
+ * - 位置:由 refreshSpectateCameras 每 1 tick 刷新 + easeOptions 0.15s 线性缓动,
+ *   世界背景平滑滑动;
+ * - 朝向:用 facingEntity 让引擎在渲染帧率下持续跟踪目标实体,
+ *   人物永远锁定在画面中心——若改用缓动朝向(facingLocation + ease),
+ *   朝向滞后量随目标加减速/转向变化,会出现视角内人物漂移抖动。
  * (内置 third_person 预设不接受 targetEntity 跟随,官方仅 free 系相机支持)
  */
 function applySpectateCamera(spectator: Player, target: Player): void {
@@ -124,9 +126,8 @@ function applySpectateCamera(spectator: Player, target: Player): void {
         y: loc.y + 2.6,
         z: loc.z - view.z * 6,
       },
-      facingLocation: { x: loc.x, y: loc.y + 1.6, z: loc.z },
-      // 缓动时长略大于刷新间隔:相机永远处于"追向最新目标"的运镜中,
-      // 位置与朝向都由引擎在渲染帧率下插值,运动平滑无跳变
+      facingEntity: target,
+      // 缓动时长略大于刷新间隔:相机永远处于"追向最新目标"的运镜中
       easeOptions: { easeTime: 0.15, easeType: EasingType.Linear },
     });
   } catch (error) {
