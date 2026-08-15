@@ -376,8 +376,38 @@ export function initPigCatcher(getRuntime: () => MinigameRuntime): void {
     const runtime = getRuntime();
     if (victim.typeId === "minecraft:pig") {
       const roomId = runtime.roomIdFromDimension(victim.dimension.id);
-      if (roomId === undefined) return; // 其他维度的猪不干预
-      event.cancel = true;
+      // 正式逻辑:仅房间维度生效;调试模式(debug enable)下放宽到任意维度,
+      // 便于在大厅直接验证解拴逻辑,测试完 disable 即恢复
+      if (roomId === undefined && !runtime.isDebug()) return;
+      // 鱼钩勾中(实测:0 伤害投射命中,damage=0、cause=projectile、归属投掷者玩家):
+      // entityHitEntity 对鱼钩不派发,此事件是唯一可靠的"勾中"信号,且触发先于本处的
+      // 无敌 cancel,故在此抢在 cancel 前解拴。事件回调为受限上下文,unleash 延迟到
+      // system.run;用"邻近鱼钩实体"二次确认,避免雪球/箭等投射物误解拴。
+      const source = event.damageSource;
+      if (event.damage === 0 && source?.cause === "projectile") {
+        const nearbyHook = victim.dimension
+          .getEntities({
+            type: "minecraft:fishing_hook",
+            location: victim.location,
+            maxDistance: 1.5,
+            closest: 1,
+          })[0];
+        if (nearbyHook) {
+          system.run(() => {
+            try {
+              if (!victim.isValid) return;
+              const leashable = victim.getComponent("minecraft:leashable");
+              if (leashable?.isLeashed) {
+                leashable.unleash();
+                runtime.dbg(`猪 ${victim.id} 被鱼钩勾中,已解除拴绳`);
+              }
+            } catch (error) {
+              console.warn("[Bearcade pigcatcher] 解除拴绳失败", error);
+            }
+          });
+        }
+      }
+      event.cancel = true; // 猪无敌:取消全部伤害(含 0 伤害命中;按需求不恢复原版拉扯)
       return;
     }
     const attacker = event.damageSource?.damagingEntity;
@@ -399,26 +429,8 @@ export function initPigCatcher(getRuntime: () => MinigameRuntime): void {
     }
   });
 
-  // 钓鱼竿钩中猪:解除拴绳(拉扯走原版行为,脚本不干预)
-  world.afterEvents.entityHitEntity.subscribe((event) => {
-    const pig = event.hitEntity;
-    if (pig.typeId !== "minecraft:pig") return;
-    if (event.damagingEntity.typeId !== "minecraft:fishing_hook") return;
-    const runtime = getRuntime();
-    const roomId = runtime.roomIdFromDimension(pig.dimension.id);
-    if (roomId === undefined) return;
-    const session = sessions.get(roomId);
-    if (!session || session.finished) return;
-    try {
-      const leashable = pig.getComponent("minecraft:leashable");
-      if (leashable?.isLeashed) {
-        leashable.unleash();
-        runtime.dbg(`猪 ${pig.id} 被钓鱼竿钩中,已解除拴绳`);
-      }
-    } catch (error) {
-      console.warn("[Bearcade pigcatcher] 解除拴绳失败", error);
-    }
-  });
+  // (entityHitEntity 对鱼钩勾中不派发——实测仅 entityHurt 触发,解拴已上移至
+  //  entityHurt 处理器抢在无敌 cancel 前执行;此处不再订阅)
 
   // 对局主循环:刷猪、归属判定、边界回拉、牵引、计分、计时结算
   system.runInterval(() => {
@@ -506,8 +518,8 @@ export function initPigCatcher(getRuntime: () => MinigameRuntime): void {
           }
         }
         // 钓鱼竿钩中猪 → 解除拴绳:按鱼钩找最近猪,连续两轮指向同一只才算钩中(避免波及相邻猪)。
-        // 与上方 entityHitEntity(命中瞬间解拴)互为兜底:命中事件即时触发,
-        // 轮询覆盖"钩子持续贴住猪"的滞留场景;两路均以 isLeashed 为门槛,幂等不冲突。
+        // 与 entityHurt 处理器的事件驱动解拴互为兜底:事件驱动覆盖"勾中瞬间已拴住"的主场景,
+        // 轮询覆盖"先勾住、后拴绳"的滞留场景(鱼钩附着未被无敌 cancel 破坏时)。
         const roomHookTargets = hookTargets.get(roomId);
         const hooks = runtime.roomDim(roomId).getEntities({
           type: "minecraft:fishing_hook",
