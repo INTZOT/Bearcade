@@ -3,14 +3,15 @@
 // - 塌陷状态机:玩家脚下的白色混凝土被踩后进入塌陷
 //   (黄 1s → 橙 1s → 红 1s → 消失),离开后继续塌;
 // - PVP:开局 PVP_DELAY_TICKS 后开启,玩家可互相攻击;
-// - 淘汰:掉到 VOID_Y 以下 → 淘汰 → Camera 第三人称跟随存活玩家,
-//   手持望远镜(SPECTATE_ITEM)切换观战对象;
+// - 淘汰:掉到 VOID_Y 以下 → 淘汰 → Camera free 相机跟随存活玩家
+//   (身后视角,随目标移动/转向实时刷新),手持望远镜(SPECTATE_ITEM)切换观战对象;
 // - 胜负:最后 1 名存活者获胜;全部淘汰则平局。
 // ============================================================
 import {
   system,
   world,
   GameMode,
+  ItemLockMode,
   ItemStack,
   EntityComponentTypes,
   type EntityInventoryComponent,
@@ -104,7 +105,29 @@ function aliveIds(
   return alivePlayers(runtime, roomId, session).map((p) => p.id);
 }
 
-/** 让淘汰玩家观战指定目标(第三人称跟随) */
+/**
+ * 观战相机:minecraft:free 相机悬浮在目标身后 6 格、上方 2.6 格,
+ * 持续看向目标眼睛;由 tickSpectators 每 2 tick 刷新,随目标移动/转向实时跟随。
+ * (内置 third_person 预设不接受 targetEntity 跟随,官方仅 free 系相机支持)
+ */
+function applySpectateCamera(spectator: Player, target: Player): void {
+  try {
+    const view = target.getViewDirection();
+    const loc = target.location;
+    spectator.camera.setCamera("minecraft:free", {
+      location: {
+        x: loc.x - view.x * 6,
+        y: loc.y + 2.6,
+        z: loc.z - view.z * 6,
+      },
+      facingLocation: { x: loc.x, y: loc.y + 1.6, z: loc.z },
+    });
+  } catch (error) {
+    console.warn("[Bearcade collapse] 观战相机设置失败", error);
+  }
+}
+
+/** 让淘汰玩家观战指定目标(free 相机跟随) */
 function setSpectateTarget(
   runtime: MinigameRuntime,
   roomId: number,
@@ -117,14 +140,8 @@ function setSpectateTarget(
     return;
   }
   session.spectators.set(spectator.id, target.id);
-  try {
-    spectator.camera.setCamera("minecraft:third_person", {
-      targetEntity: target,
-    });
-    spectator.sendMessage(`§7正在观战 §e${target.name}§7(手持望远镜切换)`);
-  } catch (error) {
-    console.warn("[Bearcade collapse] 观战相机设置失败", error);
-  }
+  applySpectateCamera(spectator, target);
+  spectator.sendMessage(`§7正在观战 §e${target.name}§7(手持望远镜切换)`);
 }
 
 /** 观战台位置(淘汰玩家本体传送至此,可经 /bearcade:config 配置) */
@@ -152,7 +169,10 @@ function eliminatePlayer(
     const inventory = player.getComponent(
       EntityComponentTypes.Inventory,
     ) as EntityInventoryComponent | undefined;
-    inventory?.container?.addItem(new ItemStack(SPECTATE_ITEM, 1));
+    // 锁定槽位:防止观战者丢弃/移动望远镜导致无法切换观战对象
+    const spyglass = new ItemStack(SPECTATE_ITEM, 1);
+    spyglass.lockMode = ItemLockMode.slot;
+    inventory?.container?.addItem(spyglass);
   } catch {
     // 忽略
   }
@@ -252,7 +272,7 @@ function tickPvp(
   );
 }
 
-/** 观战目标失效时重选;淘汰玩家掉下观战台则拉回 */
+/** 观战目标失效时重选;淘汰玩家掉下观战台则拉回;每轮刷新跟随相机 */
 function tickSpectators(
   runtime: MinigameRuntime,
   roomId: number,
@@ -277,13 +297,21 @@ function tickSpectators(
         // 忽略
       }
     }
-    if (alive.includes(targetId)) continue;
-    const next = alivePlayers(runtime, roomId, session)[0];
-    if (!next) {
-      spectator.camera.clear();
+    // 目标已淘汰/离场 → 重选下一个存活玩家
+    if (!alive.includes(targetId)) {
+      const next = alivePlayers(runtime, roomId, session)[0];
+      if (!next) {
+        spectator.camera.clear();
+        continue;
+      }
+      setSpectateTarget(runtime, roomId, session, spectator, next);
       continue;
     }
-    setSpectateTarget(runtime, roomId, session, spectator, next);
+    // 目标仍在场:持续刷新跟随相机
+    const target = runtime
+      .roomPlayers(roomId)
+      .find((p) => p !== undefined && p.id === targetId);
+    if (target) applySpectateCamera(spectator, target);
   }
 }
 
