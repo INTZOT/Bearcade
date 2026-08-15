@@ -4,12 +4,14 @@
 //   (黄 1s → 橙 1s → 红 1s → 消失),离开后继续塌;
 // - PVP:开局 PVP_DELAY_TICKS 后开启,玩家可互相攻击;
 // - 淘汰:掉到 VOID_Y 以下 → 淘汰 → Camera free 相机跟随存活玩家
-//   (身后视角,随目标移动/转向实时刷新),手持望远镜(SPECTATE_ITEM)切换观战对象;
+//   (身后视角,运镜缓动平滑跟随,随目标移动/转向实时刷新),
+//   手持望远镜(SPECTATE_ITEM)切换观战对象;
 // - 胜负:最后 1 名存活者获胜;全部淘汰则平局。
 // ============================================================
 import {
   system,
   world,
+  EasingType,
   GameMode,
   ItemLockMode,
   ItemStack,
@@ -107,7 +109,9 @@ function aliveIds(
 
 /**
  * 观战相机:minecraft:free 相机悬浮在目标身后 6 格、上方 2.6 格,
- * 持续看向目标眼睛;由 tickSpectators 每 2 tick 刷新,随目标移动/转向实时跟随。
+ * 持续看向目标眼睛;由 tickSpectators 每 2 tick(0.1 秒)刷新目标位置,
+ * 并通过 easeOptions 运镜缓动(0.15 秒线性)让相机在两次刷新之间连续追尾,
+ * 避免离散跳变造成的镜头抖动。
  * (内置 third_person 预设不接受 targetEntity 跟随,官方仅 free 系相机支持)
  */
 function applySpectateCamera(spectator: Player, target: Player): void {
@@ -121,6 +125,9 @@ function applySpectateCamera(spectator: Player, target: Player): void {
         z: loc.z - view.z * 6,
       },
       facingLocation: { x: loc.x, y: loc.y + 1.6, z: loc.z },
+      // 缓动时长略大于刷新间隔:相机永远处于"追向最新目标"的运镜中,
+      // 位置与朝向都由引擎在渲染帧率下插值,运动平滑无跳变
+      easeOptions: { easeTime: 0.15, easeType: EasingType.Linear },
     });
   } catch (error) {
     console.warn("[Bearcade collapse] 观战相机设置失败", error);
