@@ -32,7 +32,9 @@ export class GameRegistry {
       const parsed = JSON.parse(raw) as unknown;
       if (!Array.isArray(parsed)) return;
       for (const item of parsed) {
-        const entry = item as Partial<RegisterPayload & { packId: string }>;
+        const entry = item as Partial<
+          RegisterPayload & { packId: string; minPlayers?: number }
+        >;
         if (
           typeof entry.game !== "string" ||
           typeof entry.displayName !== "string" ||
@@ -49,6 +51,7 @@ export class GameRegistry {
           entry.packId,
           entry.roomCount,
           entry.maxPlayers,
+          entry.minPlayers,
           entry.partyAvailable === true,
           entry.prepSpawn as GameEntry["prepSpawn"],
         );
@@ -66,6 +69,7 @@ export class GameRegistry {
       packId: entry.packId,
       roomCount: entry.roomCount,
       maxPlayers: entry.maxPlayers,
+      minPlayers: entry.minPlayers,
       partyAvailable: entry.partyAvailable,
       prepSpawn: entry.prepSpawn,
     }));
@@ -78,6 +82,7 @@ export class GameRegistry {
     packId: string,
     roomCount: number,
     maxPlayers: number,
+    minPlayers: number | undefined,
     partyAvailable: boolean,
     prepSpawn: GameEntry["prepSpawn"],
   ): GameEntry {
@@ -98,6 +103,7 @@ export class GameRegistry {
       packId,
       roomCount,
       maxPlayers,
+      minPlayers: minPlayers ?? 2,
       partyAvailable,
       prepSpawn,
       rooms,
@@ -117,6 +123,8 @@ export class GameRegistry {
       typeof payload.maxPlayers !== "number" ||
       !Number.isInteger(payload.maxPlayers) ||
       payload.maxPlayers < 1 ||
+      (payload.minPlayers !== undefined &&
+        (!Number.isInteger(payload.minPlayers) || payload.minPlayers < 1)) ||
       (payload.partyAvailable !== undefined &&
         typeof payload.partyAvailable !== "boolean") ||
       !payload.prepSpawn ||
@@ -132,6 +140,7 @@ export class GameRegistry {
       packId,
       payload.roomCount,
       payload.maxPlayers,
+      payload.minPlayers,
       payload.partyAvailable === true,
       payload.prepSpawn,
     );

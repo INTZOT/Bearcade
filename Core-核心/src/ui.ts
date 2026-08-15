@@ -205,6 +205,14 @@ function handleJoin(player: Player, entry: GameEntry, roomId: number): void {
       return;
     }
     const allPlayers = world.getAllPlayers();
+    // 派对模式需全服在线人数达到该游戏最少开局人数,否则房间永远无法开局
+    if (allPlayers.length < entry.minPlayers) {
+      showNotice(
+        player,
+        `派对模式需要至少 ${entry.minPlayers} 名玩家在线才能开局,当前 ${allPlayers.length} 人。`,
+      );
+      return;
+    }
     partyRoom.reserved = Math.max(partyRoom.reserved, allPlayers.length);
     const dimensionId = registryForUi.roomDimensionId(entry.game, roomId);
     try {

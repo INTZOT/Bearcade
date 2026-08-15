@@ -78,6 +78,16 @@ function giveTurn(
   clearTokens(runtime, roomId);
   const container = inventoryOf(player)?.container;
   if (container) {
+    // 背包满时先移除一个非棋子杂物腾出空格,保证棋子能放入(对局中其他物品无意义)
+    if (container.emptySlotsCount === 0) {
+      for (let slot = 0; slot < container.size; slot++) {
+        const item = container.getItem(slot);
+        if (item && item.typeId !== STONE_BLACK && item.typeId !== STONE_WHITE) {
+          container.setItem(slot, undefined);
+          break;
+        }
+      }
+    }
     container.addItem(
       new ItemStack(color === "black" ? STONE_BLACK : STONE_WHITE, 1),
     );

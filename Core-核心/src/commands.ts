@@ -6,11 +6,10 @@ import {
   CommandPermissionLevel,
   CustomCommandParamType,
 } from "@minecraft/server";
-import { IPC_CHANNEL, LOBBY_DIMENSION_ID } from "./types";
+import { IPC_CHANNEL, LOBBY_DIMENSION_ID, CORE_PACK_ID } from "./types";
 import type { GameRegistry } from "./registry";
 import { togglePartyMode } from "./party";
 
-const CORE_PACK_ID = "9ce781fb-ff67-4e21-904d-6a5b8b457703";
 const TMP_ACTION_ENUM = "bearcade:tmp_action";
 
 function send(op: string, payload: unknown): void {
@@ -109,7 +108,7 @@ export function initCommands(
             if (action === "tp") {
               send("game.tp", { game: gamename, playerId: player.id });
             } else if (action === "ap") {
-              send("game.apply", { game: gamename });
+              send("game.apply", { game: gamename, playerId: player.id });
             } else {
               send("game.sz", { game: gamename, playerId: player.id });
             }

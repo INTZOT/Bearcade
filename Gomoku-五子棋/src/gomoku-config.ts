@@ -88,6 +88,10 @@ export function openGomokuConfig(
   player: Player,
   runtime: MinigameRuntime,
 ): void {
+  if (runtime.hasActiveGame()) {
+    player.sendMessage("§c当前有对局进行中,禁止修改配置");
+    return;
+  }
   openConfigMenu(player, "五子棋 · 配置", [
     {
       label: "准备房间坐标",

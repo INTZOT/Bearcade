@@ -39,6 +39,10 @@ export function openBridgeConfig(
   player: Player,
   runtime: MinigameRuntime,
 ): void {
+  if (runtime.hasActiveGame()) {
+    player.sendMessage("§c当前有对局进行中,禁止修改配置");
+    return;
+  }
   openConfigMenu(player, "急速战桥 · 配置", [
     {
       label: "准备房间坐标",

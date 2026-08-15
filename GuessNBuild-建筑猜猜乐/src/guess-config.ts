@@ -37,6 +37,10 @@ export function openGuessConfig(
   player: Player,
   runtime: MinigameRuntime,
 ): void {
+  if (runtime.hasActiveGame()) {
+    player.sendMessage("§c当前有对局进行中,禁止修改配置");
+    return;
+  }
   openConfigMenu(player, "建筑猜猜乐 · 配置", [
     {
       label: "题库管理",

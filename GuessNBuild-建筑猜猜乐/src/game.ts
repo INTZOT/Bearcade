@@ -14,8 +14,6 @@ import {
   GUESSER_GAIN,
   MIN_PLAYERS,
   ROUND_SECONDS,
-  TEMPLATE_FROM,
-  TEMPLATE_TO,
   targetScoreFor,
 } from "./config";
 import { loadQuestions } from "./qbank";
@@ -143,9 +141,10 @@ function updateActionbars(
   }
 }
 
-/** 按环形散开生成全员回合落点(派对模式大部队不会叠在一起) */
+/** 按环形散开生成全员回合落点(派对模式大部队不会叠在一起);边界取运行时模板范围,与场地实际位置一致 */
 function roundSpawnPositions(
   count: number,
+  bounds: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number } },
 ): { x: number; y: number; z: number }[] {
   const center = getGuessConfig().roundSpawn;
   const positions: { x: number; y: number; z: number }[] = [];
@@ -158,10 +157,10 @@ function roundSpawnPositions(
       const x = Math.round(center.x + radius * Math.cos(angle));
       const z = Math.round(center.z + radius * Math.sin(angle));
       if (
-        x < TEMPLATE_FROM.x ||
-        x > TEMPLATE_TO.x ||
-        z < TEMPLATE_FROM.z ||
-        z > TEMPLATE_TO.z
+        x < bounds.from.x ||
+        x > bounds.to.x ||
+        z < bounds.from.z ||
+        z > bounds.to.z
       ) {
         continue;
       }
@@ -222,7 +221,10 @@ function startRound(
   updateActionbars(runtime, roomId, session);
   // 每回合开始把玩家传送到场地中心(方块中心由运行时自动 +0.5)
   const players = runtime.roomPlayers(roomId);
-  const spawns = roundSpawnPositions(players.length);
+  const spawns = roundSpawnPositions(players.length, {
+    from: runtime.config.templateFrom,
+    to: runtime.config.templateTo,
+  });
   for (const [index, player] of players.entries()) {
     runtime.teleportPlayer(
       roomId,
@@ -344,11 +346,16 @@ function canEdit(
   const session = sessions.get(roomId);
   if (!session || session.phase !== "building") return false;
   if (session.builderId !== player.id) return false;
+  // 边界取运行时模板范围(与 /bearcade:tmp sz 配置的场地实际位置一致)
+  const bounds = {
+    from: runtime.config.templateFrom,
+    to: runtime.config.templateTo,
+  };
   return (
-    location.x >= TEMPLATE_FROM.x &&
-    location.x <= TEMPLATE_TO.x &&
-    location.z >= TEMPLATE_FROM.z &&
-    location.z <= TEMPLATE_TO.z
+    location.x >= bounds.from.x &&
+    location.x <= bounds.to.x &&
+    location.z >= bounds.from.z &&
+    location.z <= bounds.to.z
   );
 }
 

@@ -2,12 +2,13 @@ import {
   system,
   world,
   Player,
+  ScriptEventSource,
   type DimensionRegistry,
   type ScriptEventCommandMessageAfterEvent,
 } from "@minecraft/server";
 import { CustomForm, ObservableString } from "@minecraft/server-ui";
 import type { MinigameConfig, MinigameHooks } from "./types";
-import type { Vec3 } from "./types";
+import { CORE_PACK_ID, type Vec3 } from "./types";
 
 type Phase = "idle" | "pending" | "running" | "resetting";
 
@@ -66,13 +67,31 @@ export class MinigameRuntime {
   private handleIpc(event: ScriptEventCommandMessageAfterEvent): void {
     if (event.id !== (this.config.ipcChannel ?? "bearcade:ipc")) return;
 
-    let envelope: { op?: unknown; payload?: unknown };
+    // 来源过滤:只响应 Core 脚本模块下发的指令。
+    // 玩家 /scriptevent(Entity+player)、命令方块(Block)、NPC 对话(NPCDialogue)
+    // 一律丢弃;信封 packId 必须等于 Core 的 header UUID,防止伪造指令
+    // (如 game.tp 传送任意玩家、game.quit 强制中止、game.apply 重置全部房间)。
+    if (
+      event.sourceType === ScriptEventSource.Block ||
+      event.sourceType === ScriptEventSource.NPCDialogue ||
+      (event.sourceType === ScriptEventSource.Entity &&
+        event.sourceEntity?.typeId === "minecraft:player")
+    ) {
+      return;
+    }
+
+    let envelope: { op?: unknown; packId?: unknown; payload?: unknown };
     try {
-      envelope = JSON.parse(event.message) as { op?: unknown; payload?: unknown };
+      envelope = JSON.parse(event.message) as {
+        op?: unknown;
+        packId?: unknown;
+        payload?: unknown;
+      };
     } catch {
       return;
     }
     if (!envelope || typeof envelope.op !== "string") return;
+    if (envelope.packId !== CORE_PACK_ID) return;
 
     const payload = envelope.payload as
       | {
@@ -113,7 +132,9 @@ export class MinigameRuntime {
         break;
       }
       case "game.apply":
-        void this.applyTemplateToAllRooms();
+        void this.applyTemplateToAllRooms(
+          typeof payload.playerId === "string" ? payload.playerId : undefined,
+        );
         break;
       case "game.quit":
         if (typeof payload.dimensionId !== "string") return;
@@ -201,13 +222,32 @@ export class MinigameRuntime {
     }
   }
 
-  private async applyTemplateToAllRooms(): Promise<void> {
+  private async applyTemplateToAllRooms(playerId?: string): Promise<void> {
     const roomIds = Array.from(
       { length: this.config.roomCount },
       (_, index) => index + 1,
     );
+    // 运行中/倒计时中的房间禁止应用模板,防止替换正在对局的场地
+    const active = roomIds.filter((roomId) => {
+      const phase = this.getState(roomId).phase;
+      return phase === "running" || phase === "pending";
+    });
+    if (active.length > 0) {
+      this.log(`应用模板被拒绝:房间 ${active.join(",")} 有进行中的对局`);
+      const player = playerId
+        ? world.getAllPlayers().find((p) => p.id === playerId)
+        : undefined;
+      player?.sendMessage(
+        `§c应用模板被拒绝:房间 ${active.join("、")} 有进行中的对局,请先结束再重试`,
+      );
+      return;
+    }
     try {
       await this.resetRoomsFromTemplate(roomIds);
+      // 应用模板后全部房间场地就绪(含此前初始化失败的房间,提供修复路径)
+      for (const roomId of roomIds) {
+        this.ready.set(roomId, true);
+      }
       this.log("已应用模板到全部房间");
     } catch (error) {
       this.log("应用模板失败", error);
@@ -252,7 +292,11 @@ export class MinigameRuntime {
       y2 > 320 ||
       x2 - x1 + 1 > 64 ||
       y2 - y1 + 1 > 384 ||
-      z2 - z1 + 1 > 64
+      z2 - z1 + 1 > 64 ||
+      // 常加载区固定为 y −1~65:模板 y 范围必须与之相交,
+      // 否则场地内容(如高架平台)不在常加载区内,区块可能被卸载
+      y2 < -1 ||
+      y1 > 65
     ) {
       return false;
     }
@@ -316,7 +360,7 @@ export class MinigameRuntime {
       }
       if (!this.saveTemplateBounds(from, to)) {
         player.sendMessage(
-          "§c范围不合法:需在 y -64~320 内,且尺寸不超过 64×384×64",
+          "§c范围不合法:需在 y -64~320 内、尺寸不超过 64×384×64,且 y 范围必须与常加载区(-1~65)相交",
         );
         return;
       }
@@ -398,6 +442,14 @@ export class MinigameRuntime {
 
   isRunning(roomId: number): boolean {
     return this.getState(roomId).phase === "running";
+  }
+
+  /** 是否存在进行中(运行/倒计时)的对局,供"对局中禁止修改配置"守卫使用 */
+  hasActiveGame(): boolean {
+    for (const state of this.states.values()) {
+      if (state.phase === "running" || state.phase === "pending") return true;
+    }
+    return false;
   }
 
   // ================= 房间初始化与重置 =================
@@ -526,27 +578,46 @@ export class MinigameRuntime {
   }
 
   private async initRooms(): Promise<void> {
-    try {
-      const tiles = await this.captureTemplateTiles();
-      for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
-        try {
-          await this.initRoom(roomId, tiles);
-        } catch (error) {
-          this.ready.set(roomId, false);
-          this.log(`房间 ${roomId} 初始化失败`, error);
+    await this.enqueueReset(async () => {
+      try {
+        const tiles = await this.captureTemplateTiles();
+        for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
+          try {
+            await this.initRoom(roomId, tiles);
+          } catch (error) {
+            this.ready.set(roomId, false);
+            this.log(`房间 ${roomId} 初始化失败`, error);
+          }
         }
+      } catch (error) {
+        this.log("模板结构捕获失败", error);
       }
-    } catch (error) {
-      this.log("模板结构捕获失败", error);
-    }
+    });
+  }
+
+  /**
+   * 模板捕获/放置串行队列:所有"删除结构 → 重建结构 → 放置"流程排入同一队列,
+   * 防止并发重置(多房间同时结束、apply 与重置并发)互相删除/重建同一组结构 ID。
+   */
+  private resetChain: Promise<void> = Promise.resolve();
+
+  private enqueueReset(task: () => Promise<void>): Promise<void> {
+    const run = this.resetChain.then(task, task);
+    this.resetChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 
   private async resetRoomsFromTemplate(roomIds: number[]): Promise<void> {
-    const tiles = await this.captureTemplateTiles();
-    for (const roomId of roomIds) {
-      const dim = this.roomDim(roomId);
-      this.placeTiles(dim, tiles);
-    }
+    await this.enqueueReset(async () => {
+      const tiles = await this.captureTemplateTiles();
+      for (const roomId of roomIds) {
+        const dim = this.roomDim(roomId);
+        this.placeTiles(dim, tiles);
+      }
+    });
   }
 
   // ================= 对局状态机 =================
@@ -608,12 +679,27 @@ export class MinigameRuntime {
       }
     }
 
-    try {
-      await this.resetRoomsFromTemplate([roomId]);
-    } catch (error) {
-      this.log(`房间 ${roomId} 场地重置失败`, error);
+    // 场地重置失败时重试一次;仍失败则保持"未就绪"(上报 initializing),
+    // 由管理员执行 /bearcade:tmp ap 修复,避免出现"场地未就绪却显示空闲可加入"
+    let resetOk = false;
+    for (let attempt = 1; attempt <= 2 && !resetOk; attempt++) {
+      try {
+        await this.resetRoomsFromTemplate([roomId]);
+        resetOk = true;
+      } catch (error) {
+        this.log(`房间 ${roomId} 场地重置失败(第 ${attempt} 次)`, error);
+      }
+    }
+    if (!resetOk) {
+      this.ready.set(roomId, false);
+      this.log(
+        `房间 ${roomId} 重置失败,保持初始化中;请执行 /bearcade:tmp ap ${this.config.gameId} 修复`,
+      );
+      this.sendRoomStatus();
+      return;
     }
     this.hooks.onRoomReset?.(roomId);
+    this.ready.set(roomId, true);
     this.states.set(roomId, { phase: "idle", players: [] });
     this.log(`房间 ${roomId} 已重置`);
     this.sendRoomStatus();
@@ -762,6 +848,7 @@ export class MinigameRuntime {
             displayName: this.config.displayName,
             roomCount: this.config.roomCount,
             maxPlayers: this.config.maxPlayers,
+            minPlayers: this.config.minPlayers ?? 2,
             partyAvailable: this.config.partyAvailable ?? false,
             prepSpawn: this.config.prepSpawn,
           },

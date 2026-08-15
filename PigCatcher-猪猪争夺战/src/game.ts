@@ -10,6 +10,7 @@ import {
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
 import { getPigConfig, openPigConfig } from "./pigcatcher-config";
 import {
   TEAMS,
@@ -27,8 +28,9 @@ interface Session {
 }
 
 const sessions = new Map<number, Session>();
-// hookId -> 最近猪 id(上一轮),用于鱼钩解拴的连续一致性判定
-const hookTargets = new Map<string, string>();
+// roomId -> (hookId -> 最近猪 id(上一轮)),用于鱼钩解拴的连续一致性判定;
+// 按房间隔离:某房间无鱼钩时只清本房间状态,不影响其他房间正在积累的一致性
+const hookTargets = new Map<number, Map<string, string>>();
 
 function objectiveId(roomId: number): string {
   return `bearcade:pc_score_${roomId}`;
@@ -118,13 +120,9 @@ function giveTools(player: Player): void {
   }
 }
 
+/** 清空玩家全套物品(背包/盔甲/副手),统一走共享实现 */
 function clearPlayerItems(player: Player): void {
-  const inventory = player.getComponent("minecraft:inventory");
-  const container = inventory?.container;
-  if (!container) return;
-  for (let slot = 0; slot < container.size; slot++) {
-    container.setItem(slot, undefined);
-  }
+  clearAllPlayerItems(player);
 }
 
 function pigsInRoom(runtime: MinigameRuntime, roomId: number): Entity[] {
@@ -507,13 +505,19 @@ export function initPigCatcher(getRuntime: () => MinigameRuntime): void {
             }
           }
         }
-        // 钓鱼竿钩中猪 → 解除拴绳:按鱼钩找最近猪,连续两轮指向同一只才算钩中(避免波及相邻猪)
+        // 钓鱼竿钩中猪 → 解除拴绳:按鱼钩找最近猪,连续两轮指向同一只才算钩中(避免波及相邻猪)。
+        // 与上方 entityHitEntity(命中瞬间解拴)互为兜底:命中事件即时触发,
+        // 轮询覆盖"钩子持续贴住猪"的滞留场景;两路均以 isLeashed 为门槛,幂等不冲突。
+        const roomHookTargets = hookTargets.get(roomId);
         const hooks = runtime.roomDim(roomId).getEntities({
           type: "minecraft:fishing_hook",
         });
         if (hooks.length === 0) {
-          hookTargets.clear();
+          // 只清本房间的连续一致性状态,不影响其他房间
+          hookTargets.delete(roomId);
         } else {
+          const targets = roomHookTargets ?? new Map<string, string>();
+          if (!roomHookTargets) hookTargets.set(roomId, targets);
           for (const hook of hooks) {
             const nearest = runtime.roomDim(roomId).getEntities({
               type: "minecraft:pig",
@@ -522,11 +526,11 @@ export function initPigCatcher(getRuntime: () => MinigameRuntime): void {
               closest: 1,
             })[0];
             if (!nearest) {
-              hookTargets.delete(hook.id);
+              targets.delete(hook.id);
               continue;
             }
-            const prev = hookTargets.get(hook.id);
-            hookTargets.set(hook.id, nearest.id);
+            const prev = targets.get(hook.id);
+            targets.set(hook.id, nearest.id);
             if (prev !== nearest.id) continue; // 连续两轮同一只才算钩中
             if (!isLeashed(nearest)) continue;
             try {

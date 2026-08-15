@@ -1,8 +1,7 @@
 import { system, world, type Player } from "@minecraft/server";
-import { IPC_CHANNEL } from "./types";
+import { CORE_PACK_ID, IPC_CHANNEL } from "./types";
 
 const PARTY_MODE_KEY = "bearcade:party_mode";
-const CORE_PACK_ID = "9ce781fb-ff67-4e21-904d-6a5b8b457703";
 
 let partyMode = false;
 

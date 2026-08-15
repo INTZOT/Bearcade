@@ -16,10 +16,14 @@ export function initIpc(registry: GameRegistry): void {
   system.afterEvents.scriptEventReceive.subscribe((event) => {
     if (event.id !== IPC_CHANNEL) return;
 
-    // 直接由玩家执行 /scriptevent 的消息一律丢弃,packId 校验兜底
+    // 来源过滤:仅接受脚本模块(system.sendScriptEvent)发来的消息。
+    // 玩家 /scriptevent(Entity+player)、命令方块(Block)、NPC 对话(NPCDialogue)
+    // 一律丢弃;packId 与注册表匹配作为第二道兜底校验。
     if (
-      event.sourceType === ScriptEventSource.Entity &&
-      event.sourceEntity?.typeId === "minecraft:player"
+      event.sourceType === ScriptEventSource.Block ||
+      event.sourceType === ScriptEventSource.NPCDialogue ||
+      (event.sourceType === ScriptEventSource.Entity &&
+        event.sourceEntity?.typeId === "minecraft:player")
     ) {
       return;
     }

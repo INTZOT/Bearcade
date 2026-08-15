@@ -4,6 +4,9 @@ import type {
   PlayerPlaceBlockBeforeEvent,
 } from "@minecraft/server";
 
+/** Core 包的 manifest header UUID,IPC 来源校验用(与 config/packs.json 的 core.headerUuid 保持一致) */
+export const CORE_PACK_ID = "9ce781fb-ff67-4e21-904d-6a5b8b457703";
+
 export interface Vec3 {
   x: number;
   y: number;
