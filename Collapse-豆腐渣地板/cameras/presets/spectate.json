@@ -1,0 +1,10 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:camera_preset": {
+    "identifier": "bearcade:spectate_orbit",
+    "inherit_from": "minecraft:follow_orbit",
+    "radius": 6.0,
+    "starting_rot_x": 15.0,
+    "starting_rot_y": 0.0
+  }
+}

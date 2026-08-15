@@ -14,4 +14,5 @@ export const EXTRA_DIRS = [
   "structures",
   "functions",
   "texts",
+  "cameras",
 ];

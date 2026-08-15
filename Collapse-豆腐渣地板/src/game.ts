@@ -3,15 +3,14 @@
 // - 塌陷状态机:玩家脚下的白色混凝土被踩后进入塌陷
 //   (黄 1s → 橙 1s → 红 1s → 消失),离开后继续塌;
 // - PVP:开局 PVP_DELAY_TICKS 后开启,玩家可互相攻击;
-// - 淘汰:掉到 VOID_Y 以下 → 淘汰 → Camera free 相机跟随存活玩家
-//   (身后视角,向量 + 二分逼近指数平滑,1 tick 精确设置相机位置),
+// - 淘汰:掉到 VOID_Y 以下 → 淘汰 → 观战:follow_orbit 预设 + /camera attach
+//   引擎绑定到存活玩家(鼠标可环绕视角,切换目标带 0.5s 平滑运镜),
 //   手持望远镜(SPECTATE_ITEM)切换观战对象;
 // - 胜负:最后 1 名存活者获胜;全部淘汰则平局。
 // ============================================================
 import {
   system,
   world,
-  CatmullRomSpline,
   EasingType,
   GameMode,
   ItemLockMode,
@@ -43,12 +42,6 @@ interface Session {
   floorBlocks: Map<string, CollapseBlock>;
   /** 观战玩家 id -> 观战目标玩家 id */
   spectators: Map<string, string>;
-  /** 观战者 id -> 脚本侧相机位置(二分逼近平滑用) */
-  camPos: Map<string, { x: number; y: number; z: number }>;
-  /** 观战者 id -> 平滑瞄准点(目标眼睛,二分逼近) */
-  eyePos: Map<string, { x: number; y: number; z: number }>;
-  /** 观战者 id -> 上一帧 yaw(yaw ±180° 解缠用,防止缓动绕长路) */
-  prevYaw: Map<string, number>;
   pvpAnnounced: boolean;
 }
 
@@ -114,145 +107,106 @@ function aliveIds(
   return alivePlayers(runtime, roomId, session).map((p) => p.id);
 }
 
-/**
- * 相机平滑系数:二分逼近——每 tick 向期望位置"走一半"(指数平滑)。
- * 轨迹为连续指数曲线,速度与剩余距离成正比,无突变拐点;可调手感
- * (越小越绵,越大越跟手)。
- */
-const CAMERA_SMOOTH = 0.6;
-/** 瞄准点(目标眼睛)平滑系数:同样二分逼近,消除 20Hz 采样跳变 */
-const EYE_SMOOTH = 0.6;
-/**
- * 样条动画时长(秒):引擎要求旋转关键帧间隔 > 0.05s(疑似按 tick 量化,
- * 0.09s 仍报错),取 0.15s(3 tick)留足余量;刷新间隔对齐 3 tick,
- * 时长=间隔,每段在重启前刚好播完,段间无缝。
- */
-const SPLINE_DURATION = 0.15;
+// ===== 观战相机:follow_orbit 预设 + attach 引擎绑定 =====
+// 依赖:世界实验开关 "Creator Cameras: New Third Person Presets"
+// + 世界作弊(/camera 命令需要 cheats);自定义预设见
+// cameras/presets/spectate.json(继承 follow_orbit,半径 6)
 
-/** 期望相机位置向量:目标身后 6 格、上方 2.6 格 */
-function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
-  const view = target.getViewDirection();
-  const loc = target.location;
+/** 附加命令用临时 tag(观战者 / 目标,命令执行后移除) */
+const SPEC_OWNER_TAG = "bearcade:spec_owner";
+const SPEC_TARGET_TAG = "bearcade:spec_target";
+/** 环绕半径(与 spectate.json 的 radius 一致) */
+const ORBIT_RADIUS = 6;
+/** 预设起始俯仰角(度,正=向下)与起始环绕角(0=南/+z,与 JSON starting_rot 一致) */
+const ORBIT_PITCH_DEG = 15;
+const ORBIT_YAW_DEG = 0;
+/** 切换观战目标时的运镜时长(tick):free 相机缓动飞向新目标的环绕起点 */
+const GLIDE_TICKS = 10;
+
+/** 环绕起点位置:目标 + 半径 × 起始角(与预设 starting_rot 几何一致) */
+function orbitStartPos(target: Player): { x: number; y: number; z: number } {
+  const rad = (ORBIT_PITCH_DEG * Math.PI) / 180;
+  const yaw = (ORBIT_YAW_DEG * Math.PI) / 180;
+  const h = ORBIT_RADIUS * Math.cos(rad);
   return {
-    x: loc.x - view.x * 6,
-    y: loc.y + 2.6,
-    z: loc.z - view.z * 6,
+    x: target.location.x + Math.sin(yaw) * h,
+    y: target.location.y + ORBIT_RADIUS * Math.sin(rad),
+    z: target.location.z + Math.cos(yaw) * h,
   };
 }
 
-/** 从相机位置看向瞄准点的旋转角(/tp 约定:rot_y 0=南+顺时针,rot_x 正=向下);yaw 按 prevYaw 解缠 */
+/** 从相机位置看向目标眼睛的旋转角(/tp 约定:rot_y 0=南+顺时针,rot_x 正=向下) */
 function lookAt(
   cam: { x: number; y: number; z: number },
   eye: { x: number; y: number; z: number },
-  prevYaw: number | undefined,
 ): { x: number; y: number; z: number } {
   const dx = eye.x - cam.x;
   const dy = eye.y - cam.y;
   const dz = eye.z - cam.z;
   const dist = Math.hypot(dx, dz);
-  let yaw = (Math.atan2(-dx, dz) * 180) / Math.PI;
-  if (prevYaw !== undefined) {
-    let delta = yaw - prevYaw;
-    while (delta > 180) delta -= 360;
-    while (delta < -180) delta += 360;
-    yaw = prevYaw + delta;
-  }
-  const pitch = (Math.atan2(-dy, dist) * 180) / Math.PI;
-  return { x: pitch, y: yaw, z: 0 };
+  return {
+    x: (Math.atan2(-dy, dist) * 180) / Math.PI,
+    y: (Math.atan2(-dx, dz) * 180) / Math.PI,
+    z: 0,
+  };
 }
 
 /**
- * 观战相机:playAnimation 样条动画方案。
- * - 每 tick 构建一段 LinearSpline(当前相机位 → 二分逼近后的期望位),
- *   progressKeyFrames 线性走完整段,引擎在渲染帧率下沿线段插值;
- * - 动画时长略小于 1 tick:每段播完即接下一段,段间无缝,消除 20Hz 台阶感;
- * - 旋转由 rotationKeyFrames 驱动(样条动画期间引擎接管旋转),
- *   起止角 = 看向二分平滑瞄准点的 yaw/pitch(与 /tp 同约定,yaw 解缠);
- * - 不用 facingEntity(实测不生效时 free 预设默认朝天)。
+ * 引擎级附加:follow_orbit 预设 + /camera attach_to_entity。
+ * 用维度服务器上下文执行命令(免玩家权限,仅需世界作弊),
+ * 临时 tag 定位观战者与目标。
  */
-function updateSpectateCamera(
-  session: Session,
-  spectator: Player,
-  target: Player,
-): void {
+function attachSpectateCamera(spectator: Player, target: Player): void {
   try {
-    const desired = desiredCameraPos(target);
-    const cur = session.camPos.get(spectator.id) ?? desired;
-    const next = {
-      x: cur.x + (desired.x - cur.x) * CAMERA_SMOOTH,
-      y: cur.y + (desired.y - cur.y) * CAMERA_SMOOTH,
-      z: cur.z + (desired.z - cur.z) * CAMERA_SMOOTH,
-    };
-    session.camPos.set(spectator.id, next);
+    spectator.addTag(SPEC_OWNER_TAG);
+    target.addTag(SPEC_TARGET_TAG);
+    try {
+      spectator.dimension.runCommand(
+        `camera @a[tag=${SPEC_OWNER_TAG}] attach_to_entity @e[tag=${SPEC_TARGET_TAG}]`,
+      );
+    } finally {
+      spectator.removeTag(SPEC_OWNER_TAG);
+      target.removeTag(SPEC_TARGET_TAG);
+    }
+  } catch (error) {
+    console.warn("[Bearcade collapse] 观战相机附加失败", error);
+  }
+}
 
-    // 瞄准点:目标眼睛,同样二分逼近
-    const rawEye = {
+/**
+ * 观战相机切换(平滑运镜):free 相机以缓动飞向新目标的环绕起点(引擎从
+ * 当前相机状态开始插值,无需知道当前位置),到达后切回 orbit 预设并 attach。
+ */
+function transitionSpectateCamera(spectator: Player, target: Player): void {
+  try {
+    const eye = {
       x: target.location.x,
       y: target.location.y + 1.6,
       z: target.location.z,
     };
-    const curEye = session.eyePos.get(spectator.id) ?? rawEye;
-    const eye = {
-      x: curEye.x + (rawEye.x - curEye.x) * EYE_SMOOTH,
-      y: curEye.y + (rawEye.y - curEye.y) * EYE_SMOOTH,
-      z: curEye.z + (rawEye.z - curEye.z) * EYE_SMOOTH,
-    };
-    session.eyePos.set(spectator.id, eye);
-
-    // 本段起止朝向
-    const startRot = lookAt(cur, eye, session.prevYaw.get(spectator.id));
-    const endRot = lookAt(next, eye, startRot.y);
-    session.prevYaw.set(spectator.id, endRot.y);
-
-    // 样条动画:CatmullRomSpline 4 个共线控制点(满足引擎 ≥4 点要求,
-    // 共线保证轨迹为直线段),引擎渲染帧率插值;
-    // 本段结束位置 = 下段起点,时长=间隔,段间无缝
-    const spline = new CatmullRomSpline();
-    spline.controlPoints = [
-      cur,
-      {
-        x: cur.x + (next.x - cur.x) / 3,
-        y: cur.y + (next.y - cur.y) / 3,
-        z: cur.z + (next.z - cur.z) / 3,
+    const dest = orbitStartPos(target);
+    spectator.camera.setCamera("minecraft:free", {
+      location: dest,
+      rotation: lookAt(dest, eye),
+      easeOptions: {
+        easeTime: GLIDE_TICKS * 0.05,
+        easeType: EasingType.Linear,
       },
-      {
-        x: cur.x + ((next.x - cur.x) * 2) / 3,
-        y: cur.y + ((next.y - cur.y) * 2) / 3,
-        z: cur.z + ((next.z - cur.z) * 2) / 3,
-      },
-      next,
-    ];
-    spectator.camera.playAnimation(spline, {
-      animation: {
-        progressKeyFrames: [
-          { timeSeconds: 0, alpha: 0, easingFunc: EasingType.Linear },
-          {
-            timeSeconds: SPLINE_DURATION,
-            alpha: 1,
-            easingFunc: EasingType.Linear,
-          },
-        ],
-        rotationKeyFrames: [
-          {
-            timeSeconds: 0,
-            rotation: startRot,
-            easingFunc: EasingType.Linear,
-          },
-          {
-            timeSeconds: SPLINE_DURATION,
-            rotation: endRot,
-            easingFunc: EasingType.Linear,
-          },
-        ],
-      },
-      totalTimeSeconds: SPLINE_DURATION,
     });
+    system.runTimeout(() => {
+      try {
+        spectator.camera.setCamera("bearcade:spectate_orbit");
+        attachSpectateCamera(spectator, target);
+      } catch (error) {
+        console.warn("[Bearcade collapse] 观战相机附加失败", error);
+      }
+    }, GLIDE_TICKS + 2);
   } catch (error) {
-    console.warn("[Bearcade collapse] 观战相机设置失败", error);
+    console.warn("[Bearcade collapse] 观战相机运镜失败", error);
   }
 }
 
-/** 让淘汰玩家观战指定目标(二分平滑跟随) */
+/** 让淘汰玩家观战指定目标(follow_orbit 引擎绑定,切换带平滑运镜) */
 function setSpectateTarget(
   runtime: MinigameRuntime,
   roomId: number,
@@ -265,12 +219,7 @@ function setSpectateTarget(
     return;
   }
   session.spectators.set(spectator.id, target.id);
-  // 首次进入观战:相机从观战台出发平滑"飞向"目标身后(入场拉近效果);
-  // 切换目标时沿用现有 camPos,相机平滑摆向新目标
-  if (!session.camPos.has(spectator.id)) {
-    session.camPos.set(spectator.id, spectateSpot());
-  }
-  updateSpectateCamera(session, spectator, target);
+  transitionSpectateCamera(spectator, target);
   spectator.sendMessage(`§7正在观战 §e${target.name}§7(手持望远镜切换)`);
 }
 
@@ -402,7 +351,7 @@ function tickPvp(
   );
 }
 
-/** 观战目标失效时重选;淘汰玩家掉下观战台则拉回(相机刷新见 refreshSpectateCameras,1 tick 一次) */
+/** 观战目标失效时重选;淘汰玩家掉下观战台则拉回 */
 function tickSpectators(
   runtime: MinigameRuntime,
   roomId: number,
@@ -417,9 +366,6 @@ function tickSpectators(
       .find((p) => p !== undefined && p.id === specId);
     if (!spectator) {
       session.spectators.delete(specId);
-      session.camPos.delete(specId);
-      session.eyePos.delete(specId);
-      session.prevYaw.delete(specId);
       continue;
     }
     // 掉下观战台(高度异常)则拉回
@@ -442,26 +388,6 @@ function tickSpectators(
   }
 }
 
-/** 观战相机更新(1 tick 一次):向量 + 二分逼近平滑,逐 tick 精确设置相机位置 */
-function refreshSpectateCameras(
-  runtime: MinigameRuntime,
-  roomId: number,
-  session: Session,
-): void {
-  if (session.spectators.size === 0) return;
-  for (const [specId, targetId] of [...session.spectators.entries()]) {
-    if (!targetId) continue;
-    const spectator = runtime
-      .roomPlayers(roomId)
-      .find((p) => p !== undefined && p.id === specId);
-    if (!spectator) continue;
-    const target = runtime
-      .roomPlayers(roomId)
-      .find((p) => p !== undefined && p.id === targetId);
-    if (target) updateSpectateCamera(session, spectator, target);
-  }
-}
-
 export function makeCollapseHooks(
   getRuntime: () => MinigameRuntime,
 ): MinigameHooks {
@@ -475,9 +401,6 @@ export function makeCollapseHooks(
         pvpTick: system.currentTick + pvpDelayTicks,
         floorBlocks: new Map(),
         spectators: new Map(),
-        camPos: new Map(),
-        eyePos: new Map(),
-        prevYaw: new Map(),
         pvpAnnounced: false,
       };
       sessions.set(roomId, session);
@@ -591,22 +514,6 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
       }
     }
   }, 2);
-
-  // 观战相机更新:3 tick(0.15 秒)一次——每段样条(0.15s)时长=间隔,播完即接下一段,
-  // 输入由二分逼近平滑,引擎在渲染帧率下插值
-  system.runInterval(() => {
-    for (const [roomId, session] of [...sessions.entries()]) {
-      try {
-        if (runtime.getPhase(roomId) !== "running") continue;
-        refreshSpectateCameras(runtime, roomId, session);
-      } catch (error) {
-        console.warn(
-          `[Bearcade collapse] 观战相机刷新异常 room=${roomId}`,
-          error,
-        );
-      }
-    }
-  }, 3);
 
   // 观战切换:淘汰玩家手持望远镜使用 → 切换观战对象
   world.afterEvents.itemUse.subscribe((event) => {
