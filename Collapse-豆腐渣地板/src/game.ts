@@ -4,14 +4,13 @@
 //   (黄 1s → 橙 1s → 红 1s → 消失),离开后继续塌;
 // - PVP:开局 PVP_DELAY_TICKS 后开启,玩家可互相攻击;
 // - 淘汰:掉到 VOID_Y 以下 → 淘汰 → Camera free 相机跟随存活玩家
-//   (身后视角,运镜缓动平滑跟随,随目标移动/转向实时刷新),
+//   (身后视角,向量 + 二分逼近指数平滑,1 tick 精确设置相机位置),
 //   手持望远镜(SPECTATE_ITEM)切换观战对象;
 // - 胜负:最后 1 名存活者获胜;全部淘汰则平局。
 // ============================================================
 import {
   system,
   world,
-  EasingType,
   GameMode,
   ItemLockMode,
   ItemStack,
@@ -42,6 +41,8 @@ interface Session {
   floorBlocks: Map<string, CollapseBlock>;
   /** 观战玩家 id -> 观战目标玩家 id */
   spectators: Map<string, string>;
+  /** 观战者 id -> 脚本侧相机位置(二分逼近平滑用) */
+  camPos: Map<string, { x: number; y: number; z: number }>;
   pvpAnnounced: boolean;
 }
 
@@ -108,34 +109,56 @@ function aliveIds(
 }
 
 /**
- * 观战相机:minecraft:free 相机悬浮在目标身后 6 格、上方 2.6 格。
- * - 位置:由 refreshSpectateCameras 每 2 tick(0.1 秒)刷新 + easeOptions 0.2s 线性缓动,
- *   世界背景平滑滑动;
- * - 朝向:用 facingEntity 让引擎在渲染帧率下持续跟踪目标实体,
- *   人物永远锁定在画面中心——若改用缓动朝向(facingLocation + ease),
- *   朝向滞后量随目标加减速/转向变化,会出现视角内人物漂移抖动。
- * (内置 third_person 预设不接受 targetEntity 跟随,官方仅 free 系相机支持)
+ * 相机平滑系数:二分逼近——每 tick 向期望位置"走一半"(指数平滑)。
+ * 轨迹为连续指数曲线,速度与剩余距离成正比,无突变拐点;可调手感
+ * (越小越绵,越大越跟手)。
  */
-function applySpectateCamera(spectator: Player, target: Player): void {
+const CAMERA_SMOOTH = 0.5;
+
+/** 期望相机位置向量:目标身后 6 格、上方 2.6 格 */
+function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
+  const view = target.getViewDirection();
+  const loc = target.location;
+  return {
+    x: loc.x - view.x * 6,
+    y: loc.y + 2.6,
+    z: loc.z - view.z * 6,
+  };
+}
+
+/**
+ * 观战相机:向量 + 二分逼近实现平滑过渡。
+ * - 期望位置 desired = 目标身后 6 格、上方 2.6 格(向量运算,随目标转向);
+ * - 脚本侧维护相机位置 camPos,每 tick 向 desired 走一半:
+ *   camPos += (desired - camPos) × CAMERA_SMOOTH —— 指数平滑曲线,
+ *   速度连续无拐点,避免"引擎缓动每轮重启"造成的速度突变(人物抽搐来源之一);
+ * - 朝向 facingEntity 由引擎跟踪目标,人物锁定画面中心;
+ * - 无 easeOptions,相机位置完全由脚本逐 tick 精确控制。
+ */
+function updateSpectateCamera(
+  session: Session,
+  spectator: Player,
+  target: Player,
+): void {
   try {
-    const view = target.getViewDirection();
-    const loc = target.location;
+    const desired = desiredCameraPos(target);
+    const cur = session.camPos.get(spectator.id) ?? desired;
+    const next = {
+      x: cur.x + (desired.x - cur.x) * CAMERA_SMOOTH,
+      y: cur.y + (desired.y - cur.y) * CAMERA_SMOOTH,
+      z: cur.z + (desired.z - cur.z) * CAMERA_SMOOTH,
+    };
+    session.camPos.set(spectator.id, next);
     spectator.camera.setCamera("minecraft:free", {
-      location: {
-        x: loc.x - view.x * 6,
-        y: loc.y + 2.6,
-        z: loc.z - view.z * 6,
-      },
+      location: next,
       facingEntity: target,
-      // 缓动时长略大于刷新间隔:相机永远处于"追向最新目标"的运镜中
-      easeOptions: { easeTime: 0.2, easeType: EasingType.Linear },
     });
   } catch (error) {
     console.warn("[Bearcade collapse] 观战相机设置失败", error);
   }
 }
 
-/** 让淘汰玩家观战指定目标(free 相机跟随) */
+/** 让淘汰玩家观战指定目标(二分平滑跟随) */
 function setSpectateTarget(
   runtime: MinigameRuntime,
   roomId: number,
@@ -148,7 +171,12 @@ function setSpectateTarget(
     return;
   }
   session.spectators.set(spectator.id, target.id);
-  applySpectateCamera(spectator, target);
+  // 首次进入观战:相机从观战台出发平滑"飞向"目标身后(入场拉近效果);
+  // 切换目标时沿用现有 camPos,相机平滑摆向新目标
+  if (!session.camPos.has(spectator.id)) {
+    session.camPos.set(spectator.id, spectateSpot());
+  }
+  updateSpectateCamera(session, spectator, target);
   spectator.sendMessage(`§7正在观战 §e${target.name}§7(手持望远镜切换)`);
 }
 
@@ -295,6 +323,7 @@ function tickSpectators(
       .find((p) => p !== undefined && p.id === specId);
     if (!spectator) {
       session.spectators.delete(specId);
+      session.camPos.delete(specId);
       continue;
     }
     // 掉下观战台(高度异常)则拉回
@@ -317,7 +346,7 @@ function tickSpectators(
   }
 }
 
-/** 观战相机刷新(1 tick 一次):按各观战者当前目标应用跟随相机,配合 easeOptions 运镜平滑 */
+/** 观战相机更新(1 tick 一次):向量 + 二分逼近平滑,逐 tick 精确设置相机位置 */
 function refreshSpectateCameras(
   runtime: MinigameRuntime,
   roomId: number,
@@ -333,7 +362,7 @@ function refreshSpectateCameras(
     const target = runtime
       .roomPlayers(roomId)
       .find((p) => p !== undefined && p.id === targetId);
-    if (target) applySpectateCamera(spectator, target);
+    if (target) updateSpectateCamera(session, spectator, target);
   }
 }
 
@@ -350,6 +379,7 @@ export function makeCollapseHooks(
         pvpTick: system.currentTick + pvpDelayTicks,
         floorBlocks: new Map(),
         spectators: new Map(),
+        camPos: new Map(),
         pvpAnnounced: false,
       };
       sessions.set(roomId, session);
@@ -464,8 +494,8 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
     }
   }, 2);
 
-  // 观战相机刷新:2 tick(0.1 秒)输入一次目标位置,
-  // 配合 applySpectateCamera 的 easeOptions 运镜缓动(0.2 秒),平滑追尾
+  // 观战相机更新:1 tick(0.05 秒)一次——向量 + 二分逼近(指数平滑),
+  // 更新频率越高,指数曲线越接近连续,相机位置逐 tick 精确设置
   system.runInterval(() => {
     for (const [roomId, session] of [...sessions.entries()]) {
       try {
@@ -478,7 +508,7 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
         );
       }
     }
-  }, 2);
+  }, 1);
 
   // 观战切换:淘汰玩家手持望远镜使用 → 切换观战对象
   world.afterEvents.itemUse.subscribe((event) => {
