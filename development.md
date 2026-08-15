@@ -512,3 +512,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-15 | 行为包定义文件处理规范:实体/物品/方块等 JSON 定义放包目录对应文件夹,打包与部署自动包含;目录清单抽到 `scripts/extras.mjs` 统一登记(新增 items/blocks/recipes/spawn_rules/loot_tables/tags/trading/dialogue 等);模板 README 与本文档 §2.1 补充说明 |
 | 2026-08-15 | 猪猪争夺战鱼钩解拴改用事件驱动:实测 `entityHitEntity` 对鱼钩勾中不派发,`entityHurt(before)` 在 0 伤害投射命中时可靠触发(damage=0、cause=projectile、damagingEntity=投掷者玩家);解拴逻辑移入 `entityHurt` 猪分支,抢在无敌 cancel 前经 `system.run` 延迟 unleash,邻近鱼钩实体二次确认防误解拴;删除 `entityHitEntity` 死代码,轮询保留作"先勾后拴"兜底;debug 模式放宽维度检查便于大厅测试;`deploy.mjs` 恢复本机默认部署路径(MC_DEV_PACKS 可覆盖);新增 §11 ScriptAPI 实战参考 |
 | 2026-08-15 | 新建 `docs/lessons.md` 实战参考:汇总开发踩坑与解决(事件上下文/维度结构/UI/状态机/安全/工具链/调试技巧),§11 改为指向该文件 |
+| 2026-08-15 | Toolkit 新增 SimulatedPlayerManager(`/spm`,仅管理员):模拟玩家列表/生成/删除,生成于玩家所在维度与位置,主要用途凑开局人数;基于 `@minecraft/server-gametest` 模块级 `spawnSimulatedPlayer`,生成时打 tag `bearcade:simulated` 便于识别;`docs/gametest/` 新增类型快照,manifest 增加 gametest 模块依赖 |

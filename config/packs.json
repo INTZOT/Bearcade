@@ -110,7 +110,8 @@
       "minEngineVersion": [1, 26, 40],
       "dependencies": [
         { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" },
+        { "module_name": "@minecraft/server-gametest", "version": "1.0.0-beta" }
       ],
       "packDependencies": []
     }
