@@ -40,7 +40,7 @@ Bearcade/
 ├── Gomoku-五子棋/          # 五子棋小游戏(首个完整可运行的小游戏)
 ├── Template-小游戏模板/    # 小游戏模板包(复制即可开发新游戏)
 ├── shared/minigame-core/   # 共享小游戏运行时(维度/复制/状态机/上报,构建期内联进各包)
-├── docs/                   # ScriptAPI 类型定义与官方文档快照
+├── docs/                   # ScriptAPI 类型定义、官方文档快照与实战参考(lessons.md)
 ├── config/packs.json       # 包定义唯一来源(构建时生成 manifest)
 ├── scripts/                # 构建/打包/部署/分发脚本
 ├── README.md               # 架构介绍(本文档)
