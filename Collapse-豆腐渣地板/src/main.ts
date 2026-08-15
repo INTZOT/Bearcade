@@ -71,16 +71,19 @@ world.afterEvents.worldLoad.subscribe(() => {
 
 // ============================================================
 // 调试命令 /bearcade:spec <目标玩家>:
-// 把执行者的相机绑定到指定玩家(follow_orbit 预设,需实验开关
-// "Creator Cameras: New Third Person Presets")。
-// 仅用于验证引擎对"玩家目标"的支持;验证通过后集成进观战流程。
+// 把执行者的相机附加到指定玩家——follow_orbit 预设 + 命令
+// `/camera @s attach_to_entity`(命令层无玩家限制;脚本 API 的
+// attachToEntity 限定非玩家实体)。需实验开关 "Creator Cameras:
+// New Third Person Presets"。验证通过后集成进观战流程。
 // ============================================================
+const SPEC_TAG = "bearcade:spec_target";
+
 system.beforeEvents.startup.subscribe((event) => {
   try {
     event.customCommandRegistry.registerCommand(
       {
         name: "bearcade:spec",
-        description: "调试:绑定相机到指定玩家(follow_orbit)",
+        description: "调试:绑定相机到指定玩家(follow_orbit+attach)",
         permissionLevel: CommandPermissionLevel.Any,
         cheatsRequired: false,
         mandatoryParameters: [
@@ -104,12 +107,22 @@ system.beforeEvents.startup.subscribe((event) => {
               player.sendMessage("§c目标不是玩家");
               return;
             }
-            player.camera.setCamera("minecraft:follow_orbit", {
-              targetEntity: entity,
-            });
-            player.sendMessage(
-              `§a相机已绑定到 §e${entity.name}§a(follow_orbit,鼠标可环绕视角)`,
-            );
+            // 1. follow_orbit 预设(默认环绕自己,锚点随后由 attach 接管)
+            player.camera.setCamera("minecraft:follow_orbit");
+            // 2. 给目标打临时 tag,用命令把相机附加到目标实体
+            entity.addTag(SPEC_TAG);
+            try {
+              const result = player.runCommand(
+                `camera @s attach_to_entity @e[tag=${SPEC_TAG}]`,
+              );
+              player.sendMessage(
+                result.successCount > 0
+                  ? `§a已附加到 §e${entity.name}§a(follow_orbit,鼠标可环绕视角)`
+                  : "§c附加命令未生效",
+              );
+            } finally {
+              entity.removeTag(SPEC_TAG);
+            }
           } catch (error) {
             player.sendMessage(`§c绑定失败:${String(error)}`);
             console.warn("[Bearcade collapse] /bearcade:spec 失败", error);
@@ -117,7 +130,7 @@ system.beforeEvents.startup.subscribe((event) => {
         });
         return {
           status: CustomCommandStatus.Success,
-          message: "正在绑定相机(follow_orbit)",
+          message: "正在附加相机(follow_orbit)",
         };
       },
     );
