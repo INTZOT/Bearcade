@@ -1,7 +1,6 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { initGuessGame, makeGameHooks } from "./game";
-import { initQBank } from "./qbank";
 import { bindDebugRuntime } from "./debug";
 import { getGuessConfig, loadGuessConfig } from "./guess-config";
 import {
@@ -58,8 +57,6 @@ runtime = new MinigameRuntime(
 system.beforeEvents.startup.subscribe((event) => {
   runtime.initStartup(event);
 });
-
-initQBank();
 
 world.afterEvents.worldLoad.subscribe(() => {
   loadGuessConfig();

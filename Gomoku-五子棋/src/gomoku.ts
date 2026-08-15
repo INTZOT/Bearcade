@@ -1,6 +1,7 @@
 import {
   system,
   ItemStack,
+  GameMode,
   EntityComponentTypes,
   type EntityInventoryComponent,
   type Player,
@@ -226,6 +227,10 @@ export function makeGomokuHooks(
         turn: "black",
         players: { black: black.id, white: white.id },
       });
+      // 生存模式才能放置压力板落子(放置合法性由 canPlace 钩子控制);
+      // 玩家从大厅(冒险)进入,必须显式切换
+      black.setGameMode(GameMode.Survival);
+      white.setGameMode(GameMode.Survival);
       runtime.teleportPlayer(roomId, black, cfg.blackStart);
       runtime.teleportPlayer(roomId, white, cfg.whiteStart);
       runtime.announce(
@@ -235,7 +240,18 @@ export function makeGomokuHooks(
       giveTurn(runtime, roomId, black, "black");
     },
     onBeforeReset(roomId) {
-      clearTokens(getRuntime(), roomId);
+      const runtime = getRuntime();
+      // 恢复冒险模式(回大厅后 Core 也会兜底初始化)
+      for (const player of runtime.roomPlayers(roomId)) {
+        if (player !== undefined) {
+          try {
+            player.setGameMode(GameMode.Adventure);
+          } catch {
+            // 忽略
+          }
+        }
+      }
+      clearTokens(runtime, roomId);
       games.delete(roomId);
     },
     canPlace(event, roomId) {

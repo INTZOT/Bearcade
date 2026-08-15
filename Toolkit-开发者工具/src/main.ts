@@ -19,7 +19,7 @@ function registerCommands(): void {
       {
         name: COMMAND_BTD,
         description: "打开悬浮公告管理",
-        permissionLevel: CommandPermissionLevel.Admin,
+        permissionLevel: CommandPermissionLevel.Any,
         cheatsRequired: false,
       },
       (origin) => {
@@ -28,6 +28,13 @@ function registerCommands(): void {
           return {
             status: CustomCommandStatus.Failure,
             message: "该命令只能由玩家执行",
+          };
+        }
+        // 管理员判定统一按 op tag(与 Core 一致)
+        if (!entity.hasTag("op")) {
+          return {
+            status: CustomCommandStatus.Failure,
+            message: "权限不足:需要 op tag(管理员)",
           };
         }
         const player = entity as Player;
@@ -39,7 +46,7 @@ function registerCommands(): void {
       {
         name: COMMAND_CIS,
         description: "打开手持物品属性编辑(CustomItemStack)",
-        permissionLevel: CommandPermissionLevel.Admin,
+        permissionLevel: CommandPermissionLevel.Any,
         cheatsRequired: false,
       },
       (origin) => {
@@ -48,6 +55,13 @@ function registerCommands(): void {
           return {
             status: CustomCommandStatus.Failure,
             message: "该命令只能由玩家执行",
+          };
+        }
+        // 管理员判定统一按 op tag(与 Core 一致)
+        if (!entity.hasTag("op")) {
+          return {
+            status: CustomCommandStatus.Failure,
+            message: "权限不足:需要 op tag(管理员)",
           };
         }
         const player = entity as Player;

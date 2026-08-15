@@ -1,9 +1,7 @@
 import {
   system,
   world,
-  Player,
-  CustomCommandStatus,
-  CommandPermissionLevel,
+  type Player,
 } from "@minecraft/server";
 import { CustomForm, ObservableString } from "@minecraft/server-ui";
 import { QB_KEY } from "./config";
@@ -210,31 +208,4 @@ export function openQBankMain(player: Player): void {
     form.close();
   });
   form.show().catch((error) => console.warn("qbank main", error));
-}
-
-export function initQBank(): void {
-  system.beforeEvents.startup.subscribe((event) => {
-    event.customCommandRegistry.registerCommand(
-      {
-        name: "bearcade:qbank",
-        description: "管理建筑猜猜乐题库(添加/查看/删除/清空)",
-        permissionLevel: CommandPermissionLevel.Admin,
-        cheatsRequired: false,
-      },
-      (origin) => {
-        const player = origin.sourceEntity;
-        if (!player || !(player instanceof Player)) {
-          return {
-            status: CustomCommandStatus.Failure,
-            message: "该命令只能由玩家执行",
-          };
-        }
-        system.run(() => openQBankMain(player));
-        return {
-          status: CustomCommandStatus.Success,
-          message: "正在打开题库管理",
-        };
-      },
-    );
-  });
 }

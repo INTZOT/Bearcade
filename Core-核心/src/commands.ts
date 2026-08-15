@@ -19,6 +19,37 @@ function send(op: string, payload: unknown): void {
   );
 }
 
+/**
+ * 管理命令权限校验:命令以 Any 注册(引擎权限不设门槛),
+ * 管理员判定统一按 op tag(与 README"管理员以 op tag 判定"一致)。
+ * 通过时返回收窄后的 player,否则返回拒绝结果。
+ */
+function requireAdmin(
+  entity: import("@minecraft/server").Entity | undefined,
+):
+  | { ok: true; player: Player }
+  | { ok: false; result: { status: CustomCommandStatus; message: string } } {
+  if (!entity || !(entity instanceof Player)) {
+    return {
+      ok: false,
+      result: {
+        status: CustomCommandStatus.Failure,
+        message: "该命令只能由玩家执行",
+      },
+    };
+  }
+  if (!entity.hasTag("op")) {
+    return {
+      ok: false,
+      result: {
+        status: CustomCommandStatus.Failure,
+        message: "权限不足:需要 op tag(管理员)",
+      },
+    };
+  }
+  return { ok: true, player: entity };
+}
+
 export function initCommands(
   getRegistry: () => GameRegistry | undefined,
 ): void {
@@ -76,7 +107,7 @@ export function initCommands(
         {
           name: "bearcade:tmp",
           description: "开发/运维:tp=模板维度,ap=应用模板,sz=表单配置模板范围",
-          permissionLevel: CommandPermissionLevel.Admin,
+          permissionLevel: CommandPermissionLevel.Any,
           cheatsRequired: false,
           mandatoryParameters: [
             {
@@ -91,13 +122,9 @@ export function initCommands(
           ],
         },
         (origin, action: string, gamename: string) => {
-          const player = origin.sourceEntity;
-          if (!player || !(player instanceof Player)) {
-            return {
-              status: CustomCommandStatus.Failure,
-              message: "该命令只能由玩家执行",
-            };
-          }
+          const check = requireAdmin(origin.sourceEntity);
+          if (!check.ok) return check.result;
+          const player = check.player;
           if (!getRegistry()?.getGame(gamename)) {
             return {
               status: CustomCommandStatus.Failure,
@@ -133,17 +160,13 @@ export function initCommands(
         {
           name: "bearcade:quit",
           description: "强制中止当前维度运行中的小游戏",
-          permissionLevel: CommandPermissionLevel.Admin,
+          permissionLevel: CommandPermissionLevel.Any,
           cheatsRequired: false,
         },
         (origin) => {
-          const player = origin.sourceEntity;
-          if (!player || !(player instanceof Player)) {
-            return {
-              status: CustomCommandStatus.Failure,
-              message: "该命令只能由玩家执行",
-            };
-          }
+          const check = requireAdmin(origin.sourceEntity);
+          if (!check.ok) return check.result;
+          const player = check.player;
           const match = /^bearcade:([a-z0-9_]+)_\d+$/.exec(
             player.dimension.id,
           );
@@ -181,10 +204,12 @@ export function initCommands(
         {
           name: "bearcade:party",
           description: "开关派对模式(管理员带队全服加入 PartyAvailable 游戏)",
-          permissionLevel: CommandPermissionLevel.Admin,
+          permissionLevel: CommandPermissionLevel.Any,
           cheatsRequired: false,
         },
-        () => {
+        (origin) => {
+          const check = requireAdmin(origin.sourceEntity);
+          if (!check.ok) return check.result;
           const on = togglePartyMode();
           return {
             status: CustomCommandStatus.Success,
@@ -201,7 +226,7 @@ export function initCommands(
         {
           name: "bearcade:config",
           description: "打开指定游戏的运行时配置界面",
-          permissionLevel: CommandPermissionLevel.Admin,
+          permissionLevel: CommandPermissionLevel.Any,
           cheatsRequired: false,
           mandatoryParameters: [
             {
@@ -211,13 +236,9 @@ export function initCommands(
           ],
         },
         (origin, gamename: string) => {
-          const player = origin.sourceEntity;
-          if (!player || !(player instanceof Player)) {
-            return {
-              status: CustomCommandStatus.Failure,
-              message: "该命令只能由玩家执行",
-            };
-          }
+          const check = requireAdmin(origin.sourceEntity);
+          if (!check.ok) return check.result;
+          const player = check.player;
           if (!getRegistry()?.getGame(gamename)) {
             return {
               status: CustomCommandStatus.Failure,
@@ -242,7 +263,7 @@ export function initCommands(
         {
           name: "bearcade:debug",
           description: "切换指定游戏的调试日志",
-          permissionLevel: CommandPermissionLevel.Admin,
+          permissionLevel: CommandPermissionLevel.Any,
           cheatsRequired: false,
           mandatoryParameters: [
             {
@@ -257,13 +278,9 @@ export function initCommands(
           ],
         },
         (origin, gamename: string, state: string) => {
-          const player = origin.sourceEntity;
-          if (!player || !(player instanceof Player)) {
-            return {
-              status: CustomCommandStatus.Failure,
-              message: "该命令只能由玩家执行",
-            };
-          }
+          const check = requireAdmin(origin.sourceEntity);
+          if (!check.ok) return check.result;
+          const player = check.player;
           const enabled = state === "enable";
           const registry = getRegistry();
           if (gamename === "all") {
