@@ -6,7 +6,7 @@
 - **容器化房间**:利用自定义维度实现"一个维度 = 一个游戏 = 一个房间",游戏实例完全隔离;
 - **玩法零约束**:Core 只做大厅、入房校验与状态汇聚,小游戏内部流程完全由各游戏包自由实现。
 
-**当前状态**:**Gomoku(五子棋)** 与 **GuessNBuild(建筑猜猜乐)第一版**均已完整可运行——Gomoku 含随机黑白、放置方块落子、五连判定;GuessNBuild 含 3~16 人回合制建筑猜谜、聊天答题、题库表单、侧边栏计分;另有可直接复制开发的小游戏模板包。
+**当前状态**:**Gomoku(五子棋)**、**GuessNBuild(建筑猜猜乐)第一版**、**BridgeWar(急速战桥)** 与 **PigCatcher(猪猪争夺战)** 均已完整可运行——Gomoku 含随机黑白、放置方块落子、五连判定;GuessNBuild 含 3~16 人回合制建筑猜谜、聊天答题、题库表单、侧边栏计分;BridgeWar 含红蓝两队核心区得分、回合制搭拆桥、队伍装备配置;PigCatcher 含四队驱赶中立猪进核心区、三类道具交互、计时结算;另有可直接复制开发的小游戏模板包与开发者工具包(悬浮公告 /btd、物品属性编辑 /cis)。
 
 ## 快速开始
 
@@ -21,8 +21,9 @@
 ```bash
 npm install          # 安装类型定义与构建工具
 npm run typecheck    # TypeScript 类型检查
+npm run check        # 校验 config/packs.json 与各包源码的 packId 一致性
 npm run build        # 生成各包 manifest 并打包脚本
-npm run deploy       # 部署到开发行为包目录(可用 MC_DEV_PACKS 覆盖目标)
+npm run deploy       # 部署到开发行为包目录(需设置 MC_DEV_PACKS 指向目标)
 npm run package      # 产出 dist/packages/*.mcpack 与 bearcade.mcaddon
 npm run distribute   # 生成可分发的开发套件 dist/BearcadeDevKit-<版本>.zip
 ```
@@ -109,10 +110,10 @@ Core 提供命令:
 - `/bearcade:tmp sz <gamename>`:打开表单配置模板范围的起始点/终点(游戏内配置优先于 config.ts,保存到动态属性);
 - `/bearcade:quit`:在对应游戏房间维度执行,强制中止该房间的对局;
 - `/bearcade:party`:管理员开关**派对模式**;
-- `/bearcade:config <gamename>`:管理员打开指定游戏的**运行时配置界面**(五子棋/建筑猜猜乐/急速战桥已接入);
+- `/bearcade:config <gamename>`:管理员打开指定游戏的**运行时配置界面**(五子棋/建筑猜猜乐/急速战桥/猪猪争夺战已接入,对局进行中禁止修改);
 - `/bearcade:debug <gamename|all> enable|disable`:管理员开启/关闭指定游戏(或 `all` 全部游戏)的调试日志(建筑猜猜乐已接入)。
 
-派对模式:开启后普通玩家不能自行选择游戏加入;管理员从游戏列表点击房间时,Core 会把全服在线玩家一起带入该房间(忽略人数上限),且只允许 `partyAvailable=true` 的小游戏(如 gomoku=false、guessnbuild=true);派对模式开局倒计时固定 60 秒,不触发满员缩短。管理员以 `op` tag 判定。
+派对模式:开启后普通玩家不能自行选择游戏加入;管理员从游戏列表点击房间时,Core 会把全服在线玩家一起带入该房间(忽略人数上限),且只允许 `partyAvailable=true` 的小游戏(如 gomoku=false、guessnbuild=true);带队时要求全服在线人数达到该游戏的最少开局人数(`minPlayers`),否则拒绝加入;派对模式开局倒计时固定 60 秒,不触发满员缩短。管理员以 `op` tag 判定。
 
 ## 大厅与 DDUI 菜单
 
@@ -121,11 +122,17 @@ Core 提供命令:
 - 使用钟 → 一级主菜单 → 二级游戏列表 → 三级房间列表(人数 / 最大人数 / 状态,实时刷新);
 - 点击房间即发起入房请求;菜单基于 `@minecraft/server-ui` 的 CustomForm(DDUI)。
 
+### 返回大厅数据初始化与断线处理(契约)
+
+- **返回大厅强制数据初始化**:玩家进入主世界的任意路径(对局正常结束、`/bearcade:lobby`、`/bearcade:quit` 强制中止、手动传送、断线重连),Core 统一执行:清空全套物品(背包/快捷栏/盔甲/副手)、恢复冒险模式、清除对局内设置的重生点、还原名牌与聊天染色、清除效果,随后重新发放钟物品。游戏包自身的清理逻辑保留,Core 为最终兜底,杜绝"未重置重生点/局内道具残留"一类问题;
+- 玩家**进入**房间维度时自动移除大厅钟,避免占用对局背包格(返回大厅时重新发放);
+- **断线一律视为退出游戏**(不提供热重连):重连时若玩家不在主世界(断线时位于房间/模板维度),Core 自动传送回大厅并执行上述数据初始化;对局侧由游戏包状态机按"人数不足/队伍无人"即时结束对局。
+
 ## 小游戏包的最低契约
 
 玩法流程不做统一规范,小游戏包仅需满足五条契约:
 
-1. **注册**:worldLoad 后发送 `game.register`(游戏 ID、显示名、房间数、最大人数、`partyAvailable`、准备房坐标);
+1. **注册**:worldLoad 后发送 `game.register`(游戏 ID、显示名、房间数、最大人数、最少开局人数 `minPlayers`、`partyAvailable`、准备房坐标);
 2. **发信**:按规则上报每房间人数与状态(变化即时 + 5 秒心跳);
 3. **送回大厅**:对局结束后由游戏包将玩家传送回主世界出生点。
 4. **兜底中止**:必须响应 Core 的 `/bearcade:quit`(在房间维度执行,强制中止并重置),便于运营与测试。
@@ -151,17 +158,22 @@ Core 校验 `packId`(manifest header UUID)与 `game` 匹配,并结合 `sourceTyp
 | Gomoku-五子棋 | `Gomoku-五子棋/` | 五子棋:15×15 棋盘、随机黑白、发放压力板落子、五连判定、结算、强制中断 |
 | Template-小游戏模板 | `Template-小游戏模板/` | 可复制的小游戏脚手架:维度注册、模板复制、上报、状态机、命令 |
 | GuessNBuild-建筑猜猜乐 | `GuessNBuild-建筑猜猜乐/` | 建筑猜猜乐(第一版可运行):3~16 人回合制、建筑者创造/猜测者聊天答题、题库表单、侧边栏计分、目标分随人数、可开关调试 |
-| BridgeWar-急速战桥 | `BridgeWar-急速战桥/` | 急速战桥(开发中):红蓝两队、进入对方核心区得分、回合制重置地图 |
+| BridgeWar-急速战桥 | `BridgeWar-急速战桥/` | 急速战桥(可运行):红蓝两队、进入对方核心区得分、回合制重置地图、羊毛搭拆桥、队伍装备配置 |
+| PigCatcher-猪猪争夺战 | `PigCatcher-猪猪争夺战/` | 猪猪争夺战(可运行):四队驱赶中立猪进核心区、钓鱼竿/胡萝卜钓竿/拴绳交互、计时结算 |
 | SND5-剑与消亡V | `SND5-剑与消亡V/` | 剑与消亡V(骨架阶段,玩法待定):模板脚手架,基础设施就绪 |
+| Toolkit-开发者工具 | `Toolkit-开发者工具/` | 纯工具包(不注册游戏):悬浮公告管理 `/btd`、手持物品属性编辑 `/cis`(均限管理员) |
+
+> 已知限制:侧边栏计分板为全服唯一显示槽,多房间同时对局时仅最后设置者可见,建议单房间运营/测试。
 
 ## 开发新小游戏
 
 1. 复制 `Template-小游戏模板` 目录并重命名;
 2. 全局替换 `mygame` 为你的游戏 ID,修改 `src/config.ts`(显示名、房间数、最大人数、坐标);
 3. 在 `config/packs.json` 注册你的包,`npm run build`;
-4. 部署后 `/reload`,执行 `/bearcade:mygame` 进入模板维度建场地;
-5. 在 `src/game.ts` 的 TODO 处实现玩法;
-6. `npm run typecheck && npm run build && npm run package` 产出你的 `.mcpack`。
+4. 需要自定义实体/物品/方块等定义时,放入包目录对应文件夹(`entities/`、`items/`、`blocks/` 等,清单见 `scripts/extras.mjs`),打包/部署自动包含;
+5. 部署后 `/reload`,执行 `/bearcade:mygame` 进入模板维度建场地;
+6. 在 `src/game.ts` 的 TODO 处实现玩法;
+7. `npm run typecheck && npm run build && npm run package` 产出你的 `.mcpack`。
 
 完整说明见 [Template-小游戏模板/README.md](Template-小游戏模板/README.md) 与 [development.md](development.md)。
 

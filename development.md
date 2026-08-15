@@ -22,10 +22,35 @@
 | `Core-核心/` | 全局调控包 | 所有包的基础 |
 | `Gomoku-五子棋/` | 小游戏包 | 五子棋玩法,8 个房间 |
 | `GuessNBuild-建筑猜猜乐/` | 小游戏包 | 建筑猜猜乐,3~16 人,第一版可运行 |
-| `BridgeWar-急速战桥/` | 小游戏包 | 急速战桥,红蓝两队核心区得分,开发中 |
+| `BridgeWar-急速战桥/` | 小游戏包 | 急速战桥,红蓝两队核心区得分,可运行 |
+| `PigCatcher-猪猪争夺战/` | 小游戏包 | 猪猪争夺战,四队驱猪进核心区,可运行 |
 | `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡V,骨架阶段,玩法待定 |
+| `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 
 新增小游戏时,在根目录新建独立目录,命名沿用 `英文标识-中文说明` 的风格(如 `Gomoku-五子棋`)。
+
+### 2.1 行为包定义文件(实体/物品/方块等)
+
+- 包内需要自定义实体、物品、方块、合成配方、刷怪规则、战利品表、函数、语言文本等**行为包 JSON 定义**时,直接放在包目录下对应文件夹,与 `src/` 平级:
+
+  | 目录 | 内容 | 说明 |
+  | --- | --- | --- |
+  | `entities/` | 自定义实体定义 | 示例:BridgeWar 的 `entities/bearcade_loadout_dummy.json`(装备仓库实体) |
+  | `items/` | 自定义物品 | — |
+  | `blocks/` | 自定义方块 | — |
+  | `recipes/` | 合成配方 | — |
+  | `spawn_rules/` | 生物刷怪规则 | — |
+  | `loot_tables/` | 战利品表 | — |
+  | `tags/` | 标签定义 | — |
+  | `trading/` | 村民交易 | — |
+  | `dialogue/` | 对话框 | — |
+  | `structures/` | 结构文件 | — |
+  | `functions/` | 函数(mcfunction) | — |
+  | `texts/` | 语言文本 | — |
+
+- **处理方式**:`npm run build` 只生成 `manifest.json` 与打包 `scripts/`,定义文件目录**原样保留在包目录内**,由 `npm run package`(产出 mcpack)与 `npm run deploy`(部署到开发包目录)自动随包复制;脚本侧统一从 `scripts/extras.mjs` 的 `EXTRA_DIRS` 读取目录清单,**新增定义类型目录时只需在该文件登记**;
+- 定义文件目录与 `scripts/`、`manifest.json` 一样**随包分发**,不单独入库管理;
+- 注意区分:`docs/` 目录下存放的是 **ScriptAPI 类型定义快照**(`@minecraft/*` 的 `.d.ts` 与官方文档),那是给脚本开发用的类型声明,**不是**行为包 JSON 定义文件,两者不要混放。
 
 ## 3. 容器化房间规范
 
@@ -111,6 +136,11 @@ bearcade:gomoku_template
 | 游戏 | 房间数量 | 维度范围 |
 | --- | --- | --- |
 | Gomoku | 8 | `bearcade:gomoku_1` ~ `bearcade:gomoku_8` |
+| GuessNBuild | 2 | `bearcade:guessnbuild_1` ~ `bearcade:guessnbuild_2` |
+| BridgeWar | 4 | `bearcade:bridgewar_1` ~ `bearcade:bridgewar_4` |
+| PigCatcher | 2 | `bearcade:pigcatcher_1` ~ `bearcade:pigcatcher_2` |
+| SND5 | 2 | `bearcade:snd5_1` ~ `bearcade:snd5_2` |
+| Template | 2 | `bearcade:mygame_1` ~ `bearcade:mygame_2` |
 
 ### 3.4 向 Core 上报状态
 
@@ -212,6 +242,7 @@ Core 提供自定义命令 `/bearcade:lobby`:任意维度下传送回大厅(主�
 - 管理员判定:玩家拥有 `op` tag;
 - 派对模式下房间仍必须处于 `idle` 且数据未过期,否则拒绝加入。
 - 派对模式开启时,开局倒计时**固定 60 秒**且不再触发"满员压至 5 秒";Core 通过 `party.mode` IPC 把状态同步给各游戏包。
+- **最少开局人数校验**:游戏注册时上报 `minPlayers`(默认 2);派对模式带队加入时,Core 要求全服在线人数 ≥ `minPlayers`,否则拒绝并提示,避免"人数不足永远无法开局"的困局。
 
 ### 4.6 运行时配置(`/bearcade:config`)
 
@@ -226,8 +257,29 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
   - 建筑猜猜乐:题库管理、准备房间坐标、每回合开局传送坐标;
   - 急速战桥:准备房间坐标、红/蓝队出生点、红/蓝队核心区、获胜所需分数。
   - 急速战桥装备:红/蓝方装备配置(通过模板维度内自定义实体保存玩家全套物品,开局/复活自动覆盖)。
+  - 猪猪争夺战:准备房间坐标、地图边界、猪刷新点、初始猪数/刷新数量/刷新间隔、游戏时长、核心区吸引半径/强度、四队出生点与核心区。
+- **对局中禁止修改**:存在运行中/倒计时对局时,配置界面拒绝打开(共享运行时 `hasActiveGame` 守卫)。
 
 调试命令:`/bearcade:debug <gamename|all> enable|disable`(管理员)经 `game.debug` IPC 显式开启/关闭该游戏的调试日志;`all` 时 Core 会批量下发到全部已注册游戏(共享运行时统一管理,GuessNBuild 已接入;旧 `/bearcade:gnb_debug` 已移除)。
+
+### 4.7 返回大厅数据初始化与断线处理(强制契约)
+
+**返回大厅强制数据初始化**:
+
+- 玩家进入主世界的**任意路径**(对局正常结束、`/bearcade:lobby`、`/bearcade:quit` 强制中止、手动传送、断线重连),由 Core 统一执行强制数据初始化:
+  1. 清空全套物品(背包/快捷栏/盔甲/副手);
+  2. 恢复游戏模式为冒险(Adventure);
+  3. 清除对局内设置的重生点(`setSpawnPoint(undefined)`);
+  4. 还原名牌与聊天染色(`nameTag` / `chatNamePrefix` / `chatNameSuffix`);
+  5. 清除全部效果(`clearEffects`);
+  6. 随后重新发放钟物品。
+- 游戏包自身的清理逻辑(onBeforeReset 等)保留,Core 为**最终兜底**;游戏包不得假设玩家回大厅时背包/模式/重生点未被 Core 处理。
+- 玩家**进入**房间维度时,Core 自动移除大厅钟(避免占用对局背包格),返回大厅时重新发放。
+
+**断线一律视为退出游戏(不提供热重连)**:
+
+- 玩家断线即视为退出当前对局;游戏包状态机负责对局侧收尾(运行中人数低于最少人数、任一队伍无人等场景立即结束对局并重置);
+- 玩家重连时,Core 检查其所在维度:不在主世界(断线时位于房间/模板维度)则自动传送回大厅并执行上述数据初始化;已在大厅则直接执行初始化;初始化后重新发放钟,玩家以全新状态重新选择游戏加入。
 
 ## 5. 通信协议规范
 
@@ -258,6 +310,7 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
     "displayName": "五子棋",
     "roomCount": 8,
     "maxPlayers": 2,
+    "minPlayers": 2,
     "partyAvailable": false,
     "prepSpawn": { "x": 0, "y": 64, "z": 0 }
   }
@@ -269,6 +322,7 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
 - `game`:正式英文名(全小写),与维度命名一致;
 - `roomCount`:房间数量,必须 ≥ 1;
 - `maxPlayers`:该游戏单房间最大游玩人数,Core 入房校验与菜单展示使用;
+- `minPlayers`:该游戏开局所需最少玩家数(默认 2),派对模式带队时校验全服在线人数用;
 - `partyAvailable`:派对模式可用性(去除最大人数上限后仍可正常运行则为 true,默认 false);
 - `prepSpawn`:准备房间区域坐标(房间维度内),同一游戏所有房间共用;Core 仅用它传送。
 
@@ -320,8 +374,9 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 - Core 只接受 `packId` 已注册且与 `game` 匹配的消息;
 - `room.status` 的 `game` 必须在注册表中存在;
 - 消息中出现注册表外的房间编号或非法状态值:整个消息丢弃并记录日志;
-- 结合事件字段 `sourceType` / `sourceEntity` 辅助过滤:直接由玩家执行 `/scriptevent` 产生的消息(`sourceType` 为 Entity 且来源为玩家)一律丢弃;
-- 玩家通过命令等方式伪造的消息因缺少合法 `packId` / 注册匹配而被拒绝。
+- 结合事件字段 `sourceType` 过滤:玩家 `/scriptevent`(Entity + player)、命令方块(Block)、NPC 对话(NPCDialogue)产生的消息一律丢弃,只接受脚本模块(`system.sendScriptEvent`)发来的消息;
+- **游戏包侧同样校验**:共享运行时 `handleIpc` 拒绝玩家/命令方块/NPC 来源,并要求信封 `packId` 等于 Core 的 manifest header UUID(`CORE_PACK_ID`),防止伪造 `game.tp`/`game.quit`/`game.apply` 等指令;
+- 玩家通过命令等方式伪造的消息因来源过滤与 packId 校验而被拒绝。
 
 ## 6. 工程与发布
 
@@ -330,7 +385,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 - `npm run deploy` 部署到开发行为包目录(默认 Levilauncher 1.26.42.01 的全局 `Users\Shared`,可用 `MC_DEV_PACKS` 覆盖),世界重载或 `/reload` 后生效;
 - 游戏包 manifest 使用包依赖(`packDependencies`)声明依赖 `Core-核心`(header UUID + 版本),保证 Core 先加载;
 - 类型定义以仓库 `docs/` 为准(同步自 Beatorini 包内最新定义):当前为 `@minecraft/server` 2.10.0-beta.1.26.43-stable、`@minecraft/server-ui` 2.2.0-beta.1.26.43-stable、`@minecraft/common` 1.3.0、`@minecraft/vanilla-data` 1.26.40(对应 MC 1.26.42/1.26.43);该定义为预发布版本,启用时需匹配对应实验开关;manifest 依赖版本与 `min_engine_version` 必须与所选定义对齐;若改用稳定版,须先核对 API 差异;
-- manifest 参考 Beatorini 实际配置:dependencies 声明 `@minecraft/server` 2.10.0-beta 与 `@minecraft/server-ui` 2.2.0-beta,`min_engine_version` 为 [1, 26, 40],capabilities 含 `script_eval`;
+- manifest 由 `scripts/build.mjs` 生成:dependencies 声明 `@minecraft/server` 2.10.0-beta 与 `@minecraft/server-ui` 2.2.0-beta,`min_engine_version` 为 [1, 26, 40];实测不包含 `capabilities` 字段也可正常加载(无需 `script_eval`);
 - Core 注册表持久化到动态属性 `bearcade:registry`;房间状态、玩家房间绑定仅存内存,服务器重启后房间统一回到 `initializing`,由游戏包重新初始化并上报;
 - 开发阶段所有包启用调试日志;消息解析失败、来源校验失败必须记录,不得抛出导致脚本崩溃。
 
@@ -340,6 +395,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 2. 小游戏包之间不允许任何形式的引用、事件耦合或共享文件依赖。
 3. 若两个小游戏出现"需要互相配合"的需求,先审视是否应把该能力下沉到 Core。
 4. 所有跨包可见标识(动态属性键、tag、常加载区域 ID、消息操作码)统一使用 `bearcade:` 前缀;游戏包内部私有标识使用 `<gamename>_` 前缀。
+5. `shared/minigame-core` 为纯工具共享层,默认面向小游戏包内联;**Core 也可复用其中的纯工具函数**(如 `playerItems.ts` 的 `clearAllPlayerItems`,构建期内联,产物仍自包含),但不得依赖其中的运行时状态。
 
 ## 8. 开发与提交要求
 
@@ -355,7 +411,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 每个新游戏 = 根目录下一个独立包目录 + `config/packs.json` 一条配置,合并过程如下:
 
 1. **开发者侧**:复制 `Template-小游戏模板` 为游戏目录(如 `MyGame-我的游戏`),全局替换 `mygame` 为游戏 ID,重新生成 `headerUuid` / `moduleUuid`(`npm run gen:uuid`),填好 `src/config.ts`,实现玩法;
-2. **本地自检**:`npm run typecheck && npm run build && npm run package`,确认自己的 `.mcpack` 可安装;
+2. **本地自检**:`npm run typecheck && npm run check && npm run build && npm run package`,确认自己的 `.mcpack` 可安装;
 3. **提交方式**(二选一):
    - 有仓库权限:基于 master 开分支(`feat/<gameid>`),提交后发 Pull Request;
    - 无权限:把游戏目录打包发来,由管理员合入;
@@ -365,7 +421,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
    - `config/packs.json` 中新增条目 `packDependencies: ["core"]`,UUID 不与现有包重复;
    - 游戏 ID、结构 ID、维度名符合命名规范(`bearcade:<gameid>_n` 等);
    - tsconfig `include` 已加新包源码;
-   - `npm run typecheck && npm run build` 通过;
+   - `npm run typecheck && npm run check && npm run build` 通过;
    - 部署到开发环境实测:入房、状态上报、结束回大厅、`/bearcade:quit` 强制中止、模板命令均正常;
 5. **合入后**:管理员合并到 master,开发套件(`npm run distribute`)会自动包含新游戏。
 
@@ -445,3 +501,8 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-13 | 开局倒计时全游戏统一:普通 60 秒、满员压 5 秒、调试模式 10 秒(默认值下沉共享运行时) |
 | 2026-08-13 | 修复准备倒计时被上报为 running 导致其他玩家无法加入的问题(pending 视为 idle,所有游戏包生效) |
 | 2026-08-14 | 新增 SND5-剑与消亡V 小游戏包骨架(复制模板,复用 shared/minigame-core,玩法待定) |
+| 2026-08-14 | 新增 PigCatcher-猪猪争夺战(四队驱猪进核心区,钓鱼竿/胡萝卜钓竿/拴绳交互,计时结算,可运行)与 Toolkit-开发者工具(悬浮公告 /btd、手持物品属性编辑 /cis) |
+| 2026-08-15 | IPC 来源校验收紧:Core 与游戏包均拒绝玩家/命令方块/NPC 来源,游戏包另校验信封 packId 必须为 Core 的 UUID;模板捕获/放置改为串行队列,杜绝并发重置竞态;`/bearcade:tmp ap` 拒绝在运行中/倒计时房间执行;PigCatcher 鱼钩解拴状态按房间隔离;共享 `clearAllPlayerItems` 统一两包结束清物品(含盔甲/副手);GuessNBuild 建造/落点边界改读运行时模板范围;模板范围表单校验 y 与常加载区相交;配置界面增加对局中禁改守卫;Gomoku 背包满时自动腾格发棋子;派对模式带队校验全服在线人数 ≥ minPlayers |
+| 2026-08-15 | 工程改进:watch 监听补全新包与 shared/;打包改用跨平台 archiver(替代 Windows PowerShell);deploy 必须显式设置 MC_DEV_PACKS;distribute 保留 projectVersion/phase;新增 `npm run check` 校验 packId 一致性(已接入 CI);清理各包 config.ts 未用维度函数;修正 packs.json/README/本文档中的过时描述 |
+| 2026-08-15 | 新增契约:返回大厅强制数据初始化(任意路径回到主世界,Core 统一清空全套物品/恢复冒险模式/清除重生点/名牌染色/效果并补发钟;进入房间维度自动移除大厅钟);断线一律视为退出游戏,重连自动传送回大厅并初始化,不提供热重连 |
+| 2026-08-15 | 行为包定义文件处理规范:实体/物品/方块等 JSON 定义放包目录对应文件夹,打包与部署自动包含;目录清单抽到 `scripts/extras.mjs` 统一登记(新增 items/blocks/recipes/spawn_rules/loot_tables/tags/trading/dialogue 等);模板 README 与本文档 §2.1 补充说明 |

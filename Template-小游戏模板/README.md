@@ -21,6 +21,12 @@
 
 开发流程:先 `/bearcade:tmp tp mygame` 进入模板维度建场地;模板范围可用 `/bearcade:tmp sz mygame` 表单配置起始点/终点;场地改好后 `/bearcade:tmp ap mygame` 一键应用到全部房间。
 
+## 行为包定义文件(实体/物品/方块等)
+
+需要自定义实体、物品、方块、合成配方、刷怪规则、战利品表、函数、语言文本等定义时,直接放在包目录下与 `src/` 平级的对应文件夹(`entities/`、`items/`、`blocks/`、`recipes/`、`spawn_rules/`、`loot_tables/`、`tags/`、`trading/`、`dialogue/`、`structures/`、`functions/`、`texts/`),**无需任何额外配置**——`npm run package` 与 `npm run deploy` 会自动把这些目录随包复制(目录清单见仓库 `scripts/extras.mjs`)。参考示例:BridgeWar 的自定义实体 `BridgeWar-急速战桥/entities/bearcade_loadout_dummy.json`。
+
+> `docs/` 目录下的是 ScriptAPI 类型定义快照(`@minecraft/*` 的 `.d.ts`),是给脚本开发用的类型声明,与行为包 JSON 定义文件是两回事,不要混放。
+
 ## 使用步骤
 
 1. 复制 `Template-小游戏模板` 目录,重命名(如 `MyGame-我的游戏`);
