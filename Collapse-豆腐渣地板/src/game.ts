@@ -195,7 +195,13 @@ function transitionSpectateCamera(spectator: Player, target: Player): void {
     });
     system.runTimeout(() => {
       try {
-        spectator.camera.setCamera("bearcade:spectate_orbit");
+        // 自定义预设(半径 6)未加载时回退内置 follow_orbit(半径 10,起点几何不同,
+        // 会有一个小 snap,但保证功能可用)
+        try {
+          spectator.camera.setCamera("bearcade:spectate_orbit");
+        } catch {
+          spectator.camera.setCamera("minecraft:follow_orbit");
+        }
         attachSpectateCamera(spectator, target);
       } catch (error) {
         console.warn("[Bearcade collapse] 观战相机附加失败", error);
