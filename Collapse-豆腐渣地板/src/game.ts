@@ -11,8 +11,8 @@
 import {
   system,
   world,
+  CatmullRomSpline,
   EasingType,
-  LinearSpline,
   GameMode,
   ItemLockMode,
   ItemStack,
@@ -123,11 +123,11 @@ const CAMERA_SMOOTH = 0.6;
 /** 瞄准点(目标眼睛)平滑系数:同样二分逼近,消除 20Hz 采样跳变 */
 const EYE_SMOOTH = 0.6;
 /**
- * 样条动画时长(秒):引擎要求旋转关键帧间隔 > 0.05s,且须 ≤ 刷新间隔(0.1s)
- * 才能"每段播完再重启、段间无缝"。0.09s 满足两者,留 0.01s 时序余量。
- * (若实测出现卡顿回跳,可调小到 0.06~0.08;出现停顿感,可调到 0.095)
+ * 样条动画时长(秒):引擎要求旋转关键帧间隔 > 0.05s(疑似按 tick 量化,
+ * 0.09s 仍报错),取 0.15s(3 tick)留足余量;刷新间隔对齐 3 tick,
+ * 时长=间隔,每段在重启前刚好播完,段间无缝。
  */
-const SPLINE_DURATION = 0.09;
+const SPLINE_DURATION = 0.15;
 
 /** 期望相机位置向量:目标身后 6 格、上方 2.6 格 */
 function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
@@ -204,9 +204,24 @@ function updateSpectateCamera(
     const endRot = lookAt(next, eye, startRot.y);
     session.prevYaw.set(spectator.id, endRot.y);
 
-    // 样条动画:引擎渲染帧率插值,本段结束位置 = 下段起点,无缝衔接
-    const spline = new LinearSpline();
-    spline.controlPoints = [cur, next];
+    // 样条动画:CatmullRomSpline 4 个共线控制点(满足引擎 ≥4 点要求,
+    // 共线保证轨迹为直线段),引擎渲染帧率插值;
+    // 本段结束位置 = 下段起点,时长=间隔,段间无缝
+    const spline = new CatmullRomSpline();
+    spline.controlPoints = [
+      cur,
+      {
+        x: cur.x + (next.x - cur.x) / 3,
+        y: cur.y + (next.y - cur.y) / 3,
+        z: cur.z + (next.z - cur.z) / 3,
+      },
+      {
+        x: cur.x + ((next.x - cur.x) * 2) / 3,
+        y: cur.y + ((next.y - cur.y) * 2) / 3,
+        z: cur.z + ((next.z - cur.z) * 2) / 3,
+      },
+      next,
+    ];
     spectator.camera.playAnimation(spline, {
       animation: {
         progressKeyFrames: [
@@ -577,7 +592,7 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
     }
   }, 2);
 
-  // 观战相机更新:2 tick(0.1 秒)一次——每段样条(0.09s)播完即接下一段,
+  // 观战相机更新:3 tick(0.15 秒)一次——每段样条(0.15s)时长=间隔,播完即接下一段,
   // 输入由二分逼近平滑,引擎在渲染帧率下插值
   system.runInterval(() => {
     for (const [roomId, session] of [...sessions.entries()]) {
@@ -591,7 +606,7 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
         );
       }
     }
-  }, 2);
+  }, 3);
 
   // 观战切换:淘汰玩家手持望远镜使用 → 切换观战对象
   world.afterEvents.itemUse.subscribe((event) => {
