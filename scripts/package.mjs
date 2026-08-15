@@ -1,6 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { zipDirectory } from "./zip.mjs";
+import { EXTRA_DIRS } from "./extras.mjs";
 
 const root = process.cwd();
 const config = JSON.parse(
@@ -21,7 +22,7 @@ for (const pack of config.packs) {
   cpSync(path.join(src, "scripts"), path.join(dest, "scripts"), {
     recursive: true,
   });
-  for (const extra of ["entities", "structures", "functions", "texts"]) {
+  for (const extra of EXTRA_DIRS) {
     const extraPath = path.join(src, extra);
     if (existsSync(extraPath)) {
       cpSync(extraPath, path.join(dest, extra), { recursive: true });
@@ -29,32 +30,10 @@ for (const pack of config.packs) {
   }
 
   const zipPath = path.join(dist, `${pack.id}.mcpack`);
-  const zipTemp = `${zipPath}.zip`;
-  execFileSync(
-    "powershell",
-    [
-      "-NoProfile",
-      "-Command",
-      `Compress-Archive -Path '${dest}\\*' -DestinationPath '${zipTemp}' -Force`,
-    ],
-    { stdio: "inherit" },
-  );
-  cpSync(zipTemp, zipPath);
-  rmSync(zipTemp);
+  await zipDirectory(dest, zipPath);
   console.log(`已生成 ${zipPath}`);
 }
 
 const addonPath = path.join(dist, "bearcade.mcaddon");
-const addonTemp = `${addonPath}.zip`;
-execFileSync(
-  "powershell",
-  [
-    "-NoProfile",
-    "-Command",
-    `Compress-Archive -Path '${staging}\\*' -DestinationPath '${addonTemp}' -Force`,
-  ],
-  { stdio: "inherit" },
-);
-cpSync(addonTemp, addonPath);
-rmSync(addonTemp);
+await zipDirectory(staging, addonPath);
 console.log(`已生成 ${addonPath}`);

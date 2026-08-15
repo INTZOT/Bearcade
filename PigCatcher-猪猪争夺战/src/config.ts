@@ -70,17 +70,6 @@ export const START_POSITIONS = [
   { x: 0, y: 65, z: 10 },
 ];
 
-export const DIMENSION_NAMESPACE = "bearcade";
-export const TEMPLATE_DIMENSION_ID = `${DIMENSION_NAMESPACE}:${GAME_ID}_template`;
-
-export function roomDimensionId(roomId: number): string {
-  return `${DIMENSION_NAMESPACE}:${GAME_ID}_${roomId}`;
-}
-
-export function tickingAreaId(roomId: number | "template"): string {
-  return `bearcade:ta_${GAME_ID}_${roomId}`;
-}
-
 // ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
 export interface PigConfig {
   prepSpawn: Vec3;

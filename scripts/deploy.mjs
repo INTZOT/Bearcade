@@ -1,15 +1,20 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import { EXTRA_DIRS } from "./extras.mjs";
 
 const root = process.cwd();
 const config = JSON.parse(
   readFileSync(path.join(root, "config", "packs.json"), "utf8"),
 );
 
-const DEFAULT_TARGET =
-  "D:\\Apps\\Levilauncher\\versions\\1.26.42.01\\Minecraft Bedrock\\Users\\Shared\\games\\com.mojang\\development_behavior_packs";
-
-const targetRoot = path.resolve(process.env.MC_DEV_PACKS ?? DEFAULT_TARGET);
+// 部署目标必须显式提供(不再硬编码本机路径,防止误部署到无关机器目录)
+const targetRootEnv = process.env.MC_DEV_PACKS;
+if (!targetRootEnv) {
+  throw new Error(
+    "未设置 MC_DEV_PACKS:请指向 Minecraft 的 development_behavior_packs 目录后重试",
+  );
+}
+const targetRoot = path.resolve(targetRootEnv);
 const onlyIds = process.argv.slice(2);
 mkdirSync(targetRoot, { recursive: true });
 
@@ -32,7 +37,7 @@ for (const pack of config.packs) {
   cpSync(path.join(src, "scripts"), path.join(targetDir, "scripts"), {
     recursive: true,
   });
-  for (const extra of ["entities", "structures", "functions", "texts"]) {
+  for (const extra of EXTRA_DIRS) {
     const extraPath = path.join(src, extra);
     if (existsSync(extraPath)) {
       cpSync(extraPath, path.join(targetDir, extra), { recursive: true });

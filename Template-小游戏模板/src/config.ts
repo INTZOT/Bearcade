@@ -33,14 +33,3 @@ export const START_POSITIONS = [
   { x: 0, y: 65, z: -1 },
   { x: 0, y: 65, z: 1 },
 ];
-
-export const DIMENSION_NAMESPACE = "bearcade";
-export const TEMPLATE_DIMENSION_ID = `${DIMENSION_NAMESPACE}:${GAME_ID}_template`;
-
-export function roomDimensionId(roomId: number): string {
-  return `${DIMENSION_NAMESPACE}:${GAME_ID}_${roomId}`;
-}
-
-export function tickingAreaId(roomId: number | "template"): string {
-  return `bearcade:ta_${GAME_ID}_${roomId}`;
-}

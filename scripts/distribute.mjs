@@ -1,6 +1,6 @@
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { zipDirectory } from "./zip.mjs";
 
 const root = process.cwd();
 const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
@@ -28,11 +28,14 @@ copy("shared", "shared");
 copy("Core-核心", "Core-核心");
 copy("Template-小游戏模板", "Template-小游戏模板");
 
-// 过滤后的包配置:开发者只会构建 Core 与自己的游戏
+// 过滤后的包配置:开发者只会构建 Core 与自己的游戏;
+// projectVersion/phase 必须保留,否则开发套件构建时版本会静默回退到 0.0.1
 const config = JSON.parse(
   readFileSync(path.join(root, "config", "packs.json"), "utf8"),
 );
 const filtered = {
+  projectVersion: config.projectVersion,
+  phase: config.phase,
   packs: config.packs.filter((pack) => ["core", "template"].includes(pack.id)),
 };
 mkdirSync(path.join(dist, "config"), { recursive: true });
@@ -47,13 +50,5 @@ copy("dist/packages/core.mcpack", "packs/core.mcpack");
 copy("dist/packages/template.mcpack", "packs/template.mcpack");
 
 const zipPath = path.join(root, "dist", `BearcadeDevKit-${version}.zip`);
-execFileSync(
-  "powershell",
-  [
-    "-NoProfile",
-    "-Command",
-    `Compress-Archive -Path '${dist}\\*' -DestinationPath '${zipPath}' -Force`,
-  ],
-  { stdio: "inherit" },
-);
+await zipDirectory(dist, zipPath);
 console.log(`开发套件已生成:${zipPath}`);

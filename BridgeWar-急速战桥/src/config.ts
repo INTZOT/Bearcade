@@ -45,16 +45,8 @@ export const RED_CORE_TO = { x: -13, y: 66, z: 4 };
 export const BLUE_CORE_FROM = { x: 13, y: 63, z: -4 };
 export const BLUE_CORE_TO = { x: 16, y: 66, z: 4 };
 
-export const DIMENSION_NAMESPACE = "bearcade";
-export const TEMPLATE_DIMENSION_ID = `${DIMENSION_NAMESPACE}:${GAME_ID}_template`;
-
-export function roomDimensionId(roomId: number): string {
-  return `${DIMENSION_NAMESPACE}:${GAME_ID}_${roomId}`;
-}
-
-export function tickingAreaId(roomId: number): string {
-  return `bearcade:ta_${GAME_ID}_${roomId}`;
-}
+// 装备仓库实体所在维度(loadout.ts 使用);其余维度 ID 由共享运行时统一计算
+export const TEMPLATE_DIMENSION_ID = "bearcade:bridgewar_template";
 
 // ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
 export interface BridgeConfig {
