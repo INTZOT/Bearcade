@@ -11,6 +11,7 @@
 import {
   system,
   world,
+  EasingType,
   GameMode,
   ItemLockMode,
   ItemStack,
@@ -43,6 +44,10 @@ interface Session {
   spectators: Map<string, string>;
   /** 观战者 id -> 脚本侧相机位置(二分逼近平滑用) */
   camPos: Map<string, { x: number; y: number; z: number }>;
+  /** 观战者 id -> 平滑瞄准点(目标眼睛,二分逼近) */
+  eyePos: Map<string, { x: number; y: number; z: number }>;
+  /** 观战者 id -> 上一帧 yaw(yaw ±180° 解缠用,防止缓动绕长路) */
+  prevYaw: Map<string, number>;
   pvpAnnounced: boolean;
 }
 
@@ -113,7 +118,11 @@ function aliveIds(
  * 轨迹为连续指数曲线,速度与剩余距离成正比,无突变拐点;可调手感
  * (越小越绵,越大越跟手)。
  */
-const CAMERA_SMOOTH = 0.5;
+const CAMERA_SMOOTH = 0.6;
+/** 瞄准点(目标眼睛)平滑系数:同样二分逼近,消除 20Hz 采样跳变 */
+const EYE_SMOOTH = 0.6;
+/** 引擎插值缓动时长:略大于 1 tick(0.05s),让相机在渲染帧率下连续滑动 */
+const CAMERA_EASE_TIME = 0.06;
 
 /** 期望相机位置向量:目标身后 6 格、上方 2.6 格 */
 function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
@@ -127,14 +136,12 @@ function desiredCameraPos(target: Player): { x: number; y: number; z: number } {
 }
 
 /**
- * 观战相机:向量 + 二分逼近实现平滑过渡。
- * - 期望位置 desired = 目标身后 6 格、上方 2.6 格(向量运算,随目标转向);
- * - 脚本侧维护相机位置 camPos,每 tick 向 desired 走一半:
- *   camPos += (desired - camPos) × CAMERA_SMOOTH —— 指数平滑曲线,
- *   速度连续无拐点,避免"引擎缓动每轮重启"造成的速度突变(人物抽搐来源之一);
- * - 朝向:每 tick 由相机位置看向目标眼睛的向量反算 yaw/pitch(与 /tp 同约定),
- *   不用 facingEntity(实测去掉 easeOptions 后 facingEntity 不生效,
- *   free 预设默认旋转朝天);位置与朝向完全由脚本逐 tick 精确控制。
+ * 观战相机:二分逼近平滑 + 引擎小缓动插值。
+ * - 相机位置与瞄准点(目标眼睛)都做二分逼近:输入轨迹连续无跳变;
+ * - easeOptions(0.06s,略大于 1 tick)让引擎在渲染帧率下插值——
+ *   消除"20Hz 离散 setCamera"的台阶感,且输入已平滑,缓动拐点极小;
+ * - yaw 做 ±180° 解缠:避免缓动在朝北时绕 360° 长路旋转;
+ * - 不用 facingEntity(去掉 easeOptions 后不生效,free 预设默认朝天)。
  */
 function updateSpectateCamera(
   session: Session,
@@ -150,23 +157,43 @@ function updateSpectateCamera(
       z: cur.z + (desired.z - cur.z) * CAMERA_SMOOTH,
     };
     session.camPos.set(spectator.id, next);
-    // 朝向向量:相机 → 目标眼睛
-    const eye = {
+
+    // 瞄准点:目标眼睛,同样二分逼近
+    const rawEye = {
       x: target.location.x,
       y: target.location.y + 1.6,
       z: target.location.z,
     };
+    const curEye = session.eyePos.get(spectator.id) ?? rawEye;
+    const eye = {
+      x: curEye.x + (rawEye.x - curEye.x) * EYE_SMOOTH,
+      y: curEye.y + (rawEye.y - curEye.y) * EYE_SMOOTH,
+      z: curEye.z + (rawEye.z - curEye.z) * EYE_SMOOTH,
+    };
+    session.eyePos.set(spectator.id, eye);
+
+    // 朝向向量:相机 → 平滑瞄准点
     const dx = eye.x - next.x;
     const dy = eye.y - next.y;
     const dz = eye.z - next.z;
     const dist = Math.hypot(dx, dz);
     // /tp 约定:rot_y(yaw)0 = 南(+z),顺时针为正;rot_x(pitch)正 = 向下
-    // (若实测朝向反了,把 yaw/pitch 的符号取反即可,纯数值校准)
-    const yaw = (Math.atan2(-dx, dz) * 180) / Math.PI;
+    let yaw = (Math.atan2(-dx, dz) * 180) / Math.PI;
+    // yaw ±180° 解缠:保持数值连续,防止缓动绕 360° 长路
+    const prevYaw = session.prevYaw.get(spectator.id);
+    if (prevYaw !== undefined) {
+      let delta = yaw - prevYaw;
+      while (delta > 180) delta -= 360;
+      while (delta < -180) delta += 360;
+      yaw = prevYaw + delta;
+    }
+    session.prevYaw.set(spectator.id, yaw);
     const pitch = (Math.atan2(-dy, dist) * 180) / Math.PI;
+
     spectator.camera.setCamera("minecraft:free", {
       location: next,
       rotation: { x: pitch, y: yaw },
+      easeOptions: { easeTime: CAMERA_EASE_TIME, easeType: EasingType.Linear },
     });
   } catch (error) {
     console.warn("[Bearcade collapse] 观战相机设置失败", error);
@@ -339,6 +366,8 @@ function tickSpectators(
     if (!spectator) {
       session.spectators.delete(specId);
       session.camPos.delete(specId);
+      session.eyePos.delete(specId);
+      session.prevYaw.delete(specId);
       continue;
     }
     // 掉下观战台(高度异常)则拉回
@@ -395,6 +424,8 @@ export function makeCollapseHooks(
         floorBlocks: new Map(),
         spectators: new Map(),
         camPos: new Map(),
+        eyePos: new Map(),
+        prevYaw: new Map(),
         pvpAnnounced: false,
       };
       sessions.set(roomId, session);
