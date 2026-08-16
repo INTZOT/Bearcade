@@ -4,6 +4,10 @@
     "description": {
       "identifier": "bearcade:chestboard_corner",
       "register_to_creative_inventory": true,
+      "menu_category": {
+        "category": "construction",
+        "group": "itemGroup.name.bearcade_gomoku"
+      },
       "traits": {
         "minecraft:placement_direction": {
           "enabled_states": ["minecraft:facing_direction"],
@@ -15,10 +19,6 @@
       "minecraft:geometry": "geometry.chestboard",
       "minecraft:material_instances": {
         "*": { "texture": "chestboard_corner", "render_method": "opaque" }
-      },
-      "minecraft:creative_category": {
-        "category": "construction",
-        "group": "itemGroup.name.bearcade_gomoku"
       },
       "minecraft:collision_box": { "origin": [-8, 0, -8], "size": [16, 16, 16] },
       "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 16, 16] },

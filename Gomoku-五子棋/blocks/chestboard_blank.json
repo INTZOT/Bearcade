@@ -3,16 +3,16 @@
   "minecraft:block": {
     "description": {
       "identifier": "bearcade:chestboard_blank",
-      "register_to_creative_inventory": true
+      "register_to_creative_inventory": true,
+      "menu_category": {
+        "category": "construction",
+        "group": "itemGroup.name.bearcade_gomoku"
+      }
     },
     "components": {
       "minecraft:geometry": "geometry.chestboard",
       "minecraft:material_instances": {
         "*": { "texture": "chestboard_blank", "render_method": "opaque" }
-      },
-      "minecraft:creative_category": {
-        "category": "construction",
-        "group": "itemGroup.name.bearcade_gomoku"
       },
       "minecraft:collision_box": { "origin": [-8, 0, -8], "size": [16, 16, 16] },
       "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 16, 16] },
