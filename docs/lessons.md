@@ -235,3 +235,49 @@
 - **异步重置竞态**:`await resetRoom` 恢复后要先检查 `runtime.getPhase` 是否仍为 running、session 是否仍是当前对象,再决定是否继续开新回合。
 - **回大厅清理契约要覆盖 UI 残留**:除物品/模式/重生点/名牌/效果外,还要清 camera、actionbar 与 HUD title。
 - **资源配置与版本单一来源**:资源包同样注册进 `config/packs.json`;`package.json.version` 与 `projectVersion` 强制一致;watch 目标按 pack 类型派生(`src/` vs `ui/`)。
+
+## 12. 自定义方块(Data-Driven Blocks):格式坑与创造物品栏分组
+
+> 2026-08-17,源自 Gomoku 六个自定义方块(棋盘 blank/center/side/corner + 黑白棋子)从建模到进创造栏的完整过程。参考成品实现:`D:\Develop\ADDON_reference`(史诗幻想/真枪实弹)。
+
+### 12.1 组件/字段速查(1.26.42,block format 1.21.x)
+
+| 组件/字段 | 错误现象(日志) | 正确写法 |
+| --- | --- | --- |
+| `minecraft:light_dissipation`: `0`(裸数字) | `child 'minecraft:light_dissipation' not valid here` | 直接删掉(默认就是 0) |
+| `minecraft:transformation.rotation`: `[0,90,180,270]` | `Expected [x, y, z]` | 单个三元组 `[0, 90, 0]`;列表是旧版 `minecraft:rotation` 组件写法 |
+| 4 朝向 | — | `description.traits` 的 `minecraft:placement_direction`(`enabled_states: ["minecraft:facing_direction"]`)+ permutations 按状态给 `transformation.rotation`(北0/东90/南180/西270) |
+| `y_rotation_offset` | 改了没效果 | permutations 的 transformation **覆盖** trait 偏移,该字段对显式排列无效,可删 |
+| 朝向镜像 | 对角朝向写反 | 只交换 **E↔W 一对排列值**(east=270/west=90);全局翻转(改 offset/全体+180)对镜像无效 |
+| `minecraft:creative_category` 组件 | 整块 `Block definition parsing failed`(无详细行) | **组件不存在**(物品旧写法);方块用 `description.menu_category` |
+| `menu_category.group` 带 `minecraft:` 前缀 | `minecraft:minecraft:... | Invalid identifier` 炸包 | 引擎**自动加 `minecraft:` 前缀**,值必须无前缀;自定义组别用 catalog(见 12.2) |
+| `collision_box: { "enabled": false }` | 无报错但碰撞仍是完整方块 | **布尔 `false`** 才生效(参考项目同款写法) |
+| 自定义几何方块 | 相邻面全渲染 | `"minecraft:geometry": { "identifier": "...", "culling_shape": "minecraft:unit_cube" }`(完整方块);**镂空/圆片形状不要给 culling shape**——满盒会把下方方块顶面整块剔除导致透视 |
+
+### 12.2 创造物品栏折叠分组(最终可用方案)
+
+```json
+// BP 的 item_catalog/crafting_item_catalog.json(format 1.21.60)
+{ "format_version": "1.21.60", "minecraft:crafting_items_catalog": {
+  "categories": [ { "category_name": "construction", "groups": [
+    { "group_identifier": { "icon": "bearcade:chestboard_blank", "name": "bearcade:itemGroup.name.gomoku" },
+      "items": ["bearcade:chestboard_blank", "..."] }
+  ] } ] } }
+```
+```lang
+// RP texts/zh_CN.lang
+bearcade:itemGroup.name.gomoku=五子棋方块
+```
+
+- 组键用**包自己的命名空间**(`bearcade:itemGroup.name.gomoku`,不是 `minecraft:` 前缀、不是裸键),语言文件同款键;
+- **`icon` 必须带**(参考成品全部带,缺 icon 组不生成);
+- 方块定义里 `menu_category` **只留 category 不放 group**(与 catalog 同时定义会 content warning 冲突,物品留在旧组不折叠);
+- 方块名:`tile.<ns>:<id>.name`(RP lang);组名/方块名都走 RP texts,记得完整重启。
+
+### 12.3 部署/排错要点
+
+- 行为包 JSON(方块/预设/物品)改动**必须完整重启**,`/reload` 不重新扫描;部署发生在会话中途时,该会话测的永远是旧文件——先核对日志会话时间与部署时间;
+- 方块解析失败先看 `[Blocks][error]` 的**详细行**(组件名 + 具体字段),"Block definition parsing failed" 无详细行时,通常是**组件整体不存在/格式根本性错误**(如 creative_category);
+- RP `blocks.json` 报 "block does not exist in the registry" 是方块未注册的连带,先修 BP;
+- 改 JSON 用工具写入后注意 **BOM**:PowerShell `-Encoding UTF8` 会加 BOM,引擎/校验器可能不认,统一 `UTF8Encoding($false)` 无 BOM 写入;
+- 与可用成品 addon **逐字段比对**是最快的定位手段(组键命名空间、icon、menu_category 冲突都是这么查出来的)。
