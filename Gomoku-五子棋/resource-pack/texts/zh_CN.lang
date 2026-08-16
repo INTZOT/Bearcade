@@ -1,1 +1,7 @@
 itemGroup.name.bearcade_gomoku=五子棋方块
+tile.bearcade:chestboard_blank.name=五子棋棋盘(空白)
+tile.bearcade:chestboard_center.name=五子棋棋盘(中心)
+tile.bearcade:chestboard_side.name=五子棋棋盘(边)
+tile.bearcade:chestboard_corner.name=五子棋棋盘(角)
+tile.bearcade:black_stone.name=黑子
+tile.bearcade:white_stone.name=白子

@@ -18,6 +18,8 @@ export const EXTRA_DIRS = [
   "feature_rules",
   "biomes",
   "Cameras",
+  "shapes",
+  "item_catalog",
 ];
 
 // 资源包文件目录清单:源码内嵌在 <游戏>/resource-pack,构建/部署时拆分为 <游戏>-资源包 并随包复制这些目录。

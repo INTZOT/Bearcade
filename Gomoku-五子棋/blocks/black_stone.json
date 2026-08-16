@@ -5,16 +5,18 @@
       "identifier": "bearcade:black_stone",
       "register_to_creative_inventory": true,
       "menu_category": {
-        "category": "construction",
-        "group": "itemGroup.name.bearcade_gomoku"
+        "category": "construction"
       }
     },
     "components": {
-      "minecraft:geometry": "geometry.black_stones",
+      "minecraft:geometry": {
+        "identifier": "geometry.black_stones",
+        "culling_shape": "bearcade:stone_shape"
+      },
       "minecraft:material_instances": {
         "*": { "texture": "black_stones", "render_method": "opaque" }
       },
-      "minecraft:collision_box": { "enabled": false },
+      "minecraft:collision_box": false,
       "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 4, 16] },
       "minecraft:destructible_by_mining": { "seconds_to_destroy": 0.05 },
       "minecraft:destructible_by_explosion": { "explosion_resistance": 0 },

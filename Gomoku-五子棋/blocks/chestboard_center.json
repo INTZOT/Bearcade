@@ -5,12 +5,14 @@
       "identifier": "bearcade:chestboard_center",
       "register_to_creative_inventory": true,
       "menu_category": {
-        "category": "construction",
-        "group": "itemGroup.name.bearcade_gomoku"
+        "category": "construction"
       }
     },
     "components": {
-      "minecraft:geometry": "geometry.chestboard",
+      "minecraft:geometry": {
+        "identifier": "geometry.chestboard",
+        "culling_shape": "minecraft:unit_cube"
+      },
       "minecraft:material_instances": {
         "*": { "texture": "chestboard_center", "render_method": "opaque" }
       },
