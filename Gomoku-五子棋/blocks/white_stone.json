@@ -5,8 +5,7 @@
       "identifier": "bearcade:white_stone",
       "register_to_creative_inventory": true,
       "menu_category": {
-        "category": "construction",
-        "group": "itemGroup.name.bearcade_gomoku"
+        "category": "construction"
       }
     },
     "components": {
