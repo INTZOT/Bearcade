@@ -14,8 +14,7 @@
       "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 4, 16] },
       "minecraft:destructible_by_mining": { "seconds_to_destroy": 0.05 },
       "minecraft:destructible_by_explosion": { "explosion_resistance": 0 },
-      "minecraft:map_color": "#111111",
-      "minecraft:light_dissipation": 0
+      "minecraft:map_color": "#111111"
     }
   }
 }
