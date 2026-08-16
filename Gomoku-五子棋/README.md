@@ -1,12 +1,12 @@
 # 五子棋(Gomoku)
 
-Bearcade 小游戏包:放置压力板在棋盘上落子,五连获胜。房间管理复用 `shared/minigame-core`,玩法在 [src/gomoku.ts](src/gomoku.ts)。
+Bearcade 小游戏包:放置自定义棋子方块在棋盘上落子,五连获胜。房间管理复用 `shared/minigame-core`,玩法在 [src/gomoku.ts](src/gomoku.ts)。
 
 ## 已确认规则
 
 - 每房 2 人(黑/白),8 个房间,不支持派对模式;
 - 开局随机决定黑/白方,黑方先手;
-- 落子方式:在棋盘格上放置压力板——黑方 `polished_blackstone_pressure_plate`、白方 `heavy_weighted_pressure_plate`(默认 15×15 棋盘,棋子位于 `boardY + 1` 层);
+- 落子方式:在棋盘格上放置自定义棋子方块——黑方 `bearcade:black_stone`、白方 `bearcade:white_stone`(默认 15×15 棋盘,棋子位于 `boardY + 1` 层);棋子为不完整方块,已剔除碰撞箱,玩家可自由走过;
 - 每回合只发给当前玩家一颗对应棋子,轮到谁发给谁;背包满时自动腾出空格保证棋子能放入;
 - 横/竖/两斜任一方向五连即获胜;棋盘下满无五连则平局,对局结束返回大厅;
 - 放置校验(脚本 `canPlace` 钩子):必须落在棋盘格内、空格、自己回合、且放置对应颜色棋子,否则拒绝并提示;
@@ -23,6 +23,23 @@ Bearcade 小游戏包:放置压力板在棋盘上落子,五连获胜。房间管
 4. 与棋盘相关坐标若调整,用 `/bearcade:config gomoku` 同步修改。
 
 > 结构上限 64×384×64;常加载区域只需覆盖准备房间与棋盘层(y -1~65),不要整列 384 层。
+
+## 自定义方块
+
+棋盘与棋子为自定义方块:行为包定义在 `blocks/`,资源包(贴图/模型)在 `resource-pack/`(`npm run deploy` 随行为包一并部署到 `development_resource_packs`,一对一配对):
+
+| 方块 | ID | 说明 |
+| --- | --- | --- |
+| 棋盘(空白) | `bearcade:chestboard_blank` | 完整方块,棋盘内部格 |
+| 棋盘(中心) | `bearcade:chestboard_center` | 完整方块,棋盘中心格 |
+| 棋盘(边) | `bearcade:chestboard_side` | 完整方块,**4 朝向**(`minecraft:transformation` 旋转,放置时面向玩家) |
+| 棋盘(角) | `bearcade:chestboard_corner` | 完整方块,**4 朝向** |
+| 黑子 | `bearcade:black_stone` | 不完整方块,碰撞箱已剔除(选择箱为贴地矮盒) |
+| 白子 | `bearcade:white_stone` | 同上 |
+
+- 模型:棋盘共用 `geometry.chestboard`(全尺寸立方体;贴图 32×32,左下象限为顶面);棋子 `geometry.black_stones`/`geometry.white_stones`(逐像素堆叠圆片);
+- 建模源文件:`D:\Files\Pictures\建模\Gomoku-五子棋`(六个方块各一目录,ID 标注在文件名);
+- 改贴图/模型后无需改代码,重新 `npm run build && npm run deploy` 并完整重启游戏生效。
 
 ## 常用命令
 

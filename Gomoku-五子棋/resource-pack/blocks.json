@@ -1,0 +1,9 @@
+{
+  "format_version": "1.19.0",
+  "bearcade:chestboard_blank": { "textures": "chestboard_blank", "sound": "wood" },
+  "bearcade:chestboard_center": { "textures": "chestboard_center", "sound": "wood" },
+  "bearcade:chestboard_side": { "textures": "chestboard_side", "sound": "wood" },
+  "bearcade:chestboard_corner": { "textures": "chestboard_corner", "sound": "wood" },
+  "bearcade:black_stone": { "textures": "black_stones", "sound": "stone" },
+  "bearcade:white_stone": { "textures": "white_stones", "sound": "stone" }
+}

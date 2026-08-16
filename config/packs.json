@@ -275,8 +275,8 @@
       "id": "gomoku_hud",
       "type": "resource",
       "dir": "Gomoku-五子棋/resource-pack",
-      "name": "Bearcade Gomoku HUD",
-      "description": "Bearcade Gomoku HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "name": "Bearcade Gomoku RP",
+      "description": "Bearcade Gomoku 资源包:HUD + 自定义棋盘方块与棋子贴图/模型",
       "headerUuid": "35515079-01eb-4e33-aaa3-0b42663d6318",
       "moduleUuid": "2b743470-bab7-40f0-930a-dba422c6ee68",
       "minEngineVersion": [

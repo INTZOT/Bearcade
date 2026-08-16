@@ -1,0 +1,21 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:block": {
+    "description": {
+      "identifier": "bearcade:white_stone",
+      "register_to_creative_inventory": true
+    },
+    "components": {
+      "minecraft:geometry": "geometry.white_stones",
+      "minecraft:material_instances": {
+        "*": { "texture": "white_stones", "render_method": "opaque" }
+      },
+      "minecraft:collision_box": { "enabled": false },
+      "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 4, 16] },
+      "minecraft:destructible_by_mining": { "seconds_to_destroy": 0.05 },
+      "minecraft:destructible_by_explosion": { "explosion_resistance": 0 },
+      "minecraft:map_color": "#e8e4dc",
+      "minecraft:light_dissipation": 0
+    }
+  }
+}

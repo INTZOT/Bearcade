@@ -1,0 +1,22 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:block": {
+    "description": {
+      "identifier": "bearcade:chestboard_side",
+      "register_to_creative_inventory": true
+    },
+    "components": {
+      "minecraft:geometry": "geometry.chestboard",
+      "minecraft:material_instances": {
+        "*": { "texture": "chestboard_side", "render_method": "opaque" }
+      },
+      "minecraft:transformation": { "rotation": [0, 90, 180, 270] },
+      "minecraft:collision_box": { "origin": [-8, 0, -8], "size": [16, 16, 16] },
+      "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 16, 16] },
+      "minecraft:destructible_by_mining": { "seconds_to_destroy": 0.4 },
+      "minecraft:destructible_by_explosion": { "explosion_resistance": 1.5 },
+      "minecraft:map_color": "#c8a35a",
+      "minecraft:light_dissipation": 0
+    }
+  }
+}
