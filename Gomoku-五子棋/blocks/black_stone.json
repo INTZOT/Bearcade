@@ -10,10 +10,7 @@
       }
     },
     "components": {
-      "minecraft:geometry": {
-        "identifier": "geometry.black_stones",
-        "culling_shape": "bearcade:stone_shape"
-      },
+      "minecraft:geometry": "geometry.black_stones",
       "minecraft:material_instances": {
         "*": { "texture": "black_stones", "render_method": "opaque" }
       },

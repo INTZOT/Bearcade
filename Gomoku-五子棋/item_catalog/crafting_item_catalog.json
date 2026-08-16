@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.60",
+  "minecraft:crafting_items_catalog": {
+    "categories": [
+      {
+        "category_name": "construction",
+        "groups": [
+          {
+            "group_identifier": {
+              "name": "bearcade:itemGroup.name.gomoku"
+            },
+            "items": [
+              "bearcade:chestboard_blank",
+              "bearcade:chestboard_center",
+              "bearcade:chestboard_side",
+              "bearcade:chestboard_corner",
+              "bearcade:black_stone",
+              "bearcade:white_stone"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

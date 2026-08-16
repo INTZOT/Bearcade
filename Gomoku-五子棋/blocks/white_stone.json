@@ -10,10 +10,7 @@
       }
     },
     "components": {
-      "minecraft:geometry": {
-        "identifier": "geometry.white_stones",
-        "culling_shape": "bearcade:stone_shape"
-      },
+      "minecraft:geometry": "geometry.white_stones",
       "minecraft:material_instances": {
         "*": { "texture": "white_stones", "render_method": "opaque" }
       },

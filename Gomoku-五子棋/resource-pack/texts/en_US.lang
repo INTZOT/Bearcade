@@ -1,5 +1,4 @@
-itemGroup.name.bearcade_gomoku=Gomoku Blocks
-minecraft:itemGroup.name.bearcade_gomoku=Gomoku Blocks
+bearcade:itemGroup.name.gomoku=Gomoku Blocks
 tile.bearcade:chestboard_blank.name=Gomoku Board (Blank)
 tile.bearcade:chestboard_center.name=Gomoku Board (Center)
 tile.bearcade:chestboard_side.name=Gomoku Board (Side)
