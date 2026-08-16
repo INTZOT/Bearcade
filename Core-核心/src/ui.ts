@@ -155,7 +155,7 @@ export function setUiRegistry(registry: GameRegistry): void {
 }
 
 export function openRoomList(player: Player, game: string): void {
-  const entry = registryForUi.getGame(game);
+  const entry = registryForUi.getActiveGame(game);
   if (!entry) return;
 
   closeForm(player.id);
@@ -280,7 +280,7 @@ function handleJoin(player: Player, entry: GameEntry, roomId: number): void {
 
 export function refreshRoomViews(): void {
   for (const [playerId, view] of roomViews) {
-    const entry = registryForUi.getGame(view.game.game);
+    const entry = registryForUi.getActiveGame(view.game.game);
     if (!entry) {
       roomViews.delete(playerId);
       continue;

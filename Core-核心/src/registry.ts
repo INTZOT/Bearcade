@@ -8,7 +8,8 @@ import {
   type Vec3,
 } from "./types";
 
-const STALE_MS = 15_000;
+const ROOM_STALE_MS = 15_000;
+const GAME_STALE_MS = 30_000;
 
 function isVec3(value: unknown): value is Vec3 {
   if (typeof value !== "object" || value === null) return false;
@@ -77,9 +78,13 @@ export class GameRegistry {
           entry.minPlayers,
           entry.partyAvailable === true,
           entry.prepSpawn as GameEntry["prepSpawn"],
+          false,
+          0,
         );
       }
-      console.warn("[Bearcade Core] 已从动态属性恢复游戏注册表");
+      console.warn(
+        "[Bearcade Core] 已从动态属性恢复游戏注册表(均未激活,等待当前会话重新注册)",
+      );
     } catch (error) {
       console.warn("[Bearcade Core] 注册表加载失败", error);
     }
@@ -112,6 +117,8 @@ export class GameRegistry {
     minPlayers: number | undefined,
     partyAvailable: boolean,
     prepSpawn: GameEntry["prepSpawn"],
+    active: boolean,
+    lastActivity: number,
   ): GameEntry {
     const rooms = new Map<number, RoomInfo>();
     for (let id = 1; id <= roomCount; id++) {
@@ -134,6 +141,8 @@ export class GameRegistry {
       partyAvailable,
       prepSpawn,
       rooms,
+      active,
+      lastActivity,
     };
     this.games.set(game, entry);
     return entry;
@@ -171,6 +180,8 @@ export class GameRegistry {
       payload.minPlayers,
       payload.partyAvailable === true,
       payload.prepSpawn,
+      true,
+      Date.now(),
     );
     this.persist();
     console.warn(
@@ -203,6 +214,8 @@ export class GameRegistry {
     }
 
     const now = Date.now();
+    entry.active = true;
+    entry.lastActivity = now;
     for (const report of rooms) {
       const room = entry.rooms.get(report.id);
       if (!room) continue;
@@ -217,10 +230,19 @@ export class GameRegistry {
 
   tick(now: number): void {
     for (const entry of this.games.values()) {
+      let latest = entry.lastActivity;
       for (const room of entry.rooms.values()) {
-        if (now - room.lastSeen > STALE_MS) {
+        if (now - room.lastSeen > ROOM_STALE_MS) {
           room.stale = true;
         }
+        if (room.lastSeen > latest) latest = room.lastSeen;
+      }
+      // 游戏级活性:注册后超过 30 秒没有任何状态上报,视为包已卸载/停止,从菜单隐藏
+      if (entry.active && now - latest > GAME_STALE_MS) {
+        entry.active = false;
+        console.warn(
+          `[Bearcade Core] 游戏已停止上报,暂时隐藏:${entry.displayName}(${entry.game})`,
+        );
       }
     }
   }
@@ -229,10 +251,15 @@ export class GameRegistry {
     return this.games.get(game);
   }
 
+  getActiveGame(game: string): GameEntry | undefined {
+    const entry = this.games.get(game);
+    return entry?.active ? entry : undefined;
+  }
+
   listGames(): GameEntry[] {
-    return [...this.games.values()].sort((a, b) =>
-      a.displayName.localeCompare(b.displayName, "zh-CN"),
-    );
+    return [...this.games.values()]
+      .filter((entry) => entry.active)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "zh-CN"));
   }
 
   getRoom(game: string, roomId: number): RoomInfo | undefined {

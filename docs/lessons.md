@@ -97,6 +97,11 @@
 ### 5.2 packId 双重维护漂移
 - `config/packs.json` 与各包 `src/config.ts` 各存一份 UUID,漂移会导致 IPC 校验静默失败;`npm run check` 校验一致性(已接入 CI)。
 
+### 5.3 已卸载/停用的游戏会残留在菜单
+- **现象**:游戏包被禁用或卸载后,Core 从动态属性恢复的注册表仍把它列在游戏列表,只是房间显示“数据过期”。
+- **原因**:注册表只持久化了游戏配置,没有区分“历史配置”和“本会话已激活”。
+- **解决**:`GameEntry` 增加 `active`/`lastActivity`;恢复条目默认 inactive,收到 `game.register` 或 `room.status` 才激活;`listGames()` 只返回 active;30 秒无任何上报自动隐藏。
+
 ## 6. 工程与工具链
 
 ### 6.1 archiver v8 是 ESM + 类 API
@@ -192,7 +197,7 @@
 
 - **数据层**:仍使用每房间独立 scoreboard objective(真实玩家用玩家身份,队伍/计时用假玩家名),但**不挂 Sidebar**。
 - **传输层**:`player.onScreenDisplay.setTitle({ rawtext: [..., { score: { name, objective } }, ...] })`。rawtext score 是按玩家解析的,title 又是每玩家实例,因此每个玩家看到的是自己房间的分数,多房间天然隔离。
-- **表现层**:与行为包同目录的 `resource-pack/ui/hud_screen.json` 覆写原版 `hud_title_text`,把居中大标题重排版为右上角小字号右对齐面板;label 继续绑定引擎变量 `#hud_title_text_string`,不引入自定义 binding。
+- **表现层**:与行为包同目录的 `resource-pack/ui/hud_screen.json` 覆写原版 `hud_title_text`,把居中大标题重排版为屏幕**右侧垂直居中**的紧凑信息面板;label 继续绑定引擎变量 `#hud_title_text_string`,不引入自定义 binding。
 - 公共实现集中在 `shared/minigame-core/scoreboardHud.ts`:`ensureObjective` / `setObjectiveScore` / `releaseObjective` / `scoreToken` / `hudMessage` / `setHudTitle` / `clearHudTitle`。
 
 ### 10.3 避坑
@@ -203,9 +208,23 @@
 - 资源包 manifest 的 module type 是 `"resources"`,**没有 entry**;行为包才有 `scripts/main.js` 入口。构建脚本必须按 `pack.type` 分流。
 - 资源包与行为包**一对一分包,但源码不拆两个顶层目录**:每个小游戏目录内放 `resource-pack/`(如 `Gomoku-五子棋/resource-pack`),build/package 生成独立 `<gameid>_hud.mcpack`,deploy 还原为 `Gomoku-五子棋-资源包`;不要做全局 HUD 资源包;deploy/package 都要按配对关系处理(指定行为包自动带 `_hud` 资源包)。
 - 资源包部署目录是 `development_resource_packs`(与 `development_behavior_packs` 相邻),不要混放。
-- 本项目每个 `resource-pack` 只放一个 `namespace: "hud"` 的小 `ui/hud_screen.json`,覆写 `hud_title_text` 控件;若目标引擎对同名控件不按后加载覆盖,退回复制完整原版 `hud_screen.json` 再改。
+- **已实测(1.26.42)**:同名控件是按属性合并而不是整控件替换,小文件只写 `hud_title_text` 会导致 `Unknown property [orientation]` 等错误、内容不显示;本项目已改为**完整复制原版 `ui/hud_screen.json` 后只改 `hud_title_text` 定义**,不要再退回小文件覆写。
 - JSON UI 文件允许 `//` 注释;校验时要用 json5/jsonc,不能直接 `json.load`。
 - 资源包 UI 改动后通常需要**完整重启/重进世界**才生效,`/reload` 可能不重新加载 UI 定义。
+
+### 10.4 最终可用布局(1.26.42 实测)
+
+`hud_title_text` 用以下结构,已经过多轮大厅实测:
+
+- 必须是**完整原版 `ui/hud_screen.json` 副本**,只改 `hud_title_text`;
+- 外层 `type: "stack_panel"` 且显式 `"orientation": "vertical"`(引擎会合并原版 `orientation`,不写会报 `Unknown property [orientation]`);
+- 锚点用 `right_middle` / `right_middle`,外层偏移 `[0, 0]`;
+- **alpha 固定为 `1.0`**,不要用 `@hud.anim_title_text_alpha_in`;否则每次 `setTitle` 背景会随渐隐动画闪烁,文字却不闪;
+- 背景和文字不能直接作为 stack_panel 的两个兄弟(会上下排列错位),要包进同一个 `title_frame` panel 叠放;
+- 背景:`textures/ui/Black`,`alpha: 0.62`,`layer: -1`,尺寸 `["100%sm + 8px", "100%sm + 6px"]`,跟随文字大小;
+- 文字:`font_size: "normal"`、`text_alignment: "right"`、`localize: false`,并给 label 加 `offset: [-4, 0]` 作为右侧安全边距;
+- 测试时用临时行为包每 10 tick 调 `player.onScreenDisplay.setTitle({ rawtext:[...] }, { fadeInDuration: 0, stayDuration: 40, fadeOutDuration: 0 })`,能同时验证刷新频率、闪烁和 rawtext score。
+
 
 ## 11. 本轮修复速查(可复用结论)
 

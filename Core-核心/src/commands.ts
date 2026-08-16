@@ -125,7 +125,7 @@ export function initCommands(
           const check = requireAdmin(origin.sourceEntity);
           if (!check.ok) return check.result;
           const player = check.player;
-          if (!getRegistry()?.getGame(gamename)) {
+          if (!getRegistry()?.getActiveGame(gamename)) {
             return {
               status: CustomCommandStatus.Failure,
               message: `未知游戏:${gamename}`,
@@ -177,7 +177,7 @@ export function initCommands(
             };
           }
           const gamename = match[1];
-          if (!getRegistry()?.getGame(gamename)) {
+          if (!getRegistry()?.getActiveGame(gamename)) {
             return {
               status: CustomCommandStatus.Failure,
               message: `未知游戏:${gamename}`,
@@ -239,7 +239,7 @@ export function initCommands(
           const check = requireAdmin(origin.sourceEntity);
           if (!check.ok) return check.result;
           const player = check.player;
-          if (!getRegistry()?.getGame(gamename)) {
+          if (!getRegistry()?.getActiveGame(gamename)) {
             return {
               status: CustomCommandStatus.Failure,
               message: `未知游戏:${gamename}`,
@@ -304,7 +304,7 @@ export function initCommands(
               message: `已对全部游戏${enabled ? "启用" : "关闭"}调试日志`,
             };
           }
-          if (!registry?.getGame(gamename)) {
+          if (!registry?.getActiveGame(gamename)) {
             return {
               status: CustomCommandStatus.Failure,
               message: `未知游戏:${gamename}`,

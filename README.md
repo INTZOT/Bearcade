@@ -96,7 +96,7 @@ Bearcade/
 | `idle`(空闲中) | 场地就绪,无对局 | 是 |
 | `running`(运行中) | 对局进行中 | 否 |
 
-状态变化即时上报 + 每 5 秒心跳;Core 超过 15 秒未收到上报时标记数据过期并拒绝入房。
+状态变化即时上报 + 每 5 秒心跳;Core 超过 15 秒未收到房间上报时标记数据过期并拒绝入房,超过 30 秒未上报的游戏包自动从菜单隐藏。
 
 ## Core 职责边界
 
@@ -171,7 +171,7 @@ Core 校验 `packId`(manifest header UUID)与 `game` 匹配,并结合 `sourceTyp
 | Toolkit-开发者工具 | `Toolkit-开发者工具/` | 纯工具包(不注册游戏):悬浮公告管理 `/btd`、手持物品属性编辑 `/cis`(均限管理员) |
 | `<游戏>/resource-pack/` | 行为包目录内的资源包子目录 | 资源包(JSON UI):打包时拆分为 `<游戏>-资源包`,与行为包一对一安装;含 `ui/`、`textures/`、`models/` 等 |
 
-> 记分板方案:所有小游戏已不再占用全服唯一的 Sidebar 显示槽。分数仍写入每房间独立 objective,由 `shared/minigame-core/scoreboardHud.ts` 转成 rawtext `{score:...}` 注入每位玩家的 title;每个小游戏的配对资源包(源码位于 `resource-pack/`)把 title 通道重排版为右上角记分板,因此多房间/多游戏同时运行互不覆盖。
+> 记分板方案:所有小游戏已不再占用全服唯一的 Sidebar 显示槽。分数仍写入每房间独立 objective,由 `shared/minigame-core/scoreboardHud.ts` 转成 rawtext `{score:...}` 注入每位玩家的 title;每个小游戏的配对资源包(源码位于 `resource-pack/`)把 title 通道重排版为屏幕右侧垂直居中的记分板,因此多房间/多游戏同时运行互不覆盖。
 
 ## 开发新小游戏
 
@@ -192,7 +192,7 @@ Core 校验 `packId`(manifest header UUID)与 `game` 匹配,并结合 `sourceTyp
 - 游戏包 manifest 通过包依赖声明依赖 Core(保证加载顺序);
 - 房间管理通用逻辑集中在 `shared/minigame-core`,构建期内联进每个小游戏包;改共享代码后 `npm run build` 即同步全部包;
 - 所有包以 `docs/` 内类型定义为基准:当前 `@minecraft/server` 2.10.0-beta、`@minecraft/server-ui` 2.2.0-beta、`min_engine_version` [1, 26, 40](预发布版本,启用需匹配对应实验开关);
-- Core 注册表持久化到动态属性 `bearcade:registry`;房间状态与玩家绑定不持久化,重启后房间回到初始化中;
+- Core 注册表持久化到动态属性 `bearcade:registry`;恢复出的历史条目默认不显示,当前会话收到注册/上报后才进入菜单;房间状态与玩家绑定不持久化,重启后房间回到初始化中;
 - `npm run distribute` 生成含 Core、小游戏模板、开发文档与工具链的分发套件。
 
 ## 后续可选优化

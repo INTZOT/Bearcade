@@ -32,6 +32,10 @@ export interface GameEntry {
   partyAvailable: boolean;
   prepSpawn: Vec3;
   rooms: Map<number, RoomInfo>;
+  /** 本会话是否收到过该游戏包的注册/状态上报;未激活的历史注册不进入菜单 */
+  active: boolean;
+  /** 最近一次注册或房间状态上报时间戳,用于剔除停止上报的游戏包 */
+  lastActivity: number;
 }
 
 export interface RegisterPayload {

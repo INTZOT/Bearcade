@@ -28,7 +28,7 @@
 | `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡V,骨架阶段,玩法待定 |
 | `Werewolf-天黑请闭眼/` | 小游戏包 | 天黑请闭眼,玩法已实现(6~10 人昼夜行动/投票/遗言,4 房/10 人/6 人开局,待载入附带场地结构) |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
-| `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,右上角每玩家独立记分板 |
+| `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,屏幕右侧垂直居中的每玩家独立记分板 |
 
 新增小游戏时,在根目录新建独立目录,命名沿用 `英文标识-中文说明` 的风格(如 `Gomoku-五子棋`)。
 
@@ -176,7 +176,7 @@ bearcade:gomoku_template
 - 状态变化时**立即**上报(创建完成、开局、结束、重置、人数增减);
 - 每 **5 秒**发送一次全量心跳(`system.runInterval`),作为兜底;
 - 每次上报包含全部房间的全量快照,不发送增量;
-- Core 超过 **15 秒**未收到某房间的任何上报时,标记为数据过期:菜单显示不可用,拒绝入房。
+- Core 超过 **15 秒**未收到某房间的任何上报时,标记为数据过期:菜单显示不可用,拒绝入房;超过 **30 秒**没有任何上报的游戏包会从菜单隐藏,直到其重新注册/上报。
 
 上报使用 `room.status` 消息,格式见 §5.3。消息解析必须容错:解析失败、字段缺失、来源不匹配时丢弃并记录,不得崩溃。
 
@@ -306,7 +306,7 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
 - **不使用全局 Sidebar**:`DisplaySlotId.Sidebar` 全服唯一,多房间/多游戏会互相覆盖。所有小游戏不再调用 `setObjectiveAtDisplaySlot`,也不在 reset 时 `clearObjectiveAtDisplaySlot`。
 - **数据源仍是 scoreboard objective**:每房间独立 objective(如 `bearcade:gnb_score_1`),真实玩家用玩家身份写分,队伍分用假玩家名(如 `bw_r1`)。写分统一走 `shared/minigame-core/scoreboardHud.ts` 的 `setObjectiveScore`,内部缓存 `ScoreboardIdentity`,避免 `setScore(字符串)` 反复创建假玩家身份。
 - **显示通道是 `player.setTitle` + rawtext score**:`hudMessage([...scoreToken(name, objectiveId)...])` 把分数 token 注入每位玩家自己的 title;title 是每玩家实例,天然按房间隔离。
-- **JSON UI 负责排版**:每个 `<游戏>/resource-pack/ui/hud_screen.json` 覆写原版 `hud_title_text` 控件,把居中大标题改为右上角小字号右对齐面板(标签绑定仍为 `#hud_title_text_string`);资源包目录与行为包目录一一对应。
+- **JSON UI 负责排版**:每个 `<游戏>/resource-pack/ui/hud_screen.json` 是**完整原版 hud_screen 副本**,仅修改 `hud_title_text` 控件(实测同名控件小文件会按属性合并并报 `Unknown property`);标题绑定仍为 `#hud_title_text_string`,资源包目录与行为包目录一一对应。
 - **集成约定**:`config/packs.json` 中每个资源包条目 `type: "resource"`,其 `dir` 指向 `<游戏>/resource-pack`(`gomoku_hud` ↔ `Gomoku-五子棋/resource-pack` 等);`build.mjs` 只为行为包跑 esbuild;`package.mjs` 把 `ui/` 打入独立 `<gameid>_hud.mcpack` 并并入 `bearcade.mcaddon`;`deploy.mjs` 把行为包部署到 `development_behavior_packs`,配对资源包还原为 `<游戏>-资源包` 后部署到相邻的 `development_resource_packs`(可用 `MC_DEV_RESOURCE_PACKS` 覆盖);指定任一行为包 ID 会自动带上配对 `_hud` 资源包。
 - 所有小游戏结束时在 `onBeforeReset` 调用 `clearHudTitle`;Core 玩家回大厅时也兜底清 title/actionbar/camera。
 
@@ -415,7 +415,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 - 游戏包 manifest 使用包依赖(`packDependencies`)声明依赖 `Core-核心`(header UUID + 版本),保证 Core 先加载;
 - 类型定义以仓库 `docs/` 为准(同步自 Beatorini 包内最新定义):当前为 `@minecraft/server` 2.10.0-beta.1.26.43-stable、`@minecraft/server-ui` 2.2.0-beta.1.26.43-stable、`@minecraft/common` 1.3.0、`@minecraft/vanilla-data` 1.26.40(对应 MC 1.26.42/1.26.43);该定义为预发布版本,启用时需匹配对应实验开关;manifest 依赖版本与 `min_engine_version` 必须与所选定义对齐;若改用稳定版,须先核对 API 差异;
 - manifest 由 `scripts/build.mjs` 生成:dependencies 声明 `@minecraft/server` 2.10.0-beta 与 `@minecraft/server-ui` 2.2.0-beta,`min_engine_version` 为 [1, 26, 40];实测不包含 `capabilities` 字段也可正常加载(无需 `script_eval`);
-- Core 注册表持久化到动态属性 `bearcade:registry`;房间状态、玩家房间绑定仅存内存,服务器重启后房间统一回到 `initializing`,由游戏包重新初始化并上报;
+- Core 注册表持久化到动态属性 `bearcade:registry`;恢复出的历史条目默认未激活,只有当前会话收到 `game.register`/`room.status` 才进入菜单;房间状态、玩家房间绑定仅存内存,服务器重启后房间统一回到 `initializing`,由游戏包重新初始化并上报;
 - 开发阶段所有包启用调试日志;消息解析失败、来源校验失败必须记录,不得抛出导致脚本崩溃。
 
 ## 7. 依赖规则
