@@ -830,7 +830,11 @@ export class MinigameRuntime {
           ) {
             this.startGame(roomId);
           }
-        } else if (state.phase === "running" && count < min) {
+        } else if (
+          state.phase === "running" &&
+          count < min &&
+          (this.config.endGameWhenBelowMin ?? true)
+        ) {
           this.endGame(roomId, "玩家离开");
         }
 

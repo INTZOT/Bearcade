@@ -26,6 +26,7 @@
 | `PigCatcher-猪猪争夺战/` | 小游戏包 | 猪猪争夺战,四队驱猪进核心区,可运行 |
 | `Collapse-豆腐渣地板/` | 小游戏包 | 豆腐渣地板,踩踏塌陷 + PVP 淘汰,玩法已实现(模板场地待建) |
 | `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡V,骨架阶段,玩法待定 |
+| `Werewolf-天黑请闭眼/` | 小游戏包 | 天黑请闭眼,玩法已实现(6~10 人昼夜行动/投票/遗言,4 房/10 人/6 人开局,待载入附带场地结构) |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 | `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,右上角每玩家独立记分板 |
 
@@ -157,6 +158,7 @@ bearcade:gomoku_template
 | PigCatcher | 2 | `bearcade:pigcatcher_1` ~ `bearcade:pigcatcher_2` |
 | Collapse | 2 | `bearcade:collapse_1` ~ `bearcade:collapse_2` |
 | SND5 | 2 | `bearcade:snd5_1` ~ `bearcade:snd5_2` |
+| Werewolf | 4 | `bearcade:werewolf_1` ~ `bearcade:werewolf_4` |
 | Template | 2 | `bearcade:mygame_1` ~ `bearcade:mygame_2` |
 
 ### 3.4 向 Core 上报状态
@@ -545,3 +547,12 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-15 | 引入每玩家独立记分板(JSON UI + rawtext score):资源包内嵌为各游戏目录下的 `resource-pack/`,构建/部署时再拆分为一对一 `<游戏>-资源包`;新增 `shared/minigame-core/scoreboardHud.ts`;全部小游戏停止使用全局 Sidebar,改为每房间 objective + `setTitle` rawtext score;构建/打包/部署/分发/watch 支持 `type:"resource"` 资源包;教训与避坑沉淀到 `docs/lessons.md` §10~§11 |
 | 2026-08-15 | 完善自定义内容规范:新增 `docs/addon-content.md`(自定义物品/方块/实体的目录对照、JSON 示例、资源包配对、脚本交互、检查清单与故障排查);`scripts/extras.mjs` 扩为行为包 `EXTRA_DIRS` + 资源包 `RESOURCE_DIRS`/`RESOURCE_ROOT_FILES`,支持 `features/feature_rules/biomes`、`entity/models/animations/animation_controllers/render_controllers/attachables/particles/sounds/materials/font` 及根 `blocks.json` 等自动打包部署 |
 | 2026-08-15 | 文件结构优化:配对资源包从独立顶层 `*-资源包` 目录收敛为各游戏目录内的 `resource-pack/` 子目录,新增游戏只需一个顶层目录;`config/packs.json` 资源包 `dir` 指向 `<游戏>/resource-pack`;build/package 仍产出独立 `<gameid>_hud.mcpack`,deploy 自动还原为 `<游戏>-资源包` 部署,distribute/watch/.gitignore 同步适配 |
+| 2026-08-15 | 新增 Werewolf-天黑请闭眼 小游戏包骨架(复制模板,mygame→werewolf,复用 shared/minigame-core,玩法待定) |
+| 2026-08-15 | Werewolf 骨架参数确定:4 房间、每房 10 人上限、6 人及以上开始开局倒计时(玩法仍待定) |
+| 2026-08-15 | Werewolf 玩法落地:6~10 人职业表、狙击手/守卫/杀手/警察/白天五阶段循环、钟物品投票、!队内聊天、TextPrimitive 遗言浮空字、退出视为出局(shared 新增 endGameWhenBelowMin 开关);附带旧版围桌场地结构文件 |
+| 2026-08-15 | Werewolf 修复:夜晚公告不再公布行动者姓名(防公开身份);开局改用 inputPermissions 禁用移动/镜头(非持续 tp),离场/结束时恢复;相机改为开局 2/10 tick 补锁 + 每阶段与每 20 tick 周期重锁;投票物品改为自定义物品 bearcade:werewolf_vote |
+| 2026-08-15 | Werewolf 增强:相机锁定覆盖全部玩家(不再跳过 op);出局生成身份牌(平民白/警察浅蓝/守卫黄/杀手浅红/狙击手深红);白天投票实时票数浮空字;出局本局禁言;名牌仅染色 + 头顶 TextPrimitive 号码(参考 title.js);公开聊天头顶气泡(参考 chatbubble.js) |
+| 2026-08-15 | Werewolf 新增《工作记录与交接.md》:完整需求/设计/坐标/文件地图/构建部署/实机回归清单/决策历史,供换对话继续开发 |
+| 2026-08-16 | Werewolf 修复:只禁移动不禁镜头/点击(可面向摄影机);相机机位左收 1 格;遗言表单被聊天框顶掉后可用「写遗言」物品重开;修复结束 resetting 时 session 提前删除导致上局浮空字残留;白天投票改表单(票数浮空字显示投票者);身份牌下移到 y+1.5 |
+| 2026-08-16 | Werewolf 夜间行动(狙击手/守卫/杀手/警察)改表单;所有存活玩家背包被触发物品占满(非行动者点击提示);夜间选择标记按角色可见(狙击手/守卫仅自己,杀手/警察含队友) |
+| 2026-08-16 | Werewolf 新增调试指令 `/bearcade:ww5`(5 人可开局,5 人配置少 1 平民,持久化);开局身份用 Title+Subtitle 告知目标与队友 |

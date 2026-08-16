@@ -86,6 +86,20 @@
       "type": "behavior"
     },
     {
+      "id": "werewolf",
+      "dir": "Werewolf-天黑请闭眼",
+      "name": "Bearcade Werewolf",
+      "description": "Bearcade 天黑请闭眼小游戏包(玩法已实现:6~10 人昼夜行动/投票/遗言,待载入附带场地结构)",
+      "headerUuid": "42eff47c-569c-4125-8049-21d3cef59a19",
+      "moduleUuid": "3b9d9b7f-2feb-4623-92ea-f15b021be139",
+      "minEngineVersion": [1, 26, 40],
+      "dependencies": [
+        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
+        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      ],
+      "packDependencies": ["core"]
+    },
+    {
       "id": "guessnbuild",
       "dir": "GuessNBuild-建筑猜猜乐",
       "name": "Bearcade GuessNBuild",
