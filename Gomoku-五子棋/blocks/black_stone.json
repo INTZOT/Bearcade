@@ -10,6 +10,10 @@
       "minecraft:material_instances": {
         "*": { "texture": "black_stones", "render_method": "opaque" }
       },
+      "minecraft:creative_category": {
+        "category": "construction",
+        "group": "itemGroup.name.bearcade_gomoku"
+      },
       "minecraft:collision_box": { "enabled": false },
       "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 4, 16] },
       "minecraft:destructible_by_mining": { "seconds_to_destroy": 0.05 },
