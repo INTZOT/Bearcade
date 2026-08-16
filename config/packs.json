@@ -92,12 +92,24 @@
       "description": "Bearcade 天黑请闭眼小游戏包(玩法已实现:6~10 人昼夜行动/投票/遗言,待载入附带场地结构)",
       "headerUuid": "42eff47c-569c-4125-8049-21d3cef59a19",
       "moduleUuid": "3b9d9b7f-2feb-4623-92ea-f15b021be139",
-      "minEngineVersion": [1, 26, 40],
-      "dependencies": [
-        { "module_name": "@minecraft/server", "version": "2.10.0-beta" },
-        { "module_name": "@minecraft/server-ui", "version": "2.2.0-beta" }
+      "minEngineVersion": [
+        1,
+        26,
+        40
       ],
-      "packDependencies": ["core"]
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ]
     },
     {
       "id": "guessnbuild",
@@ -363,6 +375,22 @@
       "description": "Bearcade Template HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
       "headerUuid": "c572494e-0ae6-4dd4-84e0-68e7e9ff6f28",
       "moduleUuid": "f081d86e-be48-4e58-b198-520dd8c03ae7",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "werewolf_hud",
+      "type": "resource",
+      "dir": "Werewolf-天黑请闭眼/resource-pack",
+      "name": "Bearcade Werewolf HUD",
+      "description": "Bearcade 天黑请闭眼占位资源包(当前无 HUD 内容,保持一对一资源包结构)",
+      "headerUuid": "fcebcfa8-23e5-4ea0-beb2-a478a8686e3a",
+      "moduleUuid": "427e2615-ea29-41f2-93a6-2b1a04cff177",
       "minEngineVersion": [
         1,
         26,

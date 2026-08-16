@@ -1,5 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { cp as cpDir } from "node:fs/promises";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { EXTRA_DIRS, RESOURCE_DIRS, RESOURCE_ROOT_FILES } from "./extras.mjs";
 
