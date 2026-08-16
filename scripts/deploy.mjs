@@ -1,4 +1,5 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { cp as cpDir } from "node:fs/promises";
 import path from "node:path";
 import { EXTRA_DIRS } from "./extras.mjs";
 
@@ -30,14 +31,14 @@ for (const pack of config.packs) {
 
   rmSync(targetDir, { recursive: true, force: true });
   mkdirSync(targetDir, { recursive: true });
-  cpSync(path.join(src, "manifest.json"), path.join(targetDir, "manifest.json"));
-  cpSync(path.join(src, "scripts"), path.join(targetDir, "scripts"), {
+  await cpDir(path.join(src, "manifest.json"), path.join(targetDir, "manifest.json"));
+  await cpDir(path.join(src, "scripts"), path.join(targetDir, "scripts"), {
     recursive: true,
   });
   for (const extra of EXTRA_DIRS) {
     const extraPath = path.join(src, extra);
     if (existsSync(extraPath)) {
-      cpSync(extraPath, path.join(targetDir, extra), { recursive: true });
+      await cpDir(extraPath, path.join(targetDir, extra), { recursive: true });
     }
   }
   console.log(`已部署 ${pack.name} -> ${targetDir}`);

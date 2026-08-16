@@ -16,6 +16,7 @@
     "Core-核心/src/**/*.ts",
     "Gomoku-五子棋/src/**/*.ts",
     "Template-小游戏模板/src/**/*.ts",
+    "Werewolf-天黑请闭眼/src/**/*.ts",
     "GuessNBuild-建筑猜猜乐/src/**/*.ts",
     "BridgeWar-急速战桥/src/**/*.ts",
     "Collapse-豆腐渣地板/src/**/*.ts",

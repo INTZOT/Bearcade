@@ -1,0 +1,28 @@
+{
+  "format_version": "1.20.30",
+  "minecraft:item": {
+    "description": {
+      "identifier": "bearcade:werewolf_vote",
+      "menu_category": { "category": "items" }
+    },
+    "components": {
+      "minecraft:max_stack_size": 1,
+      "minecraft:icon": { "texture": "paper" },
+      "minecraft:cooldown": {
+        "duration": 0.2,
+        "category": "bearcade_werewolf_vote"
+      },
+      "minecraft:on_use": {
+        "on_use": { "event": "bearcade:on_use" }
+      }
+    },
+    "events": {
+      "bearcade:on_use": {
+        "run_command": {
+          "target": "self",
+          "command": ["scoreboard players set @s ww_click 1"]
+        }
+      }
+    }
+  }
+}

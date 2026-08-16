@@ -1,4 +1,5 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { cp as cpDir } from "node:fs/promises";
 import path from "node:path";
 import { zipDirectory } from "./zip.mjs";
 import { EXTRA_DIRS } from "./extras.mjs";
@@ -18,14 +19,14 @@ for (const pack of config.packs) {
   const src = path.join(root, pack.dir);
   const dest = path.join(staging, pack.id);
   mkdirSync(dest, { recursive: true });
-  cpSync(path.join(src, "manifest.json"), path.join(dest, "manifest.json"));
-  cpSync(path.join(src, "scripts"), path.join(dest, "scripts"), {
+  await cpDir(path.join(src, "manifest.json"), path.join(dest, "manifest.json"));
+  await cpDir(path.join(src, "scripts"), path.join(dest, "scripts"), {
     recursive: true,
   });
   for (const extra of EXTRA_DIRS) {
     const extraPath = path.join(src, extra);
     if (existsSync(extraPath)) {
-      cpSync(extraPath, path.join(dest, extra), { recursive: true });
+      await cpDir(extraPath, path.join(dest, extra), { recursive: true });
     }
   }
 

@@ -44,6 +44,11 @@ export interface MinigameConfig {
   endDelayTicks?: number;
   gameTickInterval?: number;
   heartbeatInterval?: number;
+  /**
+   * 对局运行中人数低于 minPlayers 时是否自动结束对局(默认 true)。
+   * 狼人杀等"退出视为出局、对局继续"的玩法设为 false,由玩法自行处理离场玩家。
+   */
+  endGameWhenBelowMin?: boolean;
   /** 满员后缩短倒计时:剩余时间大于该 tick 数时压到该值(默认 100 tick = 5 秒) */
   startFullShortenTicks?: number;
 }

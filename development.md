@@ -26,6 +26,7 @@
 | `PigCatcher-猪猪争夺战/` | 小游戏包 | 猪猪争夺战,四队驱猪进核心区,可运行 |
 | `Collapse-豆腐渣地板/` | 小游戏包 | 豆腐渣地板,踩踏塌陷 + PVP 淘汰,玩法已实现(模板场地待建) |
 | `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡V,骨架阶段,玩法待定 |
+| `Werewolf-天黑请闭眼/` | 小游戏包 | 天黑请闭眼,玩法已实现(6~10 人昼夜行动/投票/遗言,4 房/10 人/6 人开局,待载入附带场地结构) |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 
 新增小游戏时,在根目录新建独立目录,命名沿用 `英文标识-中文说明` 的风格(如 `Gomoku-五子棋`)。
@@ -152,6 +153,7 @@ bearcade:gomoku_template
 | PigCatcher | 2 | `bearcade:pigcatcher_1` ~ `bearcade:pigcatcher_2` |
 | Collapse | 2 | `bearcade:collapse_1` ~ `bearcade:collapse_2` |
 | SND5 | 2 | `bearcade:snd5_1` ~ `bearcade:snd5_2` |
+| Werewolf | 4 | `bearcade:werewolf_1` ~ `bearcade:werewolf_4` |
 | Template | 2 | `bearcade:mygame_1` ~ `bearcade:mygame_2` |
 
 ### 3.4 向 Core 上报状态
@@ -527,3 +529,12 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-15 | 新增 Collapse-豆腐渣地板(派对游戏,2 房/2~16 人/party 可用):多层地板踩踏塌陷状态机(黄→橙→红各 1 秒→消失,离开后继续塌)、开局 60 秒后开启 PVP(徒手)、掉虚空淘汰并进入 Camera 第三人称观战(手持望远镜切换观战对象)、最后存活者获胜/全员淘汰平局;场地大小等全部接入 `/bearcade:config collapse`(场地中心/顶层 Y/场地大小/PVP 延迟/塌陷时长/淘汰高度),层数由模板场地决定 |
 | 2026-08-15 | 猪猪争夺战鱼钩解拴改用事件驱动:实测 `entityHitEntity` 对鱼钩勾中不派发,`entityHurt(before)` 在 0 伤害投射命中时可靠触发(damage=0、cause=projectile、damagingEntity=投掷者玩家);解拴逻辑移入 `entityHurt` 猪分支,抢在无敌 cancel 前经 `system.run` 延迟 unleash,邻近鱼钩实体二次确认防误解拴;删除 `entityHitEntity` 死代码,轮询保留作"先勾后拴"兜底;debug 模式放宽维度检查便于大厅测试;`deploy.mjs` 恢复本机默认部署路径(MC_DEV_PACKS 可覆盖);新增 §11 ScriptAPI 实战参考 |
 | 2026-08-15 | 新建 `docs/lessons.md` 实战参考:汇总开发踩坑与解决(事件上下文/维度结构/UI/状态机/安全/工具链/调试技巧),§11 改为指向该文件 |
+| 2026-08-15 | 新增 Werewolf-天黑请闭眼 小游戏包骨架(复制模板,mygame→werewolf,复用 shared/minigame-core,玩法待定) |
+| 2026-08-15 | Werewolf 骨架参数确定:4 房间、每房 10 人上限、6 人及以上开始开局倒计时(玩法仍待定) |
+| 2026-08-15 | Werewolf 玩法落地:6~10 人职业表、狙击手/守卫/杀手/警察/白天五阶段循环、钟物品投票、!队内聊天、TextPrimitive 遗言浮空字、退出视为出局(shared 新增 endGameWhenBelowMin 开关);附带旧版围桌场地结构文件 |
+| 2026-08-15 | Werewolf 修复:夜晚公告不再公布行动者姓名(防公开身份);开局改用 inputPermissions 禁用移动/镜头(非持续 tp),离场/结束时恢复;相机改为开局 2/10 tick 补锁 + 每阶段与每 20 tick 周期重锁;投票物品改为自定义物品 bearcade:werewolf_vote |
+| 2026-08-15 | Werewolf 增强:相机锁定覆盖全部玩家(不再跳过 op);出局生成身份牌(平民白/警察浅蓝/守卫黄/杀手浅红/狙击手深红);白天投票实时票数浮空字;出局本局禁言;名牌仅染色 + 头顶 TextPrimitive 号码(参考 title.js);公开聊天头顶气泡(参考 chatbubble.js) |
+| 2026-08-15 | Werewolf 新增《工作记录与交接.md》:完整需求/设计/坐标/文件地图/构建部署/实机回归清单/决策历史,供换对话继续开发 |
+| 2026-08-16 | Werewolf 修复:只禁移动不禁镜头/点击(可面向摄影机);相机机位左收 1 格;遗言表单被聊天框顶掉后可用「写遗言」物品重开;修复结束 resetting 时 session 提前删除导致上局浮空字残留;白天投票改表单(票数浮空字显示投票者);身份牌下移到 y+1.5 |
+| 2026-08-16 | Werewolf 夜间行动(狙击手/守卫/杀手/警察)改表单;所有存活玩家背包被触发物品占满(非行动者点击提示);夜间选择标记按角色可见(狙击手/守卫仅自己,杀手/警察含队友) |
+| 2026-08-16 | Werewolf 新增调试指令 `/bearcade:ww5`(5 人可开局,5 人配置少 1 平民,持久化);开局身份用 Title+Subtitle 告知目标与队友 |

@@ -7,6 +7,7 @@ const targets = [
   "Core-核心/src",
   "Gomoku-五子棋/src",
   "Template-小游戏模板/src",
+  "Werewolf-天黑请闭眼/src",
   "GuessNBuild-建筑猜猜乐/src",
   "BridgeWar-急速战桥/src",
   "Collapse-豆腐渣地板/src",
