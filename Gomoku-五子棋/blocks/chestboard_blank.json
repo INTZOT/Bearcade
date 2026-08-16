@@ -6,7 +6,7 @@
       "register_to_creative_inventory": true,
       "menu_category": {
         "category": "construction",
-        "group": "minecraft:itemGroup.name.bearcade_gomoku"
+        "group": "itemGroup.name.bearcade_gomoku"
       }
     },
     "components": {

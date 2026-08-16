@@ -1,4 +1,5 @@
 itemGroup.name.bearcade_gomoku=五子棋方块
+minecraft:itemGroup.name.bearcade_gomoku=五子棋方块
 tile.bearcade:chestboard_blank.name=五子棋棋盘(空白)
 tile.bearcade:chestboard_center.name=五子棋棋盘(中心)
 tile.bearcade:chestboard_side.name=五子棋棋盘(边)
