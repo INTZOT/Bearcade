@@ -597,6 +597,7 @@ function isStone(typeId: string): boolean {
 }
 
 /** 沿格子四条边按间距撒粒子,画出一个正方形框 */
+let frameParticleWarned = false;
 function spawnCellFrame(
   dim: Dimension,
   gx: number,
@@ -611,8 +612,11 @@ function spawnCellFrame(
       dim.spawnParticle(effect, { x: gx, y, z: gz + t });
       dim.spawnParticle(effect, { x: gx + 1, y, z: gz + t });
     }
-  } catch {
-    // 忽略
+  } catch (error) {
+    if (!frameParticleWarned) {
+      frameParticleWarned = true;
+      console.warn(`[Bearcade Gomoku] 选中框粒子无效: ${effect}`, error);
+    }
   }
 }
 
@@ -633,7 +637,7 @@ function spawnOverviewMarker(
     const gx = Math.floor(player.location.x);
     const gz = Math.floor(player.location.z);
     if (!inGrid(gx, gz)) continue;
-    spawnCellFrame(dim, gx, gz, y, "minecraft:endrod");
+    spawnCellFrame(dim, gx, gz, y, "minecraft:balloon_gas_particle");
   }
 }
 
