@@ -9,6 +9,7 @@ import {
   AimAssistTargetMode,
   EntityComponentTypes,
   type EntityInventoryComponent,
+  type Dimension,
   type Player,
   type PlayerPlaceBlockBeforeEvent,
 } from "@minecraft/server";
@@ -301,6 +302,15 @@ function placeAtPlayer(
       runtime
         .roomDim(roomId)
         .setBlockType({ x: gx, y: cfg.boardY + 1, z: gz }, stoneType);
+      // 落子反馈:绿色粒子爆团
+      spawnCellParticles(
+        runtime.roomDim(roomId),
+        gx,
+        gz,
+        cfg.boardY + 1 + 0.6,
+        "minecraft:villager_happy",
+        8,
+      );
     } catch (error) {
       console.warn("[Bearcade Gomoku] 俯瞰落子写方块失败", error);
     }
@@ -595,6 +605,49 @@ function isStone(typeId: string): boolean {
   return typeId === STONE_BLACK || typeId === STONE_WHITE;
 }
 
+/** 在棋盘格上随机撒粒子(俯瞰选中格提示/落子反馈) */
+function spawnCellParticles(
+  dim: Dimension,
+  gx: number,
+  gz: number,
+  y: number,
+  effect: string,
+  count: number,
+): void {
+  try {
+    for (let i = 0; i < count; i++) {
+      dim.spawnParticle(effect, {
+        x: gx + 0.2 + Math.random() * 0.6,
+        y: y + Math.random() * 0.4,
+        z: gz + 0.2 + Math.random() * 0.6,
+      });
+    }
+  } catch {
+    // 忽略
+  }
+}
+
+/** 俯瞰选中格粒子提示:每 0.25s 在玩家脚下格撒白色粒子(与落子同一取格语义) */
+function spawnOverviewMarker(
+  runtime: MinigameRuntime,
+  roomId: number,
+  state: GomokuState,
+): void {
+  const cfg = getGomokuConfig();
+  const dim = runtime.roomDim(roomId);
+  const y = cfg.boardY + 1 + 0.6;
+  for (const id of state.overview) {
+    const player = runtime
+      .roomPlayers(roomId)
+      .find((p) => p !== undefined && p.id === id);
+    if (!player) continue;
+    const gx = Math.floor(player.location.x);
+    const gz = Math.floor(player.location.z);
+    if (!inGrid(gx, gz)) continue;
+    spawnCellParticles(dim, gx, gz, y, "minecraft:endrod", 4);
+  }
+}
+
 /** 注册俯瞰 aim assist 预设:只锁定棋盘/棋子方块(其余优先级 0) */
 function registerOverviewAimAssist(): void {
   try {
@@ -634,6 +687,18 @@ function registerOverviewAimAssist(): void {
 export function initGomoku(getRuntime: () => MinigameRuntime): void {
   const runtime = getRuntime();
   registerOverviewAimAssist();
+
+  // 俯瞰选中格粒子提示(0.25s 轮询,跟随玩家脚下格)
+  system.runInterval(() => {
+    for (const [roomId, state] of [...games.entries()]) {
+      try {
+        if (runtime.getPhase(roomId) !== "running") continue;
+        spawnOverviewMarker(runtime, roomId, state);
+      } catch (error) {
+        console.warn(`[Bearcade Gomoku] 俯瞰标记异常 room=${roomId}`, error);
+      }
+    }
+  }, 5);
 
   // 手持棋子使用(use):与望远镜同一事件源;俯瞰中命中 → 在玩家脚下落子
   world.afterEvents.itemUse.subscribe((event) => {
