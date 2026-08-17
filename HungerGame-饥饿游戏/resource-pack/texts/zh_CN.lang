@@ -1,2 +1,5 @@
 pack.name=饥饿游戏(HungerGame)
-pack.description=Bearcade 饥饿游戏小游戏包(骨架阶段)
+pack.description=Bearcade 饥饿游戏小游戏包
+bearcade:itemGroup.name.hungergame=饥饿游戏方块
+tile.bearcade:hg_center_chest.name=中心物资箱
+tile.bearcade:hg_wild_chest.name=野外物资箱

@@ -1,0 +1,30 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:block": {
+    "description": {
+      "identifier": "bearcade:hg_wild_chest",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:inventory": {
+        "inventory_size": 27,
+        "container_type": "inventory"
+      },
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "hg_wild_chest"
+        }
+      },
+      "minecraft:unit_cube": {},
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 9999
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 3600000
+      },
+      "minecraft:map_color": { "color": "#27ae60" }
+    }
+  }
+}

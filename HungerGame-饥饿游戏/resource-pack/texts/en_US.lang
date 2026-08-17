@@ -1,2 +1,5 @@
 pack.name=HungerGame
-pack.description=Bearcade HungerGame minigame pack (skeleton)
+pack.description=Bearcade HungerGame minigame pack
+bearcade:itemGroup.name.hungergame=Hunger Game Blocks
+tile.bearcade:hg_center_chest.name=Center Supply Chest
+tile.bearcade:hg_wild_chest.name=Wild Supply Chest

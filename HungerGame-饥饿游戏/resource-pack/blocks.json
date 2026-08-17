@@ -1,0 +1,5 @@
+{
+  "format_version": "1.19.0",
+  "bearcade:hg_center_chest": { "textures": "hg_center_chest", "sound": "wood" },
+  "bearcade:hg_wild_chest": { "textures": "hg_wild_chest", "sound": "wood" }
+}

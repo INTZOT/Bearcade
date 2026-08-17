@@ -1,0 +1,26 @@
+{
+  "format_version": "1.20.40",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "bearcade:hg_loot_pool",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": { "family": ["bearcade", "hungergame", "loot_pool"] },
+      "minecraft:health": { "value": 1024, "max": 1024 },
+      "minecraft:persistent": {},
+      "minecraft:collision_box": { "width": 0.0, "height": 0.0 },
+      "minecraft:scale": { "value": 0.01 },
+      "minecraft:inventory": {
+        "inventory_size": 54,
+        "container_type": "inventory",
+        "container_name": "container"
+      },
+      "minecraft:nameable": {
+        "allow_name_tag_renaming": false
+      }
+    }
+  }
+}

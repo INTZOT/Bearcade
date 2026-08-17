@@ -1,7 +1,8 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { makeHungerGameHooks } from "./game";
+import { initHungerGame, makeHungerGameHooks } from "./game";
 import { getHungerGameConfig, loadHungerGameConfig } from "./game-config";
+import { ensurePoolEntities } from "./loot";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -13,7 +14,6 @@ import {
   PREP_SPAWN,
   ROOM_COPY_ORIGIN,
   ROOM_COUNT,
-  START_POS,
   STRUCTURE_ID,
   TEMPLATE_FROM,
   TEMPLATE_SPAWN,
@@ -33,6 +33,10 @@ runtime = new MinigameRuntime(
     maxPlayers: MAX_PLAYERS,
     minPlayers: MIN_PLAYERS,
     partyAvailable: true,
+    // FFA:有人退出视为淘汰,对局继续,不能因人数低于 min 自动结束
+    endGameWhenBelowMin: false,
+    // 512² 地图:64 格分块捕获/应用
+    tileSize: 64,
     prepSpawn: PREP_SPAWN,
     templateFrom: TEMPLATE_FROM,
     templateTo: TEMPLATE_TO,
@@ -41,7 +45,7 @@ runtime = new MinigameRuntime(
     tickingTo: TICKING_TO,
     structureId: STRUCTURE_ID,
     templateSpawn: TEMPLATE_SPAWN,
-    startPositions: [START_POS],
+    startPositions: [],
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
     startDelayTicks: 60 * 20,
@@ -59,5 +63,8 @@ world.afterEvents.worldLoad.subscribe(() => {
   runtime.config.prepSpawn = getHungerGameConfig().prepSpawn;
   runtime.initWorld();
   runtime.initEvents();
-  // 待定:玩法事件监听(轮询/伤害/交互)在玩法设计后于此处注册
+  // 物资池实体(每房间 4 级,区块未加载时内部重试)
+  ensurePoolEntities(getRuntime);
+  // 玩法事件监听
+  initHungerGame(getRuntime);
 });
