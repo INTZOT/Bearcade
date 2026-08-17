@@ -1,0 +1,11 @@
+{
+  "format_version": "1.21.70",
+  "minecraft:aim_assist_preset": {
+    "identifier": "bearcade:go_overview",
+    "item_settings": {},
+    "default_item_settings": "bearcade:go_board",
+    "hand_settings": "bearcade:go_board",
+    "exclusion_list": {},
+    "liquid_targeting_list": {}
+  }
+}

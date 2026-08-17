@@ -1,0 +1,23 @@
+{
+  "format_version": "1.21.70",
+  "minecraft:aim_assist_categories": {
+    "categories": [
+      {
+        "name": "bearcade:gomoku_board",
+        "entity_default": 0,
+        "block_default": 0,
+        "priorities": {
+          "blocks": {
+            "bearcade:chestboard_blank": 10,
+            "bearcade:chestboard_center": 10,
+            "bearcade:chestboard_center_point": 10,
+            "bearcade:chestboard_side": 10,
+            "bearcade:chestboard_corner": 10,
+            "bearcade:black_stone": 10,
+            "bearcade:white_stone": 10
+          }
+        }
+      }
+    ]
+  }
+}

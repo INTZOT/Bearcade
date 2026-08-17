@@ -4,6 +4,7 @@ import {
   ItemStack,
   GameMode,
   ItemLockMode,
+  AimAssistTargetMode,
   EntityComponentTypes,
   type EntityInventoryComponent,
   type Player,
@@ -183,10 +184,12 @@ function handlePlace(
   if (!state) return false;
   const cfg = getGomokuConfig();
 
-  // 俯瞰视角:准星脱离相机(本体视线强制水平),右键落子改为落在玩家脚下最近的交叉点
+  // 俯瞰视角:aim assist 激活时引擎放置已锁定棋盘格,直接放行(原生消耗棋子);
+  // 未激活(实验/预设未加载)时兜底:脚本放置到玩家脚下
   if (state.overview.has(player.id)) {
+    if (player.getAimAssist().settings !== undefined) return true;
     tryPlaceAtPlayer(runtime, roomId, state, player);
-    return false; // 取消引擎放置,由脚本放置
+    return false;
   }
 
   const { x, y, z } = event.block.location;
@@ -433,7 +436,9 @@ const SPYGLASS_ID = "minecraft:spyglass";
 const OVERHEAD_PRESET = "minecraft:free";
 /** 执行 /controlscheme 时给玩家打的临时 tag(命令层无 @s 源) */
 const OVERVIEW_TAG = "bearcade_overview";
-/** 俯瞰落子去重:同一 tick 内多个事件源(canPlace/itemUse/itemUseOn)只落一次 */
+/** aim assist 预设(数据驱动 Cameras/Presets/,只锁定棋盘/棋子方块) */
+const AIM_ASSIST_PRESET = "bearcade:gomoku_overview";
+/** 俯瞰落子去重:同一 tick 内多个事件源(canPlace/itemUse/itemStartUseOn)只落一次 */
 const lastOverviewPlaceTick = new Map<string, number>();
 
 /** 开局发放锁定在物品栏的望远镜(槽位锁定,可用不可丢) */
@@ -488,6 +493,7 @@ function toggleOverview(
       rotation: { x: 90, y: 0 },
     });
     setOverheadControls(player);
+    setOverviewAimAssist(player);
     state.overview.add(player.id);
     player.sendMessage(
       `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,右键=在脚下落子),再次使用望远镜恢复`,
@@ -498,13 +504,41 @@ function toggleOverview(
   }
 }
 
-/** 退出俯瞰状态:清除控制方案与相机(幂等) */
+/** 退出俯瞰状态:清除 aim assist + 控制方案与相机(幂等) */
 function exitOverviewState(player: Player): void {
+  clearOverviewAimAssist(player);
   clearOverheadControls(player);
   try {
     player.camera.clear();
   } catch (error) {
     console.warn("[Bearcade Gomoku] 恢复视角失败", error);
+  }
+}
+
+/** 激活 aim assist:只锁定棋盘/棋子方块(其余优先级 0),最近优先 → 脚下格,全向锥 */
+function setOverviewAimAssist(player: Player): void {
+  try {
+    player.getAimAssist().set({
+      presetId: AIM_ASSIST_PRESET,
+      distance: 16,
+      viewAngle: { x: 90, y: 90 },
+      targetMode: AimAssistTargetMode.Distance,
+    });
+    console.warn(
+      "[Bearcade Gomoku] aim assist 已激活",
+      player.getAimAssist().settings?.presetId ?? "?",
+    );
+  } catch (error) {
+    console.warn("[Bearcade Gomoku] aim assist 设置失败(需实验/作弊?)", error);
+  }
+}
+
+/** 关闭 aim assist(传空参数即禁用) */
+function clearOverviewAimAssist(player: Player): void {
+  try {
+    player.getAimAssist().set();
+  } catch {
+    // 忽略
   }
 }
 
@@ -574,23 +608,32 @@ export function initGomoku(getRuntime: () => MinigameRuntime): void {
       return;
     }
     if (isStone(event.itemStack.typeId)) {
-      if (state.overview.has(player.id)) {
-        console.warn("[Bearcade Gomoku] [diag] itemUse stone in overview");
+      // aim assist 未激活时才走脚本兜底(激活时引擎放置已锁定棋盘格)
+      if (
+        state.overview.has(player.id) &&
+        player.getAimAssist().settings === undefined
+      ) {
+        console.warn("[Bearcade Gomoku] [diag] itemUse stone in overview (fallback)");
         tryPlaceAtPlayer(runtime, roomId, state, player);
       }
       return;
     }
   });
 
-  // 右键点在方块上(start use on):俯瞰中持棋子点任何方块 → 同样视为脚下落子
+  // 右键点在方块上(start use on):aim assist 未激活时兜底,俯瞰中持棋子点任何方块 → 脚下落子
   world.afterEvents.itemStartUseOn.subscribe((event) => {
     if (!event.itemStack || !isStone(event.itemStack.typeId)) return;
     const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
     if (roomId === undefined) return;
     const state = games.get(roomId);
     if (!state || runtime.getPhase(roomId) !== "running") return;
-    if (!state.overview.has(event.source.id)) return;
-    console.warn("[Bearcade Gomoku] [diag] itemStartUseOn stone in overview");
+    if (
+      !state.overview.has(event.source.id) ||
+      event.source.getAimAssist().settings !== undefined
+    ) {
+      return;
+    }
+    console.warn("[Bearcade Gomoku] [diag] itemStartUseOn stone in overview (fallback)");
     tryPlaceAtPlayer(runtime, roomId, state, event.source);
   });
 

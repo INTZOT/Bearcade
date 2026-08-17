@@ -1,0 +1,23 @@
+{
+  "format_version": "1.21.70",
+  "minecraft:aim_assist_categories": {
+    "categories": [
+      {
+        "name": "bearcade:go_board",
+        "entity_default": 0,
+        "block_default": 0,
+        "priorities": {
+          "blocks": {
+            "bearcade:go_chestboard_blank": 10,
+            "bearcade:go_chestboard_center": 10,
+            "bearcade:go_chestboard_center_point": 10,
+            "bearcade:go_chestboard_side": 10,
+            "bearcade:go_chestboard_corner": 10,
+            "bearcade:go_black_stone": 10,
+            "bearcade:go_white_stone": 10
+          }
+        }
+      }
+    ]
+  }
+}
