@@ -222,6 +222,10 @@ function handlePlace(
   const player = event.player;
   const { x, y, z } = event.block.location;
   const cfg = getGoConfig();
+  // 俯瞰视角:准星脱离相机,右键落子改为落在玩家脚下最近的交叉点
+  if (state.overview.has(player.id)) {
+    return placeAtPlayer(runtime, roomId, state, player);
+  }
   if (y !== cfg.boardY + 1 || !inGrid(x, z)) {
     system.run(() => player.sendMessage("§c棋子只能放在棋盘交叉点上"));
     return false;
@@ -285,6 +289,107 @@ function handlePlace(
     switchTurn(runtime, roomId, state);
   });
   return true;
+}
+
+/** 俯瞰视角落子:忽略引擎瞄准位置,在玩家脚下最近的交叉点落子(取消引擎放置,脚本放置) */
+function placeAtPlayer(
+  runtime: MinigameRuntime,
+  roomId: number,
+  state: GoState,
+  player: Player,
+): boolean {
+  const cfg = getGoConfig();
+  const gx = Math.round(player.location.x);
+  const gz = Math.round(player.location.z);
+  if (!inGrid(gx, gz)) {
+    system.run(() => player.sendMessage("§c俯瞰落子:请站到棋盘交叉点上方"));
+    return false;
+  }
+  if (state.board[idx(gx)][idx(gz)]) {
+    system.run(() => player.sendMessage("§c该交叉点已有棋子"));
+    return false;
+  }
+  if (state.players[state.turn] !== player.id) {
+    system.run(() => player.sendMessage("§c还没轮到你落子"));
+    return false;
+  }
+  const color = state.turn;
+  const stoneType = stoneId(color);
+  if (countStones(player, color) < 1) {
+    system.run(() => player.sendMessage("§c请手持对应颜色棋子再右键"));
+    return false;
+  }
+  // 劫:上一步单子被提位置禁落
+  if (state.ko && state.ko.x === gx && state.ko.z === gz) {
+    system.run(() => player.sendMessage("§c劫争:此交叉点暂时不能落子"));
+    return false;
+  }
+  // 模拟落子(数组先放子)
+  state.board[idx(gx)][idx(gz)] = color;
+  const sim = simulatePlace(state, gx, gz, color);
+  if (!sim.ok) {
+    state.board[idx(gx)][idx(gz)] = null;
+    system.run(() => player.sendMessage("§c禁着点(自杀)"));
+    return false;
+  }
+  // 落子成立:提交状态
+  state.prisoners[color] += sim.captured.length;
+  state.ko = sim.captured.length === 1
+    ? { x: sim.captured[0][0], z: sim.captured[0][1] }
+    : null;
+  state.passed = { black: false, white: false };
+  state.justPlaced = true;
+
+  // 世界同步 + 消耗棋子 + 提示(取消引擎放置,需脚本放置)
+  const dim = runtime.roomDim(roomId);
+  const captured = sim.captured;
+  const boardY = cfg.boardY + 1;
+  system.run(() => {
+    for (const [cgx, cgz] of captured) {
+      try {
+        dim.setBlockType({ x: cgx, y: boardY, z: cgz }, "minecraft:air");
+      } catch {
+        // 忽略
+      }
+    }
+    try {
+      dim.setBlockType({ x: gx, y: boardY, z: gz }, stoneType);
+    } catch (error) {
+      console.warn("[Bearcade Go] 俯瞰落子写方块失败", error);
+    }
+    consumeStone(player, stoneType);
+    if (captured.length > 0) {
+      runtime.announce(
+        roomId,
+        `§e${stoneName(color)}方提子 ${captured.length} 子(累计 ${state.prisoners[color]})`,
+      );
+    }
+    player.sendMessage(`§7俯瞰落子:${stoneName(color)} (${gx}, ${gz})`);
+    switchTurn(runtime, roomId, state);
+  });
+  return false;
+}
+
+/** 消耗玩家手中的一颗棋子(引擎取消放置后手动扣减) */
+function consumeStone(player: Player, stoneType: string): void {
+  try {
+    const container = inventoryOf(player)?.container;
+    if (!container) return;
+    for (let slot = 0; slot < container.size; slot++) {
+      const item = container.getItem(slot);
+      if (item?.typeId === stoneType) {
+        if (item.amount > 1) {
+          item.amount -= 1;
+          container.setItem(slot, item);
+        } else {
+          container.setItem(slot, undefined);
+        }
+        return;
+      }
+    }
+  } catch {
+    // 忽略
+  }
 }
 
 // ================= 停一手 / 计目 =================
@@ -427,11 +532,7 @@ export function makeGoHooks(getRuntime: () => MinigameRuntime): MinigameHooks {
       for (const player of runtime.roomPlayers(roomId)) {
         if (player === undefined) continue;
         player.setGameMode(GameMode.Adventure);
-        try {
-          player.camera.clear();
-        } catch {
-          // 忽略
-        }
+        exitOverviewState(player);
         removeGameItems(player);
       }
       clearStones(runtime, roomId);
@@ -464,6 +565,10 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
 
   // 观战/离场:当前持棋玩家离开房间 → 视为认输(断线=退出契约)
   world.afterEvents.playerDimensionChange.subscribe((event) => {
+    // 俯瞰状态中途离房:先恢复本体朝向与相机
+    if (overviewRotations.has(event.player.id)) {
+      exitOverviewState(event.player);
+    }
     const roomId = runtime.roomIdFromDimension(event.fromDimension.id);
     if (roomId === undefined) return;
     const state = games.get(roomId);
@@ -497,6 +602,8 @@ const SPYGLASS_ID = "minecraft:spyglass";
 const OVERHEAD_PRESET = "minecraft:free";
 /** 执行 /controlscheme 时给玩家打的临时 tag(命令层无 @s 源) */
 const OVERVIEW_TAG = "bearcade_overview";
+/** 俯瞰视角下保存的玩家本体原朝向(退出时恢复) */
+const overviewRotations = new Map<string, { x: number; y: number }>();
 
 /** 开局发放锁定在物品栏的望远镜(槽位锁定,可用不可丢) */
 function giveSpyglass(player: Player): void {
@@ -556,12 +663,7 @@ function toggleOverview(
 ): void {
   if (state.overview.has(player.id)) {
     state.overview.delete(player.id);
-    clearOverheadControls(player);
-    try {
-      player.camera.clear();
-    } catch (error) {
-      console.warn("[Bearcade Go] 恢复视角失败", error);
-    }
+    exitOverviewState(player);
     player.sendMessage("§7已恢复普通视角");
     return;
   }
@@ -577,13 +679,40 @@ function toggleOverview(
       rotation: { x: 90, y: 0 },
     });
     setOverheadControls(player);
+    // 玩家本体俯仰压到 90°(落子射线由玩家头决定,与相机无关):准星指向脚下,右键即落到自己位置
+    const rot = player.getRotation();
+    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
+    try {
+      player.setRotation({ x: 90, y: rot.y });
+    } catch (error) {
+      console.warn("[Bearcade Go] 设置俯瞰朝向失败", error);
+    }
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,鼠标/摇杆可转动视野),再次使用望远镜恢复`,
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,鼠标/摇杆可转动视野,右键=在脚下落子),再次使用望远镜恢复`,
     );
   } catch (error) {
     player.sendMessage("§c俯瞰视角切换失败");
     console.warn("[Bearcade Go] 俯瞰视角设置失败", error);
+  }
+}
+
+/** 退出俯瞰状态:恢复玩家本体朝向 + 清除控制方案与相机(幂等) */
+function exitOverviewState(player: Player): void {
+  const saved = overviewRotations.get(player.id);
+  if (saved) {
+    overviewRotations.delete(player.id);
+    try {
+      player.setRotation(saved);
+    } catch (error) {
+      console.warn("[Bearcade Go] 恢复朝向失败", error);
+    }
+  }
+  clearOverheadControls(player);
+  try {
+    player.camera.clear();
+  } catch (error) {
+    console.warn("[Bearcade Go] 恢复视角失败", error);
   }
 }
 
