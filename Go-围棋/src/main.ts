@@ -1,11 +1,6 @@
 import { system, world } from "@minecraft/server";
-import {
-  Player,
-  CustomCommandStatus,
-  CommandPermissionLevel,
-} from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { initGo, makeGoHooks, passCommand } from "./game";
+import { initGo, makeGoHooks } from "./game";
 import { getGoConfig, loadGoConfig } from "./go-config";
 import {
   DISPLAY_NAME,
@@ -57,39 +52,6 @@ runtime = new MinigameRuntime(
 
 system.beforeEvents.startup.subscribe((event) => {
   runtime.initStartup(event);
-  // 停一手命令
-  try {
-    event.customCommandRegistry.registerCommand(
-      {
-        name: "bearcade:go_pass",
-        description: "围棋:停一手(双方连续停手则终局计目)",
-        permissionLevel: CommandPermissionLevel.Any,
-        cheatsRequired: false,
-      },
-      (origin) => {
-        const player = origin.sourceEntity;
-        if (!player || !(player instanceof Player)) {
-          return {
-            status: CustomCommandStatus.Failure,
-            message: "该命令只能由玩家执行",
-          };
-        }
-        system.run(() => {
-          player.sendMessage(
-            passCommand(getRuntime(), player)
-              ? "§a已停一手"
-              : "§c停一手失败(不在对局中或未轮到你)",
-          );
-        });
-        return {
-          status: CustomCommandStatus.Success,
-          message: "正在停一手",
-        };
-      },
-    );
-  } catch (error) {
-    console.warn("[Bearcade Go] 注册 /bearcade:go_pass 失败", error);
-  }
 });
 
 world.afterEvents.worldLoad.subscribe(() => {

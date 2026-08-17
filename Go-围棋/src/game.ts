@@ -3,7 +3,7 @@
 // - 落子:放置自定义棋子方块,先手黑方;
 // - 提子:落子后先提对方无气连通组(数组 + 世界方块同步),再查自杀;
 // - 劫:上一步单子被提的位置禁落(简单劫,不做 superko);
-// - 停一手:/bearcade:go_pass,双方连续 pass 终局计目;
+// - 停一手:使用发放的纸张(物品)停一手,双方连续 pass 终局计目;
 // - 计目:领地(单色包围空域)+ 提子数,黑贴 GO_KOMI 目;
 // - 计时:每方 CLOCK_TICKS,当前玩家计时,超时判负;
 // - 认输:当前玩家丢弃手中的棋子物品即认输(库存轮询检测)。
@@ -179,7 +179,13 @@ function giveTurn(
     if (container.emptySlotsCount === 0) {
       for (let slot = 0; slot < container.size; slot++) {
         const item = container.getItem(slot);
-        if (item && item.typeId !== STONE_BLACK && item.typeId !== STONE_WHITE) {
+        if (
+          item &&
+          item.typeId !== STONE_BLACK &&
+          item.typeId !== STONE_WHITE &&
+          item.typeId !== SPYGLASS_ID &&
+          item.typeId !== PASS_ITEM_ID
+        ) {
           container.setItem(slot, undefined);
           break;
         }
@@ -187,7 +193,7 @@ function giveTurn(
     }
     container.addItem(new ItemStack(stoneId(color), 1));
   }
-  player.sendMessage(`§a轮到你落子(${stoneName(color)}方),丢弃棋子=认输`);
+  player.sendMessage(`§a轮到你落子(${stoneName(color)}方),纸张=停一手,丢弃棋子=认输`);
   player.onScreenDisplay.setActionBar(`§a轮到你落子 · ${stoneName(color)}方`);
 }
 
@@ -304,13 +310,6 @@ function handlePass(
   return true;
 }
 
-/** 停一手命令入口(供 main.ts 调用):按玩家所在房间执行,返回是否成功 */
-export function passCommand(runtime: MinigameRuntime, player: Player): boolean {
-  const roomId = runtime.roomIdFromDimension(player.dimension.id);
-  if (roomId === undefined) return false;
-  return handlePass(runtime, roomId, player);
-}
-
 /** 计目:领地(单色完全包围的空域)+ 提子,黑贴目;终局 */
 function finishByScoring(
   runtime: MinigameRuntime,
@@ -412,10 +411,11 @@ export function makeGoHooks(getRuntime: () => MinigameRuntime): MinigameHooks {
       games.set(roomId, state);
       players.forEach((player) => {
         player.setGameMode(GameMode.Survival);
-        // 发放望远镜(槽位锁定,用于切换俯瞰视角)
+        // 发放望远镜(槽位锁定,俯瞰视角)与纸张(槽位锁定,停一手)
         giveSpyglass(player);
+        givePassItem(player);
         player.sendMessage(
-          `§a围棋开始!${players[0].name}(黑) vs ${players[1].name}(白),黑先手;丢出棋子=认输,/bearcade:go_pass=停一手;每方 ${Math.round(cfg.clockTicks / 1200)} 分钟局时`,
+          `§a围棋开始!${players[0].name}(黑) vs ${players[1].name}(白),黑先手;丢出棋子=认输,使用纸张=停一手;每方 ${Math.round(cfg.clockTicks / 1200)} 分钟局时`,
         );
       });
       runtime.teleportPlayer(roomId, players[0], cfg.blackStart);
@@ -432,7 +432,7 @@ export function makeGoHooks(getRuntime: () => MinigameRuntime): MinigameHooks {
         } catch {
           // 忽略
         }
-        removeSpyglass(player);
+        removeGameItems(player);
       }
       clearStones(runtime, roomId);
       games.delete(roomId);
@@ -474,14 +474,19 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
     }
   });
 
-  // 俯瞰视角:对局中使用望远镜切换
+  // 物品交互:对局中使用望远镜=俯瞰视角,使用纸张=停一手
   world.afterEvents.itemUse.subscribe((event) => {
-    if (event.itemStack.typeId !== SPYGLASS_ID) return;
     const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
     if (roomId === undefined) return;
     const state = games.get(roomId);
     if (!state || runtime.getPhase(roomId) !== "running") return;
-    toggleOverview(event.source, state, getGoConfig());
+    if (event.itemStack.typeId === SPYGLASS_ID) {
+      toggleOverview(event.source, state, getGoConfig());
+      return;
+    }
+    if (event.itemStack.typeId === PASS_ITEM_ID) {
+      handlePass(runtime, roomId, event.source);
+    }
   });
 }
 
@@ -503,18 +508,40 @@ function giveSpyglass(player: Player): void {
   }
 }
 
-/** 回收玩家身上的望远镜(对局重置时清理) */
-function removeSpyglass(player: Player): void {
+/** 回收玩家身上的对局物品(望远镜/纸张,对局重置时清理) */
+function removeGameItems(player: Player): void {
   try {
     const container = player.getComponent(EntityComponentTypes.Inventory)
       ?.container;
     if (!container) return;
     for (let slot = 0; slot < container.size; slot++) {
       const item = container.getItem(slot);
-      if (item?.typeId === SPYGLASS_ID) container.setItem(slot, undefined);
+      if (
+        item &&
+        (item.typeId === SPYGLASS_ID || item.typeId === PASS_ITEM_ID)
+      ) {
+        container.setItem(slot, undefined);
+      }
     }
   } catch {
     // 忽略
+  }
+}
+
+// ================= 停一手(纸张) =================
+
+const PASS_ITEM_ID = "minecraft:paper";
+
+/** 开局发放锁定在物品栏的纸张(槽位锁定,使用=停一手,仅当前回合玩家有效) */
+function givePassItem(player: Player): void {
+  try {
+    const pass = new ItemStack(PASS_ITEM_ID, 1);
+    pass.lockMode = ItemLockMode.slot;
+    player
+      .getComponent(EntityComponentTypes.Inventory)
+      ?.container?.addItem(pass);
+  } catch (error) {
+    console.warn("[Bearcade Go] 发放纸张(停一手)失败", error);
   }
 }
 
