@@ -829,6 +829,12 @@ function toggleOverview(
     });
     setOverheadControls(player);
     setOverviewAimAssist(player);
+    // 锁定 60 默认视野(相机作用域,camera.clear() 时自动还原)
+    try {
+      player.camera.setFov({ fov: 60 });
+    } catch (error) {
+      console.warn("[Bearcade Go] 锁定视野失败", error);
+    }
     state.overview.add(player.id);
     player.sendMessage(
       `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,右键=在脚下落子),再次使用望远镜恢复`,
