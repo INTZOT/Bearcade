@@ -225,12 +225,11 @@ function handlePlace(
   const player = event.player;
   const { x, y, z } = event.block.location;
   const cfg = getGoConfig();
-  // 俯瞰视角:aim assist 激活时引擎放置已锁定棋盘格,直接放行(原生消耗棋子);
-  // 未激活(实验/预设未加载)时兜底:脚本放置到玩家脚下
+  // 俯瞰视角:准星脱离相机(本体视线强制水平),右键落子改为落在玩家脚下最近的交叉点
+  // (aim assist 在本版本实测不产生锁定,不承担功能;此处无条件脚本落子)
   if (state.overview.has(player.id)) {
-    if (player.getAimAssist().settings !== undefined) return true;
     tryPlaceAtPlayer(runtime, roomId, state, player);
-    return false;
+    return false; // 取消引擎放置,由脚本放置
   }
   if (y !== cfg.boardY + 1 || !inGrid(x, z)) {
     system.run(() => player.sendMessage("§c棋子只能放在棋盘交叉点上"));
@@ -616,20 +615,15 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
     }
   });
 
-  // 右键点在方块上(start use on):aim assist 未激活时兜底,俯瞰中持棋子点任何方块 → 脚下落子
+  // 右键点在方块上(start use on):俯瞰中持棋子点任何方块 → 同样视为脚下落子
   world.afterEvents.itemStartUseOn.subscribe((event) => {
     if (!event.itemStack || !isStone(event.itemStack.typeId)) return;
     const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
     if (roomId === undefined) return;
     const state = games.get(roomId);
     if (!state || runtime.getPhase(roomId) !== "running") return;
-    if (
-      !state.overview.has(event.source.id) ||
-      event.source.getAimAssist().settings !== undefined
-    ) {
-      return;
-    }
-    console.warn("[Bearcade Go] [diag] itemStartUseOn stone in overview (fallback)");
+    if (!state.overview.has(event.source.id)) return;
+    console.warn("[Bearcade Go] [diag] itemStartUseOn stone in overview");
     tryPlaceAtPlayer(runtime, roomId, state, event.source);
   });
 }
@@ -797,7 +791,7 @@ function exitOverviewState(player: Player): void {
   }
 }
 
-/** 激活 aim assist:只锁定棋盘/棋子方块(其余优先级 0),最近优先 → 脚下格,全向锥 */
+/** 激活 aim assist:仅作视觉辅助(本版本实测不产生锁定框,不承担落子功能) */
 function setOverviewAimAssist(player: Player): void {
   try {
     player.getAimAssist().set({
