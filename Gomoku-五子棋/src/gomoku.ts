@@ -302,15 +302,6 @@ function placeAtPlayer(
       runtime
         .roomDim(roomId)
         .setBlockType({ x: gx, y: cfg.boardY + 1, z: gz }, stoneType);
-      // 落子反馈:绿色粒子爆团
-      spawnCellParticles(
-        runtime.roomDim(roomId),
-        gx,
-        gz,
-        cfg.boardY + 1 + 0.6,
-        "minecraft:villager_happy",
-        8,
-      );
     } catch (error) {
       console.warn("[Bearcade Gomoku] 俯瞰落子写方块失败", error);
     }
@@ -603,28 +594,6 @@ function tryPlaceAtPlayer(
 /** 是否为棋子方块物品 */
 function isStone(typeId: string): boolean {
   return typeId === STONE_BLACK || typeId === STONE_WHITE;
-}
-
-/** 在棋盘格上随机撒粒子(落子反馈用) */
-function spawnCellParticles(
-  dim: Dimension,
-  gx: number,
-  gz: number,
-  y: number,
-  effect: string,
-  count: number,
-): void {
-  try {
-    for (let i = 0; i < count; i++) {
-      dim.spawnParticle(effect, {
-        x: gx + 0.2 + Math.random() * 0.6,
-        y: y + Math.random() * 0.4,
-        z: gz + 0.2 + Math.random() * 0.6,
-      });
-    }
-  } catch {
-    // 忽略
-  }
 }
 
 /** 沿格子四条边按间距撒粒子,画出一个正方形框 */
