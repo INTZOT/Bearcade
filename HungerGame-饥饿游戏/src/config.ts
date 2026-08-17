@@ -8,10 +8,10 @@ export const PACK_ID = "25db9388-fb9c-47c6-ad91-cdf0915ec7d6";
 export const IPC_CHANNEL = "bearcade:ipc";
 export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 
-// 待定:房间数/人数上限(大逃杀类建议单房 4~16 人)
-export const ROOM_COUNT = 8;
-export const MAX_PLAYERS = 12;
-export const MIN_PLAYERS = 2;
+// 大逃杀类:单房 4~16 人,支持派对模式(派对下人数可超 16,出生点按列表循环)
+export const ROOM_COUNT = 2;
+export const MAX_PLAYERS = 16;
+export const MIN_PLAYERS = 4;
 
 // ===== 模板坐标(占位 ±16,按实际场地调整;横向超 64 可配置 tileSize 自动分块) =====
 export const TEMPLATE_FROM = { x: -16, y: -64, z: -16 };

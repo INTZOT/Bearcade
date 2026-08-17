@@ -32,7 +32,7 @@ runtime = new MinigameRuntime(
     roomCount: ROOM_COUNT,
     maxPlayers: MAX_PLAYERS,
     minPlayers: MIN_PLAYERS,
-    partyAvailable: false,
+    partyAvailable: true,
     prepSpawn: PREP_SPAWN,
     templateFrom: TEMPLATE_FROM,
     templateTo: TEMPLATE_TO,
