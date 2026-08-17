@@ -288,3 +288,51 @@ bearcade:itemGroup.name.gomoku=五子棋方块
 - RP `blocks.json` 报 "block does not exist in the registry" 是方块未注册的连带,先修 BP;
 - 改 JSON 用工具写入后注意 **BOM**:PowerShell `-Encoding UTF8` 会加 BOM,引擎/校验器可能不认,统一 `UTF8Encoding($false)` 无 BOM 写入;
 - 与可用成品 addon **逐字段比对**是最快的定位手段(组键命名空间、icon、menu_category 冲突都是这么查出来的)。
+
+## 13. 围棋(Go)玩法与俯瞰视角实录(2026-08-17)
+
+> 源自 Go 完整开发:19×19 棋盘、提子/劫/计目/计时、物品停一手、终局确认,以及 gomoku/go 共用的俯瞰视角(望远镜切换 + 脚下落子)。全部在 1.26.42 / @minecraft/server 2.10.0-beta 实测。
+
+### 13.1 丢子检测:API 没有玩家丢弃事件
+
+- **2.10.0-beta 没有 `playerDropItem` 事件**;认输判定(丢出棋子=认输)只能**库存轮询**:每 10 tick 数当前持棋玩家手中棋子数,为 0 且非刚落子 → 认输;
+- 刚落子也会扣光手中棋子 → 落子时置 `justPlaced` 标志,轮询先消费该标志再判断(本 tick 刚落子不误判);
+- 离房/断线:订阅 `playerDimensionChange`,当前持棋玩家离开房间维度 → 视为认输(断线=退出契约)。
+
+### 13.2 停一手:自定义命令 → 物品交互
+
+- 自定义命令(`customCommandRegistry.registerCommand`)回调跑在 restricted 上下文,实际逻辑必须 `system.run` 延迟;后来干脆**改为物品**(纸张)+ `itemUse` 事件,去掉命令;
+- **随机入包会误触**:`addItem` 把纸张塞进任意空格,玩家乱点可能误停一手 → **固定快捷栏槽位**:`container.setItem(8, item)` + `ItemLockMode.slot`(望远镜同理放第 8 格);
+- 腾格逻辑(背包满清杂物)必须**排除对局道具**(棋子/纸张/望远镜),否则会被当杂物清掉。
+
+### 13.3 双方停手后的终局确认
+
+- 状态机:`pendingEnd: boolean` + `endConfirm: Set<playerId>`;双方连续 pass 后弹 `MessageFormData`(双按钮:确认终局/取消继续);
+- `MessageFormResponse.selection`:**0 = 第一个按钮**;`undefined` = 玩家直接关闭表单(要当作取消处理,否则挂死);
+- 确认期**暂停认输轮询与计时**(`pendingEnd` 时跳过 pollResign/pollClock),否则弹窗期间会超时判负/丢子误判;
+- **60s 超时自动取消**防挂机;超时回调必须带 `games.get(roomId) !== state` 守卫——房间重置后旧 state 对象作废,直接操作会污染新对局;
+- 取消后清空 `passed`,`giveTurn` 给最后一个停手方继续行棋。
+
+### 13.4 俯瞰视角:落子射线跟随玩家本体,不跟随相机
+
+- **放置/交互射线 = 玩家本体头部朝向,与相机无关**;free 相机 + `controlscheme camera_relative` 下:鼠标不转相机、本体视线**强制水平**(俯仰锁 0、yaw 随移动),`setRotation` 改俯仰无效——"让玩家自己瞄准脚下"此路不通(详见 §9.5);
+- **aim assist 路线**:API 全通(注册 ✓ 激活 ✓)但**实测不出锁定框**——瞄准锥以**角色面朝方向**为中心,脚下棋盘在正下方 90°,超出锥角;且无法旋转角色朝向,几何上无解。教训:aim assist 适合"视线前方 ±45° 内的目标",不适合"脚下目标";
+- **最终方案:多事件源右键检测 + 脚本落子**:
+  - 本版本 API:`itemUseOn` **已拆分为 `itemStartUseOn` / `itemStopUseOn`**(`itemStack` 可选);`World`/`Player` 上的 aim assist 是 **`getAimAssist()` 方法**不是属性;
+  - 方块物品右键**同时触发 `itemUse` 和 `itemStartUseOn`**(对空也触发 itemUse,实测日志证实)→ canPlace 兜底 + 两事件三路统一入口,**同 tick 去重**(`lastOverviewPlaceTick` map)防重复落子;
+  - 引擎放置被取消(`canPlace` 返回 false)后**物品不会被消耗** → 脚本放置后手动 `consumeStone`;
+  - aim assist 注册 API 备忘:配置写在 **Settings 类**(`AimAssistCategorySettings`/`AimAssistPresetSettings` 可写字段+setter),`addCategory/addPreset` 返回的句柄只读;数据驱动 JSON(`Cameras/Presets/aim_assist_preset.json` + `categories.json`)与自定义 camera preset 同族问题——**本版本不加载**,必须走 ScriptAPI 注册表。
+
+### 13.5 俯瞰落子的具体坑
+
+- **`Math.round` 取格 bug**:玩家站在格心时 `player.location` 是 `整数 + 0.5`,`round(0.5)` 进位 → 棋子落在**相邻格**(斜对角偏移);应 `Math.floor` 取"脚底所在格"(负坐标也正确);
+- 落子后给玩家提示/写方块必须 `system.run` 延迟(before 事件 restricted 上下文);
+- **粒子选中框**:`spawnParticle` 沿格子四边按 0.2 间距撒点即可画方框;粒子 ID 无效时**静默失败**(无报错)→ 加一次性诊断日志(`spawnParticle` 抛错只打一条);实测可用:`minecraft:balloon_gas_particle`;
+- 相机锁视野:`player.camera.setFov({ fov: 60 })`——**相机作用域**,`camera.clear()` 自动还原,不需要手动恢复;
+- 俯瞰中离房/对局重置:统一 `exitOverviewState`(清 aim assist/controlscheme/相机),幂等防重复。
+
+### 13.6 环境:本地模型服务(Ollama)排障备忘
+
+- 现象:`vision` 工具 `fetch failed`、本地推理 500 → Ollama 没在跑 或 安装损坏;
+- 排查顺序:进程/端口(11434)→ `server.log`(`%LOCALAPPDATA%\Ollama\server.log`)→ `ollama list`;**`error starting llama-server: binary not found` = 安装损坏**(`lib\ollama\llama-server.exe` 缺失,更新半途失败常见),重装即可,模型库(自定义 `OLLAMA_MODELS`)不受影响;
+- 安装器支持 `/DIR=D:\...` + `/VERYSILENT` 指定安装盘;`OLLAMA_KEEP_ALIVE=0s` 会导致每次调用冷加载(慢 10~30s),改 `5m` 后连续调用秒回。
