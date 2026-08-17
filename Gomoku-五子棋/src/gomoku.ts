@@ -263,7 +263,7 @@ export function makeGomokuHooks(
         players: { black: black.id, white: white.id },
         overview: new Set(),
       });
-      // 生存模式才能放置压力板落子(放置合法性由 canPlace 钩子控制);
+      // 生存模式才能放置棋子方块落子(放置合法性由 canPlace 钩子控制);
       // 玩家从大厅(冒险)进入,必须显式切换
       black.setGameMode(GameMode.Survival);
       white.setGameMode(GameMode.Survival);
@@ -274,7 +274,7 @@ export function makeGomokuHooks(
       runtime.teleportPlayer(roomId, white, cfg.whiteStart);
       runtime.announce(
         roomId,
-        `§a对局开始!黑方:${black.name} / 白方:${white.name},放置压力板落子`,
+        `§a对局开始!黑方:${black.name} / 白方:${white.name},放置棋子落子`,
       );
       refreshHud(runtime, roomId, games.get(roomId)!);
       giveTurn(runtime, roomId, black, "black");
