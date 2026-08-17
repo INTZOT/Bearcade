@@ -1,6 +1,7 @@
 bearcade:itemGroup.name.gomoku=Gomoku Blocks
 tile.bearcade:chestboard_blank.name=Gomoku Board (Blank)
 tile.bearcade:chestboard_center.name=Gomoku Board (Center)
+tile.bearcade:chestboard_center_point.name=Gomoku Board (Center Point)
 tile.bearcade:chestboard_side.name=Gomoku Board (Side)
 tile.bearcade:chestboard_corner.name=Gomoku Board (Corner)
 tile.bearcade:black_stone.name=Black Stone
