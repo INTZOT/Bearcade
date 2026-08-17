@@ -35,8 +35,9 @@ runtime = new MinigameRuntime(
     partyAvailable: true,
     // FFA:有人退出视为淘汰,对局继续,不能因人数低于 min 自动结束
     endGameWhenBelowMin: false,
-    // 512² 地图:64 格分块捕获/应用
+    // 512² 地图:64 格分块 + 窗口化逐单元捕获/放置(引擎常加载上限 100 区块/个)
     tileSize: 64,
+    tileWindowed: true,
     prepSpawn: PREP_SPAWN,
     templateFrom: TEMPLATE_FROM,
     templateTo: TEMPLATE_TO,

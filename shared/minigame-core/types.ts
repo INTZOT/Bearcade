@@ -38,6 +38,11 @@ export interface MinigameConfig {
   startPositions: Vec3[];
   /** 结构分块尺寸(默认 64):模板横向超过该值会自动切成多块捕获/放置 */
   tileSize?: number;
+  /**
+   * 窗口化分块模式(默认 false):模板过大(如 512² 远超引擎 100 区块/常加载区上限)时,
+   * 捕获与放置按单元逐个"建常加载 → 操作 → 卸载",牺牲速度换取超大模板可行性。
+   */
+  tileWindowed?: boolean;
   lobbyDimensionId?: string;
   ipcChannel?: string;
   startDelayTicks?: number;

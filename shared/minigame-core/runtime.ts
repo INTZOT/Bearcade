@@ -524,29 +524,79 @@ export class MinigameRuntime {
     { id: string; from: Vec3; to: Vec3 }[]
   > {
     const templateDim = world.getDimension(this.templateDimensionId());
-    // 模板维度必须常加载,否则 worldLoad 时区块未加载,createFromWorld 会失败
-    const templateAreaId = this.tickingAreaId("template");
-    if (!world.tickingAreaManager.hasTickingArea(templateAreaId)) {
-      await world.tickingAreaManager.createTickingArea(templateAreaId, {
-        dimension: templateDim,
-        from: this.config.tickingFrom,
-        to: this.config.tickingTo,
-      });
-    }
     const tiles = this.templateTiles();
     this.deleteTemplateTiles();
-    for (const tile of tiles) {
-      world.structureManager.createFromWorld(
-        tile.id,
-        templateDim,
-        tile.from,
-        tile.to,
-      );
+    if (this.config.tileWindowed) {
+      // 窗口化:逐单元"建常加载 → 捕获 → 卸载"(超大模板整图常加载超引擎上限)
+      for (const tile of tiles) {
+        await this.withWindowArea(templateDim, tile.from, tile.to, () => {
+          world.structureManager.createFromWorld(
+            tile.id,
+            templateDim,
+            tile.from,
+            tile.to,
+          );
+        });
+      }
+    } else {
+      // 模板维度必须常加载,否则 worldLoad 时区块未加载,createFromWorld 会失败
+      const templateAreaId = this.tickingAreaId("template");
+      if (!world.tickingAreaManager.hasTickingArea(templateAreaId)) {
+        await world.tickingAreaManager.createTickingArea(templateAreaId, {
+          dimension: templateDim,
+          from: this.config.tickingFrom,
+          to: this.config.tickingTo,
+        });
+      }
+      for (const tile of tiles) {
+        world.structureManager.createFromWorld(
+          tile.id,
+          templateDim,
+          tile.from,
+          tile.to,
+        );
+      }
     }
     this.log(
       `已捕获模板结构 ${tiles.length} 块(${tiles[0]?.id ?? "无"})`,
     );
     return tiles;
+  }
+
+  /**
+   * 窗口化临时常加载:建覆盖 from/to 的 ticking area → 等区块加载 → 执行操作 →
+   * 卸载。操作抛错时延迟重试一次,再失败向上抛出。
+   * 注意:窗口坐标为"操作目标坐标"(放置到房间时为房间坐标)。
+   */
+  private async withWindowArea(
+    dimension: ReturnType<MinigameRuntime["roomDim"]>,
+    from: Vec3,
+    to: Vec3,
+    fn: () => void,
+  ): Promise<void> {
+    const areaId = `bearcade:ta_${this.config.gameId}_window`;
+    if (world.tickingAreaManager.hasTickingArea(areaId)) {
+      world.tickingAreaManager.removeTickingArea(areaId);
+    }
+    await world.tickingAreaManager.createTickingArea(areaId, {
+      dimension,
+      from,
+      to,
+    });
+    // 给区块加载留出时间(本地磁盘通常 1~2 tick)
+    await system.waitTicks(3);
+    try {
+      fn();
+    } catch (error) {
+      await system.waitTicks(5);
+      try {
+        fn();
+      } catch {
+        world.tickingAreaManager.removeTickingArea(areaId);
+        throw error;
+      }
+    }
+    world.tickingAreaManager.removeTickingArea(areaId);
   }
 
   private tickingAreaId(roomId: number | "template"): string {
@@ -573,6 +623,33 @@ export class MinigameRuntime {
     }
   }
 
+  /** 窗口化放置:逐单元"建常加载 → 放置 → 卸载"(窗口坐标 = 房间目标坐标) */
+  private async placeTilesWindowed(
+    dimension: ReturnType<MinigameRuntime["roomDim"]>,
+    tiles: { id: string; from: Vec3; to: Vec3 }[],
+  ): Promise<void> {
+    for (const tile of tiles) {
+      const dest: Vec3 = {
+        x:
+          this.config.roomCopyOrigin.x +
+          (tile.from.x - this.config.templateFrom.x),
+        y:
+          this.config.roomCopyOrigin.y +
+          (tile.from.y - this.config.templateFrom.y),
+        z:
+          this.config.roomCopyOrigin.z +
+          (tile.from.z - this.config.templateFrom.z),
+      };
+      await this.withWindowArea(dimension, dest, {
+        x: dest.x + (tile.to.x - tile.from.x),
+        y: dest.y + (tile.to.y - tile.from.y),
+        z: dest.z + (tile.to.z - tile.from.z),
+      }, () => {
+        world.structureManager.place(tile.id, dimension, dest);
+      });
+    }
+  }
+
   private async initRoom(
     roomId: number,
     tiles: { id: string; from: Vec3; to: Vec3 }[],
@@ -587,7 +664,11 @@ export class MinigameRuntime {
       from: this.config.tickingFrom,
       to: this.config.tickingTo,
     });
-    this.placeTiles(dim, tiles);
+    if (this.config.tileWindowed) {
+      await this.placeTilesWindowed(dim, tiles);
+    } else {
+      this.placeTiles(dim, tiles);
+    }
     this.ready.set(roomId, true);
     this.log(`房间 ${roomId} 场地就绪`);
   }
@@ -646,7 +727,11 @@ export class MinigameRuntime {
         await this.ensureRoomTickingArea(roomId);
         // 注意:模板范围变更(移动/改尺寸)导致的旧场地残留不再自动清理,
         // 由开发者在模板维度人工处理(重建房间场地后 ap 覆盖)。
-        this.placeTiles(dim, tiles);
+        if (this.config.tileWindowed) {
+          await this.placeTilesWindowed(dim, tiles);
+        } else {
+          this.placeTiles(dim, tiles);
+        }
       }
     });
   }
