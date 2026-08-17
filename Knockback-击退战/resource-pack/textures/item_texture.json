@@ -1,0 +1,15 @@
+{
+  "resource_pack_name": "bearcade_knockback",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "bearcade_knockback_stick_weak": {
+      "textures": "textures/items/knockback_stick_weak"
+    },
+    "bearcade_knockback_stick_medium": {
+      "textures": "textures/items/knockback_stick_medium"
+    },
+    "bearcade_knockback_stick_strong": {
+      "textures": "textures/items/knockback_stick_strong"
+    }
+  }
+}

@@ -441,6 +441,49 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "knockback",
+      "dir": "Knockback-击退战",
+      "name": "Bearcade Knockback",
+      "description": "Bearcade 击退战小游戏包(个人混战:中央高台得分+击退木棍,玩法已实现)",
+      "headerUuid": "fee850e2-95f6-4045-a87f-feaa83e71502",
+      "moduleUuid": "31b20c5e-c734-451d-b9cd-d9d8fd2b14c4",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "knockback_hud",
+      "type": "resource",
+      "dir": "Knockback-击退战/resource-pack",
+      "name": "Bearcade Knockback HUD",
+      "description": "Bearcade Knockback HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "6122c4d4-2ed4-46a2-b536-123776d1adb9",
+      "moduleUuid": "66bd4875-cc03-4d10-964f-9e42a0575213",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }

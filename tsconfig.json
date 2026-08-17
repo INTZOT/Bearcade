@@ -23,6 +23,7 @@
     "BridgeWar-急速战桥/src/**/*.ts",
     "Collapse-豆腐渣地板/src/**/*.ts",
     "Go-围棋/src/**/*.ts",
+    "Knockback-击退战/src/**/*.ts",
     "PigCatcher-猪猪争夺战/src/**/*.ts",
     "SND5-剑与消亡V/src/**/*.ts",
     "Toolkit-开发者工具/src/**/*.ts",
