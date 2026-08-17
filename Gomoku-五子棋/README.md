@@ -11,7 +11,7 @@ Bearcade 小游戏包:放置自定义棋子方块在棋盘上落子,五连获胜
 - 横/竖/两斜任一方向五连即获胜;棋盘下满无五连则平局,对局结束返回大厅;
 - 放置校验(脚本 `canPlace` 钩子):必须落在棋盘格内、空格、自己回合、且放置对应颜色棋子,否则拒绝并提示;
 - 对局内显式切换生存模式(大厅为冒险模式,冒险下无法放置);对局结束/强制中止时恢复冒险模式,并清空双方棋子;
-- **俯瞰视角**:开局发放槽位锁定的望远镜,对局中使用望远镜在棋盘正上方俯瞰视角与普通视角间切换——原生 `minecraft:free` 相机定位到棋盘中心正上方 `boardY + 1 + overviewHeight`(高度可配置);进入俯瞰时激活 **aim assist**(数据驱动预设 `Cameras/Presets/aim_assist_preset.json` + `categories.json`,只锁定棋盘/棋子方块、最近优先、全向锥),本体视线虽强制水平,**手持棋子 use(右键)会直接落到 aim assist 锁定的脚下棋盘格**(引擎原生放置,自动消耗棋子);aim assist 未加载时回退为脚本落子(canPlace/itemUse/itemStartUseOn 多事件源 + 同 tick 去重);
+- **俯瞰视角**:开局发放槽位锁定的望远镜,对局中使用望远镜在棋盘正上方俯瞰视角与普通视角间切换——原生 `minecraft:free` 相机定位到棋盘中心正上方 `boardY + 1 + overviewHeight`(高度可配置);进入俯瞰时激活 **aim assist**(启动时经 `world.aimAssist` 注册预设,只锁定棋盘/棋子方块、最近优先、全向锥),本体视线虽强制水平,**手持棋子 use(右键)会直接落到 aim assist 锁定的脚下棋盘格**(引擎原生放置,自动消耗棋子);aim assist 未激活时回退为脚本落子(canPlace/itemUse/itemStartUseOn 多事件源 + 同 tick 去重);
 - 配置经 `/bearcade:config gomoku`(对局中禁止):准备房间坐标、棋盘位置(棋盘 Y 与 x/z 范围,跨度 ≤64)、黑/白方开局坐标、俯瞰视角高度(5~64 格);代码默认值在 `src/config.ts`。
 
 ## 场地制作

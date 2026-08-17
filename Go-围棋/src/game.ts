@@ -14,6 +14,8 @@ import {
   GameMode,
   ItemStack,
   ItemLockMode,
+  AimAssistCategorySettings,
+  AimAssistPresetSettings,
   AimAssistTargetMode,
   EntityComponentTypes,
   type EntityInventoryComponent,
@@ -553,6 +555,7 @@ export function makeGoHooks(getRuntime: () => MinigameRuntime): MinigameHooks {
 
 export function initGo(getRuntime: () => MinigameRuntime): void {
   const runtime = getRuntime();
+  registerOverviewAimAssist();
 
   // 认输轮询(0.5s) + 计时(1s):对局运行中每房间检查
   system.runInterval(() => {
@@ -650,6 +653,41 @@ function isStone(typeId: string): boolean {
   return typeId === STONE_BLACK || typeId === STONE_WHITE;
 }
 
+/** 注册俯瞰 aim assist 预设:只锁定棋盘/棋子方块(其余优先级 0) */
+function registerOverviewAimAssist(): void {
+  try {
+    const registry = world.getAimAssist();
+    if (registry.getPreset(AIM_ASSIST_PRESET)) return; // 已注册(防重复)
+    const categorySettings = new AimAssistCategorySettings(
+      AIM_ASSIST_CATEGORY,
+    );
+    categorySettings.defaultBlockPriority = 0;
+    categorySettings.defaultEntityPriority = 0;
+    categorySettings.setBlockPriorities({
+      "bearcade:go_chestboard_blank": 10,
+      "bearcade:go_chestboard_center": 10,
+      "bearcade:go_chestboard_center_point": 10,
+      "bearcade:go_chestboard_side": 10,
+      "bearcade:go_chestboard_corner": 10,
+      "bearcade:go_black_stone": 10,
+      "bearcade:go_white_stone": 10,
+    });
+    categorySettings.setEntityPriorities({});
+    registry.addCategory(categorySettings);
+    const presetSettings = new AimAssistPresetSettings(AIM_ASSIST_PRESET);
+    presetSettings.defaultItemSettings = AIM_ASSIST_CATEGORY;
+    presetSettings.handSettings = AIM_ASSIST_CATEGORY;
+    presetSettings.setItemSettings({});
+    registry.addPreset(presetSettings);
+    console.warn(
+      "[Bearcade Go] aim assist 预设已注册",
+      registry.getPreset(AIM_ASSIST_PRESET)?.identifier ?? "?",
+    );
+  } catch (error) {
+    console.warn("[Bearcade Go] aim assist 预设注册失败", error);
+  }
+}
+
 // ================= 俯瞰视角(望远镜切换) =================
 
 const SPYGLASS_ID = "minecraft:spyglass";
@@ -657,8 +695,9 @@ const SPYGLASS_ID = "minecraft:spyglass";
 const OVERHEAD_PRESET = "minecraft:free";
 /** 执行 /controlscheme 时给玩家打的临时 tag(命令层无 @s 源) */
 const OVERVIEW_TAG = "bearcade_overview";
-/** aim assist 预设(数据驱动 Cameras/Presets/,只锁定棋盘/棋子方块) */
+/** aim assist 预设/类别(启动时经 world.aimAssist 注册,只锁定棋盘/棋子方块) */
 const AIM_ASSIST_PRESET = "bearcade:go_overview";
+const AIM_ASSIST_CATEGORY = "bearcade:go_board";
 /** 俯瞰落子去重:同一 tick 内多个事件源(canPlace/itemUse/itemStartUseOn)只落一次 */
 const lastOverviewPlaceTick = new Map<string, number>();
 
