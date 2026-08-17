@@ -6,3 +6,5 @@ tile.bearcade:chestboard_side.name=棋盘(边)
 tile.bearcade:chestboard_corner.name=棋盘(角)
 tile.bearcade:black_stone.name=黑子
 tile.bearcade:white_stone.name=白子
+item.bearcade:black_stone_piece.name=黑子
+item.bearcade:white_stone_piece.name=白子

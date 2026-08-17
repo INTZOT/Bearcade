@@ -18,6 +18,8 @@ import { getGomokuConfig, openGomokuConfig } from "./gomoku-config";
 import {
   STONE_BLACK,
   STONE_WHITE,
+  STONE_BLOCK_BLACK,
+  STONE_BLOCK_WHITE,
 } from "./config";
 
 type Cell = "black" | "white" | null;
@@ -195,7 +197,8 @@ function handlePlace(
   }
 
   const color = state.turn;
-  const expected = color === "black" ? STONE_BLACK : STONE_WHITE;
+  // 玩家手持的是棋子物品(block_placer),放置出来的是棋子方块,校验放置方块
+  const expected = color === "black" ? STONE_BLOCK_BLACK : STONE_BLOCK_WHITE;
   if (event.permutationToPlace.type.id !== expected) {
     system.run(() => player.sendMessage("§c请放置你手中的对应颜色棋子"));
     return false;

@@ -31,8 +31,12 @@ export const STRUCTURE_ID = "bearcade:gomoku_room";
 export const BOARD_Y = 63; // 棋盘方块所在 y(玩家放置的棋子位于 BOARD_Y + 1 = 64)
 export const GRID_MIN = -7;
 export const GRID_MAX = 7; // 15×15 棋盘
-export const STONE_BLACK = "bearcade:black_stone";
-export const STONE_WHITE = "bearcade:white_stone";
+// 对局发放给玩家的棋子物品(手持显示 2D 图标,放置后变成对应方块)
+export const STONE_BLACK = "bearcade:black_stone_piece";
+export const STONE_WHITE = "bearcade:white_stone_piece";
+// 落子放置出的方块(canPlace 校验用)
+export const STONE_BLOCK_BLACK = "bearcade:black_stone";
+export const STONE_BLOCK_WHITE = "bearcade:white_stone";
 export const START_POS_BLACK = { x: 0, y: 65, z: -1 };
 export const START_POS_WHITE = { x: 0, y: 65, z: 1 };
 

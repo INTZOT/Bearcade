@@ -6,3 +6,5 @@ tile.bearcade:chestboard_side.name=Gomoku Board (Side)
 tile.bearcade:chestboard_corner.name=Gomoku Board (Corner)
 tile.bearcade:black_stone.name=Black Stone
 tile.bearcade:white_stone.name=White Stone
+item.bearcade:black_stone_piece.name=Black Stone
+item.bearcade:white_stone_piece.name=White Stone

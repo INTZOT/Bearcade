@@ -1,0 +1,8 @@
+{
+  "resource_pack_name": "bearcade_gomoku",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "black_stone_piece": { "textures": "textures/items/black_stone_piece" },
+    "white_stone_piece": { "textures": "textures/items/white_stone_piece" }
+  }
+}
