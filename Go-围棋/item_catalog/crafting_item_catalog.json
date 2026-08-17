@@ -1,0 +1,27 @@
+{
+  "format_version": "1.21.60",
+  "minecraft:crafting_items_catalog": {
+    "categories": [
+      {
+        "category_name": "construction",
+        "groups": [
+          {
+            "group_identifier": {
+              "icon": "bearcade:go_chestboard_blank",
+              "name": "bearcade:itemGroup.name.go"
+            },
+            "items": [
+              "bearcade:go_chestboard_blank",
+              "bearcade:go_chestboard_center",
+              "bearcade:go_chestboard_center_point",
+              "bearcade:go_chestboard_side",
+              "bearcade:go_chestboard_corner",
+              "bearcade:go_black_stone",
+              "bearcade:go_white_stone"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

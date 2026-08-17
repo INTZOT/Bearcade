@@ -1,0 +1,26 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:block": {
+    "description": {
+      "identifier": "bearcade:go_chestboard_center",
+      "register_to_creative_inventory": true,
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:geometry": {
+        "identifier": "geometry.go_chestboard",
+        "culling_shape": "minecraft:unit_cube"
+      },
+      "minecraft:material_instances": {
+        "*": { "texture": "chestboard_center", "render_method": "opaque" }
+      },
+      "minecraft:collision_box": { "origin": [-8, 0, -8], "size": [16, 16, 16] },
+      "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 16, 16] },
+      "minecraft:destructible_by_mining": { "seconds_to_destroy": 0.4 },
+      "minecraft:destructible_by_explosion": { "explosion_resistance": 1.5 },
+      "minecraft:map_color": "#c8a35a"
+    }
+  }
+}

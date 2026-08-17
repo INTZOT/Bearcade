@@ -1,0 +1,15 @@
+{
+  "resource_pack_name": "bearcade_go",
+  "texture_name": "atlas.terrain",
+  "padding": 8,
+  "num_mip_levels": 4,
+  "texture_data": {
+    "chestboard_blank": { "textures": "textures/blocks/chestboard_blank" },
+    "chestboard_center": { "textures": "textures/blocks/chestboard_center" },
+    "chestboard_center_point": { "textures": "textures/blocks/chestboard_center_point" },
+    "chestboard_side": { "textures": "textures/blocks/chestboard_side" },
+    "chestboard_corner": { "textures": "textures/blocks/chestboard_corner" },
+    "black_stones": { "textures": "textures/blocks/black_stones" },
+    "white_stones": { "textures": "textures/blocks/white_stones" }
+  }
+}

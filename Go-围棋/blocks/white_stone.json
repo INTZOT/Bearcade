@@ -1,0 +1,29 @@
+{
+  "format_version": "1.21.60",
+  "minecraft:block": {
+    "description": {
+      "identifier": "bearcade:go_white_stone",
+      "register_to_creative_inventory": true,
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:geometry": "geometry.go_white_stones",
+      "minecraft:material_instances": {
+        "*": { "texture": "white_stones", "render_method": "opaque" }
+      },
+      "minecraft:item_visual": {
+        "geometry": { "identifier": "geometry.go_white_stones_hand" },
+        "material_instances": {
+          "*": { "texture": "white_stones", "render_method": "opaque" }
+        }
+      },
+      "minecraft:collision_box": false,
+      "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 4, 16] },
+      "minecraft:destructible_by_mining": { "seconds_to_destroy": 0.05 },
+      "minecraft:destructible_by_explosion": { "explosion_resistance": 0 },
+      "minecraft:map_color": "#e8e4dc"
+    }
+  }
+}

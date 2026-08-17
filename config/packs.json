@@ -398,6 +398,49 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "go",
+      "dir": "Go-围棋",
+      "name": "Bearcade Go",
+      "description": "Bearcade 围棋小游戏包(19×19,提子/劫/计时/计目,丢子认输)",
+      "headerUuid": "eaf0da19-91f3-46e6-9f09-2b036c3c7f7c",
+      "moduleUuid": "b5ae10e0-af12-469e-b923-78cbecebc88b",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "go_hud",
+      "type": "resource",
+      "dir": "Go-围棋/resource-pack",
+      "name": "Bearcade Go RP",
+      "description": "Bearcade Go 资源包:棋盘与棋子贴图/模型",
+      "headerUuid": "50fdcb5d-7c90-472c-be99-60df2283a0ee",
+      "moduleUuid": "723b13dc-7a61-45f9-bde4-97bf8c6d3690",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }

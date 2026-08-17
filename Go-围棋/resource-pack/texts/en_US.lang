@@ -1,0 +1,8 @@
+bearcade:itemGroup.name.go=Go Blocks
+tile.bearcade:go_chestboard_blank.name=Go Board (Blank)
+tile.bearcade:go_chestboard_center.name=Go Board (Center)
+tile.bearcade:go_chestboard_center_point.name=Go Board (Star Point)
+tile.bearcade:go_chestboard_side.name=Go Board (Side)
+tile.bearcade:go_chestboard_corner.name=Go Board (Corner)
+tile.bearcade:go_black_stone.name=Black Stone
+tile.bearcade:go_white_stone.name=White Stone

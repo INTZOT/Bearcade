@@ -1,0 +1,10 @@
+{
+  "format_version": "1.19.0",
+  "bearcade:go_chestboard_blank": { "textures": "chestboard_blank", "sound": "wood" },
+  "bearcade:go_chestboard_center": { "textures": "chestboard_center", "sound": "wood" },
+  "bearcade:go_chestboard_center_point": { "textures": "chestboard_center_point", "sound": "wood" },
+  "bearcade:go_chestboard_side": { "textures": "chestboard_side", "sound": "wood" },
+  "bearcade:go_chestboard_corner": { "textures": "chestboard_corner", "sound": "wood" },
+  "bearcade:go_black_stone": { "textures": "black_stones", "sound": "stone" },
+  "bearcade:go_white_stone": { "textures": "white_stones", "sound": "stone" }
+}
