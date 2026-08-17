@@ -23,6 +23,7 @@ import {
   type Player,
   type PlayerPlaceBlockBeforeEvent,
 } from "@minecraft/server";
+import { MessageFormData } from "@minecraft/server-ui";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { getGoConfig, openGoConfig } from "./go-config";
@@ -44,6 +45,10 @@ interface GoState {
   ko: { x: number; z: number } | null;
   /** 本 tick 内完成落子(抑制"丢子=认输"误判) */
   justPlaced: boolean;
+  /** 双方连续停手后的终局确认阶段(双方确认才终局,任一取消则继续) */
+  pendingEnd: boolean;
+  /** 终局确认阶段已确认的玩家 id */
+  endConfirm: Set<string>;
   /** 处于俯瞰视角(望远镜切换)中的玩家 */
   overview: Set<string>;
 }
@@ -223,6 +228,10 @@ function handlePlace(
 ): boolean {
   const state = games.get(roomId);
   if (!state || !runtime.isRunning(roomId)) return false;
+  if (state.pendingEnd) {
+    system.run(() => player.sendMessage("§c终局确认中,暂不能落子"));
+    return false;
+  }
   const player = event.player;
   const { x, y, z } = event.block.location;
   const cfg = getGoConfig();
@@ -408,6 +417,10 @@ function handlePass(
 ): boolean {
   const state = games.get(roomId);
   if (!state || !runtime.isRunning(roomId)) return false;
+  if (state.pendingEnd) {
+    player.sendMessage("§c终局确认中,请先在弹窗中确认或取消");
+    return false;
+  }
   if (state.players[state.turn] !== player.id) {
     player.sendMessage("§c还没轮到你停一手");
     return false;
@@ -415,11 +428,103 @@ function handlePass(
   state.passed[state.turn] = true;
   runtime.announce(roomId, `§e${stoneName(state.turn)}方停一手`);
   if (state.passed.black && state.passed.white) {
-    finishByScoring(runtime, roomId, state);
+    startEndConfirmation(runtime, roomId, state);
     return true;
   }
   switchTurn(runtime, roomId, state);
   return true;
+}
+
+/** 双方连续停手:进入终局确认——双方都确认则计目终局,任一取消/超时则继续 */
+function startEndConfirmation(
+  runtime: MinigameRuntime,
+  roomId: number,
+  state: GoState,
+): void {
+  state.pendingEnd = true;
+  state.endConfirm = new Set();
+  runtime.announce(
+    roomId,
+    "§e双方连续停一手,进入终局确认:双方都确认则终局,任一取消则继续",
+  );
+  // 超时(60s)未双双确认 → 视为取消继续(防挂机卡死)
+  system.runTimeout(() => {
+    if (games.get(roomId) !== state) return;
+    if (!state.pendingEnd) return;
+    cancelEndConfirmation(runtime, roomId, state, undefined);
+  }, 60 * 20);
+  for (const player of runtime.roomPlayers(roomId)) {
+    if (player === undefined) continue;
+    if (player.id !== state.players.black && player.id !== state.players.white) {
+      continue;
+    }
+    showEndConfirmForm(runtime, roomId, state, player);
+  }
+}
+
+/** 终局确认弹窗:确认=同意计目;取消/关闭=继续对局 */
+function showEndConfirmForm(
+  runtime: MinigameRuntime,
+  roomId: number,
+  state: GoState,
+  player: Player,
+): void {
+  const form = new MessageFormData()
+    .title("终局确认")
+    .body(
+      `双方已连续停一手(黑提 ${state.prisoners.black} 子 / 白提 ${state.prisoners.white} 子)。\n\n确认:终局计目;\n取消:对局继续。`,
+    )
+    .button1("§a确认终局")
+    .button2("§7取消继续");
+  form
+    .show(player)
+    .then((response) => {
+      if (games.get(roomId) !== state || !state.pendingEnd) return;
+      if (response.selection === 0) {
+        state.endConfirm.add(player.id);
+        runtime.announce(
+          roomId,
+          `§e${player.name} 确认终局(${state.endConfirm.size}/2)`,
+        );
+        if (
+          state.endConfirm.has(state.players.black!) &&
+          state.endConfirm.has(state.players.white!)
+        ) {
+          finishByScoring(runtime, roomId, state);
+        }
+      } else {
+        // 取消按钮或直接关闭表单
+        cancelEndConfirmation(runtime, roomId, state, player);
+      }
+    })
+    .catch(() => {
+      if (games.get(roomId) === state && state.pendingEnd) {
+        cancelEndConfirmation(runtime, roomId, state, player);
+      }
+    });
+}
+
+/** 取消终局确认:清空停手状态,最后一个停手方继续行棋 */
+function cancelEndConfirmation(
+  runtime: MinigameRuntime,
+  roomId: number,
+  state: GoState,
+  canceler: Player | undefined,
+): void {
+  if (!state.pendingEnd) return;
+  state.pendingEnd = false;
+  state.endConfirm.clear();
+  state.passed = { black: false, white: false };
+  runtime.announce(
+    roomId,
+    canceler !== undefined
+      ? `§e${canceler.name} 取消终局,对局继续`
+      : "§e终局确认超时,对局继续",
+  );
+  const next = runtime
+    .roomPlayers(roomId)
+    .find((p) => p !== undefined && p.id === state.players[state.turn]);
+  if (next) giveTurn(runtime, roomId, next, state.turn);
 }
 
 /** 计目:领地(单色完全包围的空域)+ 提子,黑贴目;终局 */
@@ -518,6 +623,8 @@ export function makeGoHooks(getRuntime: () => MinigameRuntime): MinigameHooks {
         clocks: { black: cfg.clockTicks, white: cfg.clockTicks },
         ko: null,
         justPlaced: false,
+        pendingEnd: false,
+        endConfirm: new Set(),
         overview: new Set(),
       };
       games.set(roomId, state);
@@ -570,11 +677,12 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
     }
   }, 5);
 
-  // 认输轮询(0.5s) + 计时(1s):对局运行中每房间检查
+  // 认输轮询(0.5s) + 计时(1s):对局运行中每房间检查(终局确认阶段暂停)
   system.runInterval(() => {
     for (const [roomId, state] of [...games.entries()]) {
       try {
         if (runtime.getPhase(roomId) !== "running") continue;
+        if (state.pendingEnd) continue;
         pollResign(runtime, roomId, state);
         pollClock(runtime, roomId, state);
       } catch (error) {
