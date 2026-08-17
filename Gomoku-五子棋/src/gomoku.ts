@@ -637,7 +637,7 @@ function spawnOverviewMarker(
     const gx = Math.floor(player.location.x);
     const gz = Math.floor(player.location.z);
     if (!inGrid(gx, gz)) continue;
-    spawnCellFrame(dim, gx, gz, y, "minecraft:candle_flame_particle");
+    spawnCellFrame(dim, gx, gz, y, "minecraft:balloon_gas_particle");
   }
 }
 
