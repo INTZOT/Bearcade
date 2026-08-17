@@ -663,7 +663,7 @@ function isStone(typeId: string): boolean {
   return typeId === STONE_BLACK || typeId === STONE_WHITE;
 }
 
-/** 在棋盘格上随机撒粒子(俯瞰选中格提示/落子反馈) */
+/** 在棋盘格上随机撒粒子(落子反馈用) */
 function spawnCellParticles(
   dim: Dimension,
   gx: number,
@@ -685,7 +685,27 @@ function spawnCellParticles(
   }
 }
 
-/** 俯瞰选中格粒子提示:每 0.25s 在玩家脚下格撒白色粒子(与落子同一取格语义) */
+/** 沿格子四条边按间距撒粒子,画出一个正方形框 */
+function spawnCellFrame(
+  dim: Dimension,
+  gx: number,
+  gz: number,
+  y: number,
+  effect: string,
+): void {
+  try {
+    for (let t = 0; t <= 1.0001; t += 0.2) {
+      dim.spawnParticle(effect, { x: gx + t, y, z: gz });
+      dim.spawnParticle(effect, { x: gx + t, y, z: gz + 1 });
+      dim.spawnParticle(effect, { x: gx, y, z: gz + t });
+      dim.spawnParticle(effect, { x: gx + 1, y, z: gz + t });
+    }
+  } catch {
+    // 忽略
+  }
+}
+
+/** 俯瞰选中格提示:每 0.25s 在玩家脚下格上表面画白色正方形框(与落子同一取格语义) */
 function spawnOverviewMarker(
   runtime: MinigameRuntime,
   roomId: number,
@@ -693,7 +713,7 @@ function spawnOverviewMarker(
 ): void {
   const cfg = getGoConfig();
   const dim = runtime.roomDim(roomId);
-  const y = cfg.boardY + 1 + 0.6;
+  const y = cfg.boardY + 1 + 0.1;
   for (const id of state.overview) {
     const player = runtime
       .roomPlayers(roomId)
@@ -702,7 +722,7 @@ function spawnOverviewMarker(
     const gx = Math.floor(player.location.x);
     const gz = Math.floor(player.location.z);
     if (!inGrid(gx, gz)) continue;
-    spawnCellParticles(dim, gx, gz, y, "minecraft:endrod", 4);
+    spawnCellFrame(dim, gx, gz, y, "minecraft:endrod");
   }
 }
 
