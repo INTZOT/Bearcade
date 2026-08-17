@@ -2,7 +2,6 @@ import {
   system,
   world,
   Player,
-  BlockVolume,
   ScriptEventSource,
   type DimensionRegistry,
   type ScriptEventCommandMessageAfterEvent,
@@ -36,11 +35,6 @@ export class MinigameRuntime {
   private started = false;
   private partyMode = false;
   private debugEnabled = false;
-  /** 模板范围变更后,各房间在下一次重置前需要清理的旧范围(避免缩小/移动后残留旧场地) */
-  private pendingRoomClears = new Map<
-    number,
-    { from: Vec3; to: Vec3 }[]
-  >();
 
   constructor(config: MinigameConfig, hooks: MinigameHooks = {}) {
     this.config = config;
@@ -293,26 +287,7 @@ export class MinigameRuntime {
     }
   }
 
-  private sameVec3(a: Vec3, b: Vec3): boolean {
-    return a.x === b.x && a.y === b.y && a.z === b.z;
-  }
-
   private applyTemplateBounds(from: Vec3, to: Vec3): void {
-    const previousFrom = { ...this.config.templateFrom };
-    const previousTo = { ...this.config.templateTo };
-    if (
-      !this.sameVec3(previousFrom, from) ||
-      !this.sameVec3(previousTo, to)
-    ) {
-      // 旧范围可能已在每个房间中留下方块;给每个房间登记待清理范围,
-      // 由该房间下一次重置(结束重置或 /bearcade:tmp ap)时清理。
-      const oldRange = { from: previousFrom, to: previousTo };
-      for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
-        const ranges = this.pendingRoomClears.get(roomId) ?? [];
-        ranges.push(oldRange);
-        this.pendingRoomClears.set(roomId, ranges);
-      }
-    }
     this.config.templateFrom = from;
     this.config.templateTo = to;
     this.config.roomCopyOrigin = from;
@@ -663,38 +638,15 @@ export class MinigameRuntime {
     }
   }
 
-  private clearRoomBlocks(
-    dimension: ReturnType<MinigameRuntime["roomDim"]>,
-    ranges: { from: Vec3; to: Vec3 }[],
-  ): void {
-    for (const range of ranges) {
-      dimension.fillBlocks(
-        new BlockVolume(range.from, range.to),
-        "minecraft:air",
-        { ignoreChunkBoundErrors: true },
-      );
-    }
-  }
-
   private async resetRoomsFromTemplate(roomIds: number[]): Promise<void> {
     await this.enqueueReset(async () => {
       const tiles = await this.captureTemplateTiles();
       for (const roomId of roomIds) {
         const dim = this.roomDim(roomId);
         await this.ensureRoomTickingArea(roomId);
-        const pendingClears = this.pendingRoomClears.get(roomId);
-        if (pendingClears && pendingClears.length > 0) {
-          try {
-            this.clearRoomBlocks(dim, pendingClears);
-          } catch (error) {
-            this.log(`房间 ${roomId} 旧场地清理失败`, error);
-            throw error;
-          }
-        }
+        // 注意:模板范围变更(移动/改尺寸)导致的旧场地残留不再自动清理,
+        // 由开发者在模板维度人工处理(重建房间场地后 ap 覆盖)。
         this.placeTiles(dim, tiles);
-        // 清理+放置都成功后才移除该房间的待清理记录;
-        // 多房间时每个房间独立清理一次,互不影响。
-        this.pendingRoomClears.delete(roomId);
       }
     });
   }
