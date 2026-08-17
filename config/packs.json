@@ -441,6 +441,49 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "hungergame",
+      "dir": "HungerGame-饥饿游戏",
+      "name": "Bearcade HungerGame",
+      "description": "Bearcade 饥饿游戏小游戏包(骨架阶段,玩法待定)",
+      "headerUuid": "25db9388-fb9c-47c6-ad91-cdf0915ec7d6",
+      "moduleUuid": "2820b299-3884-4042-9b27-9fddcdd7ac66",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "hungergame_hud",
+      "type": "resource",
+      "dir": "HungerGame-饥饿游戏/resource-pack",
+      "name": "Bearcade HungerGame HUD",
+      "description": "Bearcade 饥饿游戏占位资源包(当前无 HUD 内容,保持一对一资源包结构)",
+      "headerUuid": "18af88c8-bdc5-4dc4-a491-6cbf61167409",
+      "moduleUuid": "27e2f0e3-6e95-4707-a8d2-2ff0d2455e79",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }
