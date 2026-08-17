@@ -311,7 +311,10 @@ export function makeGomokuHooks(
 // ================= 俯瞰视角(望远镜切换) =================
 
 const SPYGLASS_ID = "minecraft:spyglass";
-const OVERHEAD_PRESET = "bearcade:gomoku_overhead";
+/** 原生自由相机预设(无自定义预设,避免预设加载问题) */
+const OVERHEAD_PRESET = "minecraft:free";
+/** 执行 /controlscheme 时给玩家打的临时 tag(命令层无 @s 源) */
+const OVERVIEW_TAG = "bearcade_overview";
 
 /** 开局发放锁定在物品栏的望远镜(槽位锁定,可用不可丢) */
 function giveSpyglass(player: Player): void {
@@ -349,6 +352,7 @@ function toggleOverview(
 ): void {
   if (state.overview.has(player.id)) {
     state.overview.delete(player.id);
+    clearOverheadControls(player);
     try {
       player.camera.clear();
     } catch (error) {
@@ -359,6 +363,7 @@ function toggleOverview(
   }
   const center = (cfg.gridMin + cfg.gridMax) / 2;
   try {
+    // 原生 free 预设 + 定位/俯视(依赖世界作弊,与 /camera 命令相同)
     player.camera.setCamera(OVERHEAD_PRESET, {
       location: {
         x: center,
@@ -367,13 +372,45 @@ function toggleOverview(
       },
       rotation: { x: 90, y: 0 },
     });
+    setOverheadControls(player);
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格),再次使用望远镜恢复`,
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,鼠标/摇杆可转动视野),再次使用望远镜恢复`,
     );
   } catch (error) {
     player.sendMessage("§c俯瞰视角切换失败");
     console.warn("[Bearcade Gomoku] 俯瞰视角设置失败", error);
+  }
+}
+
+/** 开启相机相对控制(鼠标/摇杆以相机自身为轴转动,适合俯视) */
+function setOverheadControls(player: Player): void {
+  try {
+    player.addTag(OVERVIEW_TAG);
+    const result = player.dimension.runCommand(
+      `controlscheme @a[tag=${OVERVIEW_TAG}] set camera_relative`,
+    );
+    if (result.successCount < 1) {
+      console.warn("[Bearcade Gomoku] controlscheme 设置失败(需世界作弊?)");
+    }
+  } catch (error) {
+    console.warn("[Bearcade Gomoku] controlscheme 设置异常", error);
+  } finally {
+    player.removeTag(OVERVIEW_TAG);
+  }
+}
+
+/** 清除相机控制方案(恢复默认视角控制) */
+function clearOverheadControls(player: Player): void {
+  try {
+    player.addTag(OVERVIEW_TAG);
+    player.dimension.runCommand(
+      `controlscheme @a[tag=${OVERVIEW_TAG}] clear`,
+    );
+  } catch {
+    // 忽略
+  } finally {
+    player.removeTag(OVERVIEW_TAG);
   }
 }
 

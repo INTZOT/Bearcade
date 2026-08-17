@@ -186,6 +186,13 @@
 - 实验开关开启后**不能关闭**,正式服建图时就开;
 - 预设 JSON 的 `radius` 等参数与脚本侧几何(如运镜起点计算)要**双处一致**,改一处必须同步另一处。
 
+### 9.5 俯瞰视角/自由相机控制方案(2026-08-17,gomoku/go 实测)
+
+- **自定义预设 `inherit_from: "minecraft:free"` + `control_scheme` 字段在本版本加载失败**:`setCamera` 抛 `Invalid camera preset`,启动日志伴随 `[Camera][error]-Failed to load the contents of file <乱码>`(引擎报错打印文件名是乱码,无法定位是哪个文件;目录大小写 `Cameras/Presets` 正确也无效,疑似该字段在 free 预设上不被本版本 schema 接受);
+- **原生 `/controlscheme` 命令**(1.21.90 起不再需要 "Experimental Creator Camera" 实验开关,权限 Game Directors、需世界作弊):`/controlscheme <players> set camera_relative|player_relative|camera_relative_strafe|player_relative_strafe|locked_player_relative_strafe`、`/controlscheme <players> clear`;`camera_relative` = 鼠标/摇杆以相机自身为轴转动(俯视视角手感正确);
+- **最终可用组合**(俯瞰视角):`player.camera.setCamera("minecraft:free", { location, rotation: { x: 90, y: 0 } })` + `player.dimension.runCommand("controlscheme @a[tag=xxx] set camera_relative")`(命令层无 `@s`,先打临时 tag 再 selector;脚本 API 无控制方案参数,必须走命令);恢复时 `camera.clear()` + `controlscheme ... clear`;
+- 依赖:世界作弊(与 `/camera` 命令同要求);ScriptAPI 侧 `rotation.x = 90` 合法(俯视极限值)。
+
 ## 10. 每玩家独立记分板:JSON UI + rawtext score(本轮引入)
 
 ### 10.1 为什么不能用全局 Sidebar
