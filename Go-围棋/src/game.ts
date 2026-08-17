@@ -754,14 +754,15 @@ const AIM_ASSIST_CATEGORY = "bearcade:go_board";
 /** 俯瞰落子去重:同一 tick 内多个事件源(canPlace/itemUse/itemStartUseOn)只落一次 */
 const lastOverviewPlaceTick = new Map<string, number>();
 
-/** 开局发放锁定在物品栏的望远镜(槽位锁定,可用不可丢) */
+/** 开局发放锁定在物品栏的望远镜(槽位锁定,固定快捷栏第 8 格,可用不可丢) */
 function giveSpyglass(player: Player): void {
   try {
     const spyglass = new ItemStack(SPYGLASS_ID, 1);
     spyglass.lockMode = ItemLockMode.slot;
-    player
-      .getComponent(EntityComponentTypes.Inventory)
-      ?.container?.addItem(spyglass);
+    const container = player.getComponent(EntityComponentTypes.Inventory)
+      ?.container;
+    if (!container) return;
+    container.setItem(HOTBAR_SLOT_SPYGLASS, spyglass);
   } catch (error) {
     console.warn("[Bearcade Go] 发放望远镜失败", error);
   }
@@ -790,15 +791,20 @@ function removeGameItems(player: Player): void {
 // ================= 停一手(纸张) =================
 
 const PASS_ITEM_ID = "minecraft:paper";
+/** 快捷栏第 9 格(索引 8):停一手纸张固定槽位,防误触 */
+const HOTBAR_SLOT_PASS = 8;
+/** 快捷栏第 8 格(索引 7):望远镜固定槽位,防误触 */
+const HOTBAR_SLOT_SPYGLASS = 7;
 
 /** 开局发放锁定在物品栏的纸张(槽位锁定,使用=停一手,仅当前回合玩家有效) */
 function givePassItem(player: Player): void {
   try {
     const pass = new ItemStack(PASS_ITEM_ID, 1);
     pass.lockMode = ItemLockMode.slot;
-    player
-      .getComponent(EntityComponentTypes.Inventory)
-      ?.container?.addItem(pass);
+    const container = player.getComponent(EntityComponentTypes.Inventory)
+      ?.container;
+    if (!container) return;
+    container.setItem(HOTBAR_SLOT_PASS, pass);
   } catch (error) {
     console.warn("[Bearcade Go] 发放纸张(停一手)失败", error);
   }

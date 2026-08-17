@@ -437,6 +437,8 @@ export function makeGomokuHooks(
 const SPYGLASS_ID = "minecraft:spyglass";
 /** 原生自由相机预设(无自定义预设,避免预设加载问题) */
 const OVERHEAD_PRESET = "minecraft:free";
+/** 快捷栏第 8 格(索引 7):望远镜固定槽位,防误触 */
+const HOTBAR_SLOT_SPYGLASS = 7;
 /** 执行 /controlscheme 时给玩家打的临时 tag(命令层无 @s 源) */
 const OVERVIEW_TAG = "bearcade_overview";
 /** aim assist 预设/类别(启动时经 world.aimAssist 注册,只锁定棋盘/棋子方块) */
@@ -445,14 +447,15 @@ const AIM_ASSIST_CATEGORY = "bearcade:gomoku_board";
 /** 俯瞰落子去重:同一 tick 内多个事件源(canPlace/itemUse/itemStartUseOn)只落一次 */
 const lastOverviewPlaceTick = new Map<string, number>();
 
-/** 开局发放锁定在物品栏的望远镜(槽位锁定,可用不可丢) */
+/** 开局发放锁定在物品栏的望远镜(槽位锁定,固定快捷栏第 8 格,可用不可丢) */
 function giveSpyglass(player: Player): void {
   try {
     const spyglass = new ItemStack(SPYGLASS_ID, 1);
     spyglass.lockMode = ItemLockMode.slot;
-    player
-      .getComponent(EntityComponentTypes.Inventory)
-      ?.container?.addItem(spyglass);
+    const container = player.getComponent(EntityComponentTypes.Inventory)
+      ?.container;
+    if (!container) return;
+    container.setItem(HOTBAR_SLOT_SPYGLASS, spyglass);
   } catch (error) {
     console.warn("[Bearcade Gomoku] 发放望远镜失败", error);
   }
