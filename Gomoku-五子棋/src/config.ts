@@ -47,6 +47,8 @@ export interface GomokuConfig {
   gridMax: number;
   blackStart: { x: number; y: number; z: number };
   whiteStart: { x: number; y: number; z: number };
+  /** 俯瞰视角高度(格,望远镜切换) */
+  overviewHeight: number;
 }
 
 export const GOMOKU_CONFIG_DEFAULTS: GomokuConfig = {
@@ -56,4 +58,5 @@ export const GOMOKU_CONFIG_DEFAULTS: GomokuConfig = {
   gridMax: GRID_MAX,
   blackStart: START_POS_BLACK,
   whiteStart: START_POS_WHITE,
+  overviewHeight: 24,
 };

@@ -1,7 +1,9 @@
 import {
   system,
+  world,
   ItemStack,
   GameMode,
+  ItemLockMode,
   EntityComponentTypes,
   type EntityInventoryComponent,
   type Player,
@@ -18,6 +20,7 @@ import { getGomokuConfig, openGomokuConfig } from "./gomoku-config";
 import {
   STONE_BLACK,
   STONE_WHITE,
+  type GomokuConfig,
 } from "./config";
 
 type Cell = "black" | "white" | null;
@@ -27,6 +30,8 @@ interface GomokuState {
   board: Cell[][];
   turn: Color;
   players: { black?: string; white?: string };
+  /** 处于俯瞰视角(望远镜切换)中的玩家 */
+  overview: Set<string>;
 }
 
 const games = new Map<number, GomokuState>();
@@ -256,11 +261,15 @@ export function makeGomokuHooks(
         board: emptyBoard(),
         turn: "black",
         players: { black: black.id, white: white.id },
+        overview: new Set(),
       });
       // 生存模式才能放置压力板落子(放置合法性由 canPlace 钩子控制);
       // 玩家从大厅(冒险)进入,必须显式切换
       black.setGameMode(GameMode.Survival);
       white.setGameMode(GameMode.Survival);
+      // 发放望远镜(槽位锁定,用于切换俯瞰视角)
+      giveSpyglass(black);
+      giveSpyglass(white);
       runtime.teleportPlayer(roomId, black, cfg.blackStart);
       runtime.teleportPlayer(roomId, white, cfg.whiteStart);
       runtime.announce(
@@ -280,9 +289,11 @@ export function makeGomokuHooks(
         if (player !== undefined) {
           try {
             player.setGameMode(GameMode.Adventure);
+            player.camera.clear();
           } catch {
             // 忽略
           }
+          removeSpyglass(player);
         }
       }
       clearTokens(runtime, roomId);
@@ -295,4 +306,86 @@ export function makeGomokuHooks(
       openGomokuConfig(player, getRuntime());
     },
   };
+}
+
+// ================= 俯瞰视角(望远镜切换) =================
+
+const SPYGLASS_ID = "minecraft:spyglass";
+const OVERHEAD_PRESET = "bearcade:gomoku_overhead";
+
+/** 开局发放锁定在物品栏的望远镜(槽位锁定,可用不可丢) */
+function giveSpyglass(player: Player): void {
+  try {
+    const spyglass = new ItemStack(SPYGLASS_ID, 1);
+    spyglass.lockMode = ItemLockMode.slot;
+    player
+      .getComponent(EntityComponentTypes.Inventory)
+      ?.container?.addItem(spyglass);
+  } catch (error) {
+    console.warn("[Bearcade Gomoku] 发放望远镜失败", error);
+  }
+}
+
+/** 回收玩家身上的望远镜(对局重置时清理) */
+function removeSpyglass(player: Player): void {
+  try {
+    const container = player.getComponent(EntityComponentTypes.Inventory)
+      ?.container;
+    if (!container) return;
+    for (let slot = 0; slot < container.size; slot++) {
+      const item = container.getItem(slot);
+      if (item?.typeId === SPYGLASS_ID) container.setItem(slot, undefined);
+    }
+  } catch {
+    // 忽略
+  }
+}
+
+/** 切换俯瞰视角:开启时摄像机置于棋盘正上方,再次使用望远镜恢复 */
+function toggleOverview(
+  player: Player,
+  state: GomokuState,
+  cfg: GomokuConfig,
+): void {
+  if (state.overview.has(player.id)) {
+    state.overview.delete(player.id);
+    try {
+      player.camera.clear();
+    } catch (error) {
+      console.warn("[Bearcade Gomoku] 恢复视角失败", error);
+    }
+    player.sendMessage("§7已恢复普通视角");
+    return;
+  }
+  const center = (cfg.gridMin + cfg.gridMax) / 2;
+  try {
+    player.camera.setCamera(OVERHEAD_PRESET, {
+      location: {
+        x: center,
+        y: cfg.boardY + 1 + cfg.overviewHeight,
+        z: center,
+      },
+      rotation: { x: 90, y: 0 },
+    });
+    state.overview.add(player.id);
+    player.sendMessage(
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格),再次使用望远镜恢复`,
+    );
+  } catch (error) {
+    player.sendMessage("§c俯瞰视角切换失败");
+    console.warn("[Bearcade Gomoku] 俯瞰视角设置失败", error);
+  }
+}
+
+/** 初始化俯瞰视角:监听望远镜使用事件(仅对局运行中响应) */
+export function initGomoku(getRuntime: () => MinigameRuntime): void {
+  const runtime = getRuntime();
+  world.afterEvents.itemUse.subscribe((event) => {
+    if (event.itemStack.typeId !== SPYGLASS_ID) return;
+    const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
+    if (roomId === undefined) return;
+    const state = games.get(roomId);
+    if (!state || runtime.getPhase(roomId) !== "running") return;
+    toggleOverview(event.source, state, getGomokuConfig());
+  });
 }

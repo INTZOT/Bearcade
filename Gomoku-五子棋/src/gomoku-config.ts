@@ -7,6 +7,7 @@ import {
 } from "../../shared/minigame-core/configStore";
 import {
   openConfigMenu,
+  openIntEditor,
   openVec3Editor,
 } from "../../shared/minigame-core/configUi";
 import {
@@ -141,6 +142,25 @@ export function openGomokuConfig(
             persist();
           },
           backTo(player, runtime),
+        ),
+    },
+    {
+      label: "俯瞰视角高度",
+      open: () =>
+        openIntEditor(
+          player,
+          "俯瞰视角高度(格)",
+          cfg.overviewHeight,
+          (value) => {
+            cfg.overviewHeight = value;
+            persist();
+          },
+          {
+            min: 5,
+            max: 64,
+            hint: "对局中使用望远镜切换俯瞰视角的摄像机高度",
+            back: backTo(player, runtime),
+          },
         ),
     },
     {

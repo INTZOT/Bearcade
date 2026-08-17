@@ -47,6 +47,8 @@ export interface GoConfig {
   whiteStart: { x: number; y: number; z: number };
   komi: number;
   clockTicks: number;
+  /** 俯瞰视角高度(格,望远镜切换) */
+  overviewHeight: number;
 }
 
 export const GO_CONFIG_DEFAULTS: GoConfig = {
@@ -58,4 +60,5 @@ export const GO_CONFIG_DEFAULTS: GoConfig = {
   whiteStart: START_POS_WHITE,
   komi: GO_KOMI,
   clockTicks: CLOCK_TICKS,
+  overviewHeight: 24,
 };

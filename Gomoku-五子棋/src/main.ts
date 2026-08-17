@@ -1,6 +1,6 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { makeGomokuHooks } from "./gomoku";
+import { makeGomokuHooks, initGomoku } from "./gomoku";
 import { getGomokuConfig, loadGomokuConfig } from "./gomoku-config";
 import {
   DISPLAY_NAME,
@@ -58,4 +58,5 @@ world.afterEvents.worldLoad.subscribe(() => {
   runtime.config.prepSpawn = getGomokuConfig().prepSpawn;
   runtime.initWorld();
   runtime.initEvents();
+  initGomoku(() => runtime);
 });

@@ -175,6 +175,25 @@ export function openGoConfig(player: Player, runtime: MinigameRuntime): void {
         ),
     },
     {
+      label: "俯瞰视角高度",
+      open: () =>
+        openIntEditor(
+          player,
+          "俯瞰视角高度(格)",
+          cfg.overviewHeight,
+          (value) => {
+            cfg.overviewHeight = value;
+            persist();
+          },
+          {
+            min: 5,
+            max: 64,
+            hint: "对局中使用望远镜切换俯瞰视角的摄像机高度",
+            back: backTo(player, runtime),
+          },
+        ),
+    },
+    {
       label: "恢复默认",
       open: () =>
         openConfigMenu(player, "确认恢复默认", [

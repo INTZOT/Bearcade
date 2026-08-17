@@ -13,6 +13,7 @@ import {
   world,
   GameMode,
   ItemStack,
+  ItemLockMode,
   EntityComponentTypes,
   type EntityInventoryComponent,
   type Player,
@@ -21,7 +22,7 @@ import {
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { getGoConfig, openGoConfig } from "./go-config";
-import { STONE_BLACK, STONE_WHITE } from "./config";
+import { STONE_BLACK, STONE_WHITE, type GoConfig } from "./config";
 
 type Color = "black" | "white";
 type Cell = Color | null;
@@ -39,6 +40,8 @@ interface GoState {
   ko: { x: number; z: number } | null;
   /** 本 tick 内完成落子(抑制"丢子=认输"误判) */
   justPlaced: boolean;
+  /** 处于俯瞰视角(望远镜切换)中的玩家 */
+  overview: Set<string>;
 }
 
 const games = new Map<number, GoState>();
@@ -404,10 +407,13 @@ export function makeGoHooks(getRuntime: () => MinigameRuntime): MinigameHooks {
         clocks: { black: cfg.clockTicks, white: cfg.clockTicks },
         ko: null,
         justPlaced: false,
+        overview: new Set(),
       };
       games.set(roomId, state);
       players.forEach((player) => {
         player.setGameMode(GameMode.Survival);
+        // 发放望远镜(槽位锁定,用于切换俯瞰视角)
+        giveSpyglass(player);
         player.sendMessage(
           `§a围棋开始!${players[0].name}(黑) vs ${players[1].name}(白),黑先手;丢出棋子=认输,/bearcade:go_pass=停一手;每方 ${Math.round(cfg.clockTicks / 1200)} 分钟局时`,
         );
@@ -421,6 +427,12 @@ export function makeGoHooks(getRuntime: () => MinigameRuntime): MinigameHooks {
       for (const player of runtime.roomPlayers(roomId)) {
         if (player === undefined) continue;
         player.setGameMode(GameMode.Adventure);
+        try {
+          player.camera.clear();
+        } catch {
+          // 忽略
+        }
+        removeSpyglass(player);
       }
       clearStones(runtime, roomId);
       games.delete(roomId);
@@ -461,4 +473,83 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
       runtime.endGame(roomId, "认输", `§b${stoneName(other(state.turn))}方获胜`);
     }
   });
+
+  // 俯瞰视角:对局中使用望远镜切换
+  world.afterEvents.itemUse.subscribe((event) => {
+    if (event.itemStack.typeId !== SPYGLASS_ID) return;
+    const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
+    if (roomId === undefined) return;
+    const state = games.get(roomId);
+    if (!state || runtime.getPhase(roomId) !== "running") return;
+    toggleOverview(event.source, state, getGoConfig());
+  });
+}
+
+// ================= 俯瞰视角(望远镜切换) =================
+
+const SPYGLASS_ID = "minecraft:spyglass";
+const OVERHEAD_PRESET = "bearcade:go_overhead";
+
+/** 开局发放锁定在物品栏的望远镜(槽位锁定,可用不可丢) */
+function giveSpyglass(player: Player): void {
+  try {
+    const spyglass = new ItemStack(SPYGLASS_ID, 1);
+    spyglass.lockMode = ItemLockMode.slot;
+    player
+      .getComponent(EntityComponentTypes.Inventory)
+      ?.container?.addItem(spyglass);
+  } catch (error) {
+    console.warn("[Bearcade Go] 发放望远镜失败", error);
+  }
+}
+
+/** 回收玩家身上的望远镜(对局重置时清理) */
+function removeSpyglass(player: Player): void {
+  try {
+    const container = player.getComponent(EntityComponentTypes.Inventory)
+      ?.container;
+    if (!container) return;
+    for (let slot = 0; slot < container.size; slot++) {
+      const item = container.getItem(slot);
+      if (item?.typeId === SPYGLASS_ID) container.setItem(slot, undefined);
+    }
+  } catch {
+    // 忽略
+  }
+}
+
+/** 切换俯瞰视角:开启时摄像机置于棋盘正上方,再次使用望远镜恢复 */
+function toggleOverview(
+  player: Player,
+  state: GoState,
+  cfg: GoConfig,
+): void {
+  if (state.overview.has(player.id)) {
+    state.overview.delete(player.id);
+    try {
+      player.camera.clear();
+    } catch (error) {
+      console.warn("[Bearcade Go] 恢复视角失败", error);
+    }
+    player.sendMessage("§7已恢复普通视角");
+    return;
+  }
+  const center = (cfg.gridMin + cfg.gridMax) / 2;
+  try {
+    player.camera.setCamera(OVERHEAD_PRESET, {
+      location: {
+        x: center,
+        y: cfg.boardY + 1 + cfg.overviewHeight,
+        z: center,
+      },
+      rotation: { x: 90, y: 0 },
+    });
+    state.overview.add(player.id);
+    player.sendMessage(
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格),再次使用望远镜恢复`,
+    );
+  } catch (error) {
+    player.sendMessage("§c俯瞰视角切换失败");
+    console.warn("[Bearcade Go] 俯瞰视角设置失败", error);
+  }
 }
