@@ -222,9 +222,10 @@ function handlePlace(
   const player = event.player;
   const { x, y, z } = event.block.location;
   const cfg = getGoConfig();
-  // 俯瞰视角:准星脱离相机,右键落子改为落在玩家脚下最近的交叉点
+  // 俯瞰视角:准星脱离相机(本体视线强制水平),右键落子改为落在玩家脚下最近的交叉点
   if (state.overview.has(player.id)) {
-    return placeAtPlayer(runtime, roomId, state, player);
+    tryPlaceAtPlayer(runtime, roomId, state, player);
+    return false; // 取消引擎放置,由脚本放置
   }
   if (y !== cfg.boardY + 1 || !inGrid(x, z)) {
     system.run(() => player.sendMessage("§c棋子只能放在棋盘交叉点上"));
@@ -565,9 +566,12 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
 
   // 观战/离场:当前持棋玩家离开房间 → 视为认输(断线=退出契约)
   world.afterEvents.playerDimensionChange.subscribe((event) => {
-    // 俯瞰状态中途离房:先恢复本体朝向与相机
-    if (overviewRotations.has(event.player.id)) {
-      exitOverviewState(event.player);
+    // 俯瞰状态中途离房:先清除相机与控制方案
+    for (const state of games.values()) {
+      if (state.overview.has(event.player.id)) {
+        exitOverviewState(event.player);
+        break;
+      }
     }
     const roomId = runtime.roomIdFromDimension(event.fromDimension.id);
     if (roomId === undefined) return;
@@ -579,20 +583,59 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
     }
   });
 
-  // 物品交互:对局中使用望远镜=俯瞰视角,使用纸张=停一手
+  // 物品交互:对局中使用望远镜=俯瞰视角,使用纸张=停一手,手持棋子 use=在脚下落子
   world.afterEvents.itemUse.subscribe((event) => {
     const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
     if (roomId === undefined) return;
     const state = games.get(roomId);
     if (!state || runtime.getPhase(roomId) !== "running") return;
+    const player = event.source;
     if (event.itemStack.typeId === SPYGLASS_ID) {
-      toggleOverview(event.source, state, getGoConfig());
+      toggleOverview(player, state, getGoConfig());
       return;
     }
     if (event.itemStack.typeId === PASS_ITEM_ID) {
-      handlePass(runtime, roomId, event.source);
+      handlePass(runtime, roomId, player);
+      return;
+    }
+    if (isStone(event.itemStack.typeId)) {
+      if (state.overview.has(player.id)) {
+        console.warn("[Bearcade Go] [diag] itemUse stone in overview");
+        tryPlaceAtPlayer(runtime, roomId, state, player);
+      }
     }
   });
+
+  // 右键点在方块上(start use on):俯瞰中持棋子点任何方块 → 同样视为脚下落子
+  world.afterEvents.itemStartUseOn.subscribe((event) => {
+    if (!event.itemStack || !isStone(event.itemStack.typeId)) return;
+    const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
+    if (roomId === undefined) return;
+    const state = games.get(roomId);
+    if (!state || runtime.getPhase(roomId) !== "running") return;
+    if (!state.overview.has(event.source.id)) return;
+    console.warn("[Bearcade Go] [diag] itemStartUseOn stone in overview");
+    tryPlaceAtPlayer(runtime, roomId, state, event.source);
+  });
+}
+
+/** 俯瞰落子统一入口:同一 tick 内多个事件源(canPlace/itemUse/itemUseOn)只落一次 */
+function tryPlaceAtPlayer(
+  runtime: MinigameRuntime,
+  roomId: number,
+  state: GoState,
+  player: Player,
+): void {
+  const last = lastOverviewPlaceTick.get(player.id) ?? -100;
+  if (system.currentTick - last < 2) return;
+  if (placeAtPlayer(runtime, roomId, state, player)) {
+    lastOverviewPlaceTick.set(player.id, system.currentTick);
+  }
+}
+
+/** 是否为棋子方块物品 */
+function isStone(typeId: string): boolean {
+  return typeId === STONE_BLACK || typeId === STONE_WHITE;
 }
 
 // ================= 俯瞰视角(望远镜切换) =================
@@ -602,8 +645,8 @@ const SPYGLASS_ID = "minecraft:spyglass";
 const OVERHEAD_PRESET = "minecraft:free";
 /** 执行 /controlscheme 时给玩家打的临时 tag(命令层无 @s 源) */
 const OVERVIEW_TAG = "bearcade_overview";
-/** 俯瞰视角下保存的玩家本体原朝向(退出时恢复) */
-const overviewRotations = new Map<string, { x: number; y: number }>();
+/** 俯瞰落子去重:同一 tick 内多个事件源(canPlace/itemUse/itemUseOn)只落一次 */
+const lastOverviewPlaceTick = new Map<string, number>();
 
 /** 开局发放锁定在物品栏的望远镜(槽位锁定,可用不可丢) */
 function giveSpyglass(player: Player): void {
@@ -679,17 +722,9 @@ function toggleOverview(
       rotation: { x: 90, y: 0 },
     });
     setOverheadControls(player);
-    // 玩家本体俯仰压到 90°(落子射线由玩家头决定,与相机无关):准星指向脚下,右键即落到自己位置
-    const rot = player.getRotation();
-    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
-    try {
-      player.setRotation({ x: 90, y: rot.y });
-    } catch (error) {
-      console.warn("[Bearcade Go] 设置俯瞰朝向失败", error);
-    }
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,鼠标/摇杆可转动视野,右键=在脚下落子),再次使用望远镜恢复`,
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,右键=在脚下落子),再次使用望远镜恢复`,
     );
   } catch (error) {
     player.sendMessage("§c俯瞰视角切换失败");
@@ -697,17 +732,8 @@ function toggleOverview(
   }
 }
 
-/** 退出俯瞰状态:恢复玩家本体朝向 + 清除控制方案与相机(幂等) */
+/** 退出俯瞰状态:清除控制方案与相机(幂等) */
 function exitOverviewState(player: Player): void {
-  const saved = overviewRotations.get(player.id);
-  if (saved) {
-    overviewRotations.delete(player.id);
-    try {
-      player.setRotation(saved);
-    } catch (error) {
-      console.warn("[Bearcade Go] 恢复朝向失败", error);
-    }
-  }
   clearOverheadControls(player);
   try {
     player.camera.clear();
