@@ -304,8 +304,9 @@ function placeAtPlayer(
   player: Player,
 ): boolean {
   const cfg = getGoConfig();
-  const gx = Math.round(player.location.x);
-  const gz = Math.round(player.location.z);
+  // 玩家站在格心时 location 为 整数+0.5,Math.round 会进位到相邻格 → 用 floor 取"脚底所在格子"
+  const gx = Math.floor(player.location.x);
+  const gz = Math.floor(player.location.z);
   if (!inGrid(gx, gz)) {
     system.run(() => player.sendMessage("§c俯瞰落子:请站到棋盘交叉点上方"));
     return false;
