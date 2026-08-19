@@ -675,6 +675,22 @@ export class MinigameRuntime {
 
   private async initRooms(): Promise<void> {
     await this.enqueueReset(async () => {
+      if (this.config.resetRoomsOnLoad === false) {
+        // 死场景模式:世界加载不重置房间(场地在存档中,避免每次重启重复
+        // 窗口化捕获/放置的性能开销),仅确保房间常加载与就绪标记。
+        // 首次部署需手动执行模板应用(/bearcade:tmp ap)。
+        for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {
+          try {
+            await this.ensureRoomTickingArea(roomId);
+            this.ready.set(roomId, true);
+            this.log(`房间 ${roomId} 场地就绪(存档,跳过重置)`);
+          } catch (error) {
+            this.ready.set(roomId, false);
+            this.log(`房间 ${roomId} 常加载初始化失败`, error);
+          }
+        }
+        return;
+      }
       try {
         const tiles = await this.captureTemplateTiles();
         for (let roomId = 1; roomId <= this.config.roomCount; roomId++) {

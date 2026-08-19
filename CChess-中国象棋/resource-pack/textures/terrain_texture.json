@@ -1,0 +1,9 @@
+{
+  "resource_pack_name": "bearcade_cchess",
+  "texture_name": "atlas.terrain",
+  "padding": 8,
+  "num_mip_levels": 4,
+  "texture_data": {
+    "cchess_red_bing": { "textures": "textures/blocks/cchess_red_bing" }
+  }
+}

@@ -247,6 +247,49 @@
       "type": "behavior"
     },
     {
+      "id": "cchess",
+      "dir": "CChess-中国象棋",
+      "name": "Bearcade CChess",
+      "description": "Bearcade 中国象棋小游戏包(骨架阶段,玩法待定;含测试自定义方块)",
+      "headerUuid": "fc9ae3e0-6996-4083-8c57-ec24fdaff4dd",
+      "moduleUuid": "ebbab28c-288a-4fee-9e5c-64fad4295d55",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "cchess_hud",
+      "type": "resource",
+      "dir": "CChess-中国象棋/resource-pack",
+      "name": "Bearcade CChess RP",
+      "description": "Bearcade 中国象棋资源包:象棋模型/贴图与测试方块",
+      "headerUuid": "c7d9227b-b8a7-4990-a84a-5a2ee47a5cec",
+      "moduleUuid": "f80ffe44-ecd6-4abf-b661-fd2f7bde0e4a",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
       "id": "toolkit",
       "dir": "Toolkit-开发者工具",
       "name": "Bearcade Toolkit",

@@ -1,8 +1,6 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { initHungerGame, makeHungerGameHooks } from "./game";
-import { getHungerGameConfig, loadHungerGameConfig } from "./game-config";
-import { ensurePoolEntities } from "./loot";
+import { makeCchessHooks } from "./game";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -11,9 +9,11 @@ import {
   MAX_PLAYERS,
   MIN_PLAYERS,
   PACK_ID,
+  PARTY_AVAILABLE,
   PREP_SPAWN,
   ROOM_COPY_ORIGIN,
   ROOM_COUNT,
+  START_POSITIONS,
   STRUCTURE_ID,
   TEMPLATE_FROM,
   TEMPLATE_SPAWN,
@@ -32,14 +32,7 @@ runtime = new MinigameRuntime(
     roomCount: ROOM_COUNT,
     maxPlayers: MAX_PLAYERS,
     minPlayers: MIN_PLAYERS,
-    partyAvailable: true,
-    // FFA:有人退出视为淘汰,对局继续,不能因人数低于 min 自动结束
-    endGameWhenBelowMin: false,
-    // 512² 地图:64 格分块 + 窗口化逐单元捕获/放置(引擎常加载上限 100 区块/个)
-    tileSize: 64,
-    tileWindowed: true,
-    // 死场景:世界加载不重置房间(场地在存档中),首次部署手动 /bearcade:tmp ap hungergame
-    resetRoomsOnLoad: false,
+    partyAvailable: PARTY_AVAILABLE,
     prepSpawn: PREP_SPAWN,
     templateFrom: TEMPLATE_FROM,
     templateTo: TEMPLATE_TO,
@@ -48,13 +41,13 @@ runtime = new MinigameRuntime(
     tickingTo: TICKING_TO,
     structureId: STRUCTURE_ID,
     templateSpawn: TEMPLATE_SPAWN,
-    startPositions: [],
+    startPositions: START_POSITIONS,
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
     startDelayTicks: 60 * 20,
     debugStartDelayTicks: 10 * 20,
   },
-  makeHungerGameHooks(getRuntime),
+  makeCchessHooks(getRuntime),
 );
 
 system.beforeEvents.startup.subscribe((event) => {
@@ -62,12 +55,6 @@ system.beforeEvents.startup.subscribe((event) => {
 });
 
 world.afterEvents.worldLoad.subscribe(() => {
-  loadHungerGameConfig();
-  runtime.config.prepSpawn = getHungerGameConfig().prepSpawn;
   runtime.initWorld();
   runtime.initEvents();
-  // 物资池实体(每房间 4 级,区块未加载时内部重试)
-  ensurePoolEntities(getRuntime);
-  // 玩法事件监听
-  initHungerGame(getRuntime);
 });

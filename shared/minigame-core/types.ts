@@ -43,6 +43,12 @@ export interface MinigameConfig {
    * 捕获与放置按单元逐个"建常加载 → 操作 → 卸载",牺牲速度换取超大模板可行性。
    */
   tileWindowed?: boolean;
+  /**
+   * 世界加载时是否重置房间(默认 true)。死场景大图(如饥饿游戏 512²)设为 false:
+   * 加载世界跳过模板捕获/放置(场地在存档中),仅确保房间常加载与就绪标记,
+   * 避免每次重启重复 64 单元窗口化应用的性能开销;首次部署需手动 /tmp ap 应用一次。
+   */
+  resetRoomsOnLoad?: boolean;
   lobbyDimensionId?: string;
   ipcChannel?: string;
   startDelayTicks?: number;
