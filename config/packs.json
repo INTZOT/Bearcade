@@ -527,6 +527,33 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "labescape",
+      "dir": "LabEscape-实验室逃脱",
+      "name": "Bearcade LabEscape",
+      "description": "Bearcade 实验室逃脱小游戏包(圆环挖柱竞速,玩法已实现)",
+      "headerUuid": "f3b0d54d-1c49-4db1-83bf-febc27840dab",
+      "moduleUuid": "4bef1024-5a92-403c-b8de-d269dbde22f9",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     }
   ]
 }
