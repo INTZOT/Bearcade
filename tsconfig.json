@@ -26,6 +26,7 @@
     "HungerGame-饥饿游戏/src/**/*.ts",
     "Knockback-击退战/src/**/*.ts",
     "LabEscape-实验室逃脱/src/**/*.ts",
+    "pillars-幸运之柱/src/**/*.ts",
     "PigCatcher-猪猪争夺战/src/**/*.ts",
     "SND5-剑与消亡V/src/**/*.ts",
     "Toolkit-开发者工具/src/**/*.ts",

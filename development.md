@@ -27,6 +27,7 @@
 | `Collapse-豆腐渣地板/` | 小游戏包 | 豆腐渣地板,踩踏塌陷 + PVP 淘汰,玩法已实现(模板场地待建) |
 | `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡V,骨架阶段,玩法待定 |
 | `Werewolf-天黑请闭眼/` | 小游戏包 | 天黑请闭眼,玩法已实现(6~10 人昼夜行动/投票/遗言,4 房/10 人/6 人开局,待载入附带场地结构) |
+| `pillars-幸运之柱/` | 小游戏包 | 幸运之柱,双环基岩柱大乱斗,玩法已实现(4 房/2~20 人,随机物品/最后存活/击杀结算) |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 | `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,屏幕右侧垂直居中的每玩家独立记分板 |
 
@@ -159,6 +160,7 @@ bearcade:gomoku_template
 | Collapse | 2 | `bearcade:collapse_1` ~ `bearcade:collapse_2` |
 | SND5 | 2 | `bearcade:snd5_1` ~ `bearcade:snd5_2` |
 | Werewolf | 4 | `bearcade:werewolf_1` ~ `bearcade:werewolf_4` |
+| Pillars | 4 | `bearcade:pillars_1` ~ `bearcade:pillars_4` |
 | Template | 2 | `bearcade:mygame_1` ~ `bearcade:mygame_2` |
 
 ### 3.4 向 Core 上报状态

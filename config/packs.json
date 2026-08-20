@@ -597,6 +597,33 @@
         "core"
       ],
       "type": "behavior"
+    },
+    {
+      "id": "pillars",
+      "dir": "pillars-幸运之柱",
+      "name": "Bearcade Pillars of Fortune",
+      "description": "Bearcade 幸运之柱小游戏包(双环基岩柱大乱斗,玩法已实现)",
+      "headerUuid": "4e1a93f7-64f9-4e12-8f9c-8509565f9bff",
+      "moduleUuid": "dbf676de-e1be-456a-94d6-cb364c80555e",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
     }
   ]
 }
