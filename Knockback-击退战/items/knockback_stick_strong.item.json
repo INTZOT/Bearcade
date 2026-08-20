@@ -1,0 +1,17 @@
+{
+  "format_version": "1.20.30",
+  "minecraft:item": {
+    "description": {
+      "identifier": "bearcade:knockback_stick_strong",
+      "menu_category": { "category": "items" }
+    },
+    "components": {
+      "minecraft:max_stack_size": 1,
+      "minecraft:icon": { "texture": "bearcade_knockback_stick_strong" },
+      "minecraft:display_name": { "value": "强力击退木棍" },
+      "minecraft:durability": { "max_durability": 128 },
+      "minecraft:enchantable": { "value": 10, "slot": "sword" },
+      "minecraft:hand_equipped": true
+    }
+  }
+}
