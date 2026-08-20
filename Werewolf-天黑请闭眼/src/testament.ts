@@ -40,7 +40,7 @@ export function promptTestament(
   const input = new ObservableString("", { clientWritable: true });
   const form = new CustomForm(player, "遗言");
   form.label(
-    "§e你已出局。§r留下你的遗言吧(可留空,最多 50 字)。\n§7关闭表单 = 留空。",
+    "§e你已出局。§r留下你的遗言吧(可留空,最多 50 字)。\n§7关闭表单不会提交,可随时右键「写遗言」重开。",
   );
   form.spacer();
   form.textField("你的遗言", input);
@@ -50,7 +50,6 @@ export function promptTestament(
     onSubmit(input.getData());
   });
   form.show().catch(() => {
-    // 玩家直接关闭表单:按空遗言处理
-    onSubmit("");
+    // 玩家取消/被聊天框顶掉:不做任何提交,保留「写遗言」物品供重开
   });
 }
