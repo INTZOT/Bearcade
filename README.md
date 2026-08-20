@@ -52,6 +52,12 @@ Bearcade/
 └── development.md          # 小游戏开发规范(唯一事实来源)
 ```
 
+## 环境变量
+`MC_DEV_PACKS`：`npm run deploy`命令的行为包输出目录
+`MC_DEV_RESOURCE_PACKS`：`npm run deploy`命令的资源包输出目录
+
+> 在仓库根目录新建`.env`文件，为上述字段赋值以使用
+
 ## 架构原则
 
 1. **一目录一包**:根目录下每个目录最终构建为一个独立的 mcpack(全部包再合并为一个 bearcade.mcaddon)。
