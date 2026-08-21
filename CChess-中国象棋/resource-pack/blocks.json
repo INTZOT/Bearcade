@@ -1,4 +1,103 @@
 {
   "format_version": "1.19.0",
-  "bearcade:cchess_test": { "textures": "cchess_red_bing", "sound": "wood" }
+  "bearcade:cchess_black_jiang": {
+    "textures": "cchess_black_jiang",
+    "sound": "stone"
+  },
+  "bearcade:cchess_black_ju": {
+    "textures": "cchess_black_ju",
+    "sound": "stone"
+  },
+  "bearcade:cchess_black_ma": {
+    "textures": "cchess_black_ma",
+    "sound": "stone"
+  },
+  "bearcade:cchess_black_pao": {
+    "textures": "cchess_black_pao",
+    "sound": "stone"
+  },
+  "bearcade:cchess_black_shi": {
+    "textures": "cchess_black_shi",
+    "sound": "stone"
+  },
+  "bearcade:cchess_black_xiang": {
+    "textures": "cchess_black_xiang",
+    "sound": "stone"
+  },
+  "bearcade:cchess_black_zu": {
+    "textures": "cchess_black_zu",
+    "sound": "stone"
+  },
+  "bearcade:cchess_board_blank": {
+    "textures": "cchess_board_blank",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_center": {
+    "textures": "cchess_board_center",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_center_point": {
+    "textures": "cchess_board_center_point",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_center_slash": {
+    "textures": "cchess_board_center_slash",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_center_star": {
+    "textures": "cchess_board_center_star",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_corner": {
+    "textures": "cchess_board_corner",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_corner_slash": {
+    "textures": "cchess_board_corner_slash",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_side": {
+    "textures": "cchess_board_side",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_side_slash_left": {
+    "textures": "cchess_board_side_slash_left",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_side_slash_right": {
+    "textures": "cchess_board_side_slash_right",
+    "sound": "wood"
+  },
+  "bearcade:cchess_board_side_star": {
+    "textures": "cchess_board_side_star",
+    "sound": "wood"
+  },
+  "bearcade:cchess_red_bing": {
+    "textures": "cchess_red_bing",
+    "sound": "stone"
+  },
+  "bearcade:cchess_red_ju": {
+    "textures": "cchess_red_ju",
+    "sound": "stone"
+  },
+  "bearcade:cchess_red_ma": {
+    "textures": "cchess_red_ma",
+    "sound": "stone"
+  },
+  "bearcade:cchess_red_pao": {
+    "textures": "cchess_red_pao",
+    "sound": "stone"
+  },
+  "bearcade:cchess_red_shi": {
+    "textures": "cchess_red_shi",
+    "sound": "stone"
+  },
+  "bearcade:cchess_red_shuai": {
+    "textures": "cchess_red_shuai",
+    "sound": "stone"
+  },
+  "bearcade:cchess_red_xiang": {
+    "textures": "cchess_red_xiang",
+    "sound": "stone"
+  }
 }

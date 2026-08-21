@@ -1,6 +1,7 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { makeCchessHooks } from "./game";
+import { initCChess, makeCchessHooks } from "./game";
+import { getCChessConfig, loadCChessConfig } from "./cchess-config";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -13,7 +14,6 @@ import {
   PREP_SPAWN,
   ROOM_COPY_ORIGIN,
   ROOM_COUNT,
-  START_POSITIONS,
   STRUCTURE_ID,
   TEMPLATE_FROM,
   TEMPLATE_SPAWN,
@@ -41,7 +41,7 @@ runtime = new MinigameRuntime(
     tickingTo: TICKING_TO,
     structureId: STRUCTURE_ID,
     templateSpawn: TEMPLATE_SPAWN,
-    startPositions: START_POSITIONS,
+    startPositions: [],
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
     startDelayTicks: 60 * 20,
@@ -55,6 +55,9 @@ system.beforeEvents.startup.subscribe((event) => {
 });
 
 world.afterEvents.worldLoad.subscribe(() => {
+  loadCChessConfig();
+  runtime.config.prepSpawn = getCChessConfig().prepSpawn;
   runtime.initWorld();
   runtime.initEvents();
+  initCChess(getRuntime);
 });

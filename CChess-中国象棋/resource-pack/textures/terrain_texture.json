@@ -1,9 +1,83 @@
 {
+  "texture_data": {
+    "cchess_black_jiang": {
+      "textures": "textures/blocks/cchess_black_jiang"
+    },
+    "cchess_black_ju": {
+      "textures": "textures/blocks/cchess_black_ju"
+    },
+    "cchess_black_ma": {
+      "textures": "textures/blocks/cchess_black_ma"
+    },
+    "cchess_black_pao": {
+      "textures": "textures/blocks/cchess_black_pao"
+    },
+    "cchess_black_shi": {
+      "textures": "textures/blocks/cchess_black_shi"
+    },
+    "cchess_black_xiang": {
+      "textures": "textures/blocks/cchess_black_xiang"
+    },
+    "cchess_black_zu": {
+      "textures": "textures/blocks/cchess_black_zu"
+    },
+    "cchess_board_blank": {
+      "textures": "textures/blocks/cchess_board_blank"
+    },
+    "cchess_board_center": {
+      "textures": "textures/blocks/cchess_board_center"
+    },
+    "cchess_board_center_point": {
+      "textures": "textures/blocks/cchess_board_center_point"
+    },
+    "cchess_board_center_slash": {
+      "textures": "textures/blocks/cchess_board_center_slash"
+    },
+    "cchess_board_center_star": {
+      "textures": "textures/blocks/cchess_board_center_star"
+    },
+    "cchess_board_corner": {
+      "textures": "textures/blocks/cchess_board_corner"
+    },
+    "cchess_board_corner_slash": {
+      "textures": "textures/blocks/cchess_board_corner_slash"
+    },
+    "cchess_board_side": {
+      "textures": "textures/blocks/cchess_board_side"
+    },
+    "cchess_board_side_slash_left": {
+      "textures": "textures/blocks/cchess_board_side_slash_left"
+    },
+    "cchess_board_side_slash_right": {
+      "textures": "textures/blocks/cchess_board_side_slash_right"
+    },
+    "cchess_board_side_star": {
+      "textures": "textures/blocks/cchess_board_side_star"
+    },
+    "cchess_red_bing": {
+      "textures": "textures/blocks/cchess_red_bing"
+    },
+    "cchess_red_ju": {
+      "textures": "textures/blocks/cchess_red_ju"
+    },
+    "cchess_red_ma": {
+      "textures": "textures/blocks/cchess_red_ma"
+    },
+    "cchess_red_pao": {
+      "textures": "textures/blocks/cchess_red_pao"
+    },
+    "cchess_red_shi": {
+      "textures": "textures/blocks/cchess_red_shi"
+    },
+    "cchess_red_shuai": {
+      "textures": "textures/blocks/cchess_red_shuai"
+    },
+    "cchess_red_xiang": {
+      "textures": "textures/blocks/cchess_red_xiang"
+    }
+  },
   "resource_pack_name": "bearcade_cchess",
   "texture_name": "atlas.terrain",
-  "padding": 8,
   "num_mip_levels": 4,
-  "texture_data": {
-    "cchess_red_bing": { "textures": "textures/blocks/cchess_red_bing" }
-  }
+  "padding": 8
 }
