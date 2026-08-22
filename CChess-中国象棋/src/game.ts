@@ -522,9 +522,7 @@ function toggleOverview(
     // 保存原朝向
     const rot = player.getRotation();
     overviewRotations.set(player.id, { x: rot.x, y: rot.y });
-    // 切换前校准:普通视角下先强制玩家面向固定棋盘方向(红朝 Z-/黑朝 Z+)
-    faceBoardDirection(state, player);
-    // 锁定输入权限(鼠标无法再改朝向)+ 再校准一次
+    // 先禁用相机输入权限(鼠标无法再写朝向),再切换相机
     lockOverviewControls(state, player);
     // 切换俯瞰相机:黑方 yaw 0,红方旋转 180°(与朝向校准一致)
     const color: Color = state.players.red === player.id ? "red" : "black";
@@ -540,6 +538,14 @@ function toggleOverview(
       // 忽略
     }
     state.overview.add(player.id);
+    // 输入禁用确认后(3 tick)再校准一次:强制玩家面向固定棋盘方向(红朝 Z-/黑朝 Z+)
+    system.runTimeout(() => {
+      try {
+        faceBoardDirection(state, player);
+      } catch {
+        // 忽略
+      }
+    }, 3);
     player.sendMessage(
       `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,朝向已锁定:红朝Z-/黑朝Z+):右键木棍=瞄准格操作;望远镜右键=切换视角`,
     );
@@ -891,7 +897,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     }
   }, 5);
 
-  // 俯瞰朝向锁定:玩家水平朝向恒为固定棋盘方向(红朝 Z-/黑朝 Z+,每 2 tick 覆盖鼠标)
+  // 俯瞰朝向锁定:玩家水平朝向恒为固定棋盘方向(红朝 Z-/黑朝 Z+,每 tick 覆盖)
   system.runInterval(() => {
     for (const [roomId, state] of [...games.entries()]) {
       try {
@@ -907,7 +913,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
         console.warn(`[Bearcade CChess] 俯瞰朝向锁定异常 room=${roomId}`, error);
       }
     }
-  }, 2);
+  }, 1);
 
   // 物品:木棍=唯一操作通道(普通=瞄准方块,俯瞰=玩家所在格);望远镜=切换;book=认输;玻璃瓶=求和
   world.afterEvents.itemUse.subscribe((event) => {
