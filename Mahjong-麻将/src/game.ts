@@ -92,6 +92,10 @@ interface RoomSession {
   doraTold: Set<string>;
   /** 四家均听牌并打出后,宝牌是否已公开明置 */
   doraRevealedPublicly?: boolean;
+  /** 换宝次数(新宝牌在流局剩余张数中计入) */
+  doraReplaceCount: number;
+  /** 本手为最后一手,行动结束后宣布流局 */
+  pendingLiuju?: boolean;
   doraTile?: string;
   doraLocation?: { x: number; y: number; z: number };
   openedPlayers: Set<string>;
@@ -156,6 +160,8 @@ function getOrCreateSession(roomId: number): RoomSession {
       discardedThisTurn: new Set(),
       doraTold: new Set(),
       doraRevealedPublicly: false,
+      doraReplaceCount: 0,
+      pendingLiuju: false,
       openedPlayers: new Set(),
       roundOver: false,
     };
@@ -1155,6 +1161,14 @@ function discardTile(
   clearTingItemsForAll(session);
   if (session.presetName === "mudanjiang") {
     session.lastDiscard = { playerId: player.id, tileId: entry.tileId };
+    // 牌墙(含换宝计数)剩余 15 张时,本手为最后一手,行动结束后流局
+    if (effectiveRemainingTiles(session) <= 15) {
+      session.pendingLiuju = true;
+      runtime.announce(
+        session.roomId,
+        "§e牌墙剩余15张,本手为最后一手",
+      );
+    }
     // 打出后如果自己已经听牌,先让自己选择是否听牌,再让其他玩家行动
     if (canDeclareTingAfterDiscard(session, player.id)) {
       session.pendingAction = {
@@ -1253,6 +1267,10 @@ function autoDiscardForAway(
   clearTingItemsForAll(session);
   if (session.presetName === "mudanjiang") {
     session.lastDiscard = { playerId, tileId: chosen };
+    if (effectiveRemainingTiles(session) <= 15) {
+      session.pendingLiuju = true;
+      runtime.announce(session.roomId, "§e牌墙剩余15张,本手为最后一手");
+    }
     system.runTimeout(
       () => beginActionPhase(session, runtime, playerId, chosen),
       10,
@@ -1260,8 +1278,49 @@ function autoDiscardForAway(
   }
 }
 
+/** 剩余牌数:实际牌墙 + 换宝次数(新宝牌计入,初始宝牌不计) */
+function effectiveRemainingTiles(session: RoomSession): number {
+  let wall = 0;
+  for (const s of session.stacks) wall += s.count;
+  return wall + session.doraReplaceCount;
+}
+
+/** 宣布流局(分数不变,留在房间) */
+function declareLiuju(
+  session: RoomSession,
+  runtime: MinigameRuntime,
+): void {
+  session.roundOver = true;
+  session.pendingAction = undefined;
+  session.pendingLiuju = false;
+  for (const pid of session.joinOrder) {
+    const p = world.getEntity(pid);
+    if (p instanceof Player) clearActionItems(p);
+  }
+  runtime.announce(
+    session.roomId,
+    "§c牌墙剩余15张,本局流局,分数不变;房主可用设置书选择“下一局”重新发牌",
+  );
+}
+
+/** 一手牌打完后:如果已到最后一手则流局,否则轮到下家摸牌 */
+function afterDiscardResolution(
+  session: RoomSession,
+  runtime: MinigameRuntime,
+): void {
+  if (session.pendingLiuju) {
+    declareLiuju(session, runtime);
+    return;
+  }
+  advanceMudanjiangTurn(session, runtime);
+}
+
 function advanceMudanjiangTurn(session: RoomSession, runtime: MinigameRuntime): void {
   if (session.roundOver) return;
+  if (session.pendingLiuju) {
+    declareLiuju(session, runtime);
+    return;
+  }
   const count = session.joinOrder.length;
   if (count === 0) return;
   session.currentTurnSeat = (session.currentTurnSeat + 1) % count;
@@ -1652,7 +1711,7 @@ function beginActionPhase(
   eligible.sort((a, b) => a.tier - b.tier || a.dist - b.dist);
 
   if (eligible.length === 0) {
-    advanceMudanjiangTurn(session, runtime);
+    afterDiscardResolution(session, runtime);
     return;
   }
 
@@ -1675,7 +1734,7 @@ function promptNextAction(session: RoomSession, runtime: MinigameRuntime): void 
       if (p instanceof Player) p.sendMessage("§a你选择不胡,请打出一张手牌");
       return;
     }
-    advanceMudanjiangTurn(session, runtime);
+    afterDiscardResolution(session, runtime);
     return;
   }
   const entry = pending.eligible[pending.index];
@@ -2230,6 +2289,7 @@ function maybeReplaceDora(session: RoomSession, runtime: MinigameRuntime): boole
     if (!newTile) return false;
     const dim = runtime.roomDim(session.roomId);
     session.doraTile = newTile;
+    session.doraReplaceCount++;
     if (!placeDoraAtReservedSpot(session, runtime, newTile) && session.doraLocation) {
       placeTileBlock(dim, session.doraLocation, newTile, "down", "north");
     }
@@ -2655,6 +2715,8 @@ function startNextMudanjiangRound(
   session.discardedThisTurn.clear();
   session.doraTold.clear();
   session.doraRevealedPublicly = false;
+  session.doraReplaceCount = 0;
+  session.pendingLiuju = false;
   session.openedPlayers.clear();
   session.dealCursor = 0;
   session.drawIndex = 0;
