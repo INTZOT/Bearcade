@@ -442,8 +442,7 @@ function removeGameItems(player: Player): void {
 }
 
 /** 俯瞰进入时保存的玩家本体原朝向(退出时恢复) */
-/** 望远镜使用 tick 记录(俯瞰下:0.5s 内第二次使用=退出俯瞰) */
-const lastSpyglassUse = new Map<string, number>();
+const overviewRotations = new Map<string, { x: number; y: number }>();
 
 function toggleOverview(
   state: CChessState,
@@ -471,9 +470,17 @@ function toggleOverview(
     } catch {
       // 忽略
     }
+    // 本体视线压到脚下:空手右键的交互射线直指棋盘格,interact 稳定触发
+    const rot = player.getRotation();
+    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
+    try {
+      player.setRotation({ x: 90, y: rot.y });
+    } catch {
+      // 忽略
+    }
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):望远镜右键=在脚下格操作;0.5 秒内双击望远镜=恢复普通视角`,
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):切到空手格后右键=脚下格操作;望远镜右键=切换视角`,
     );
   } catch (error) {
     player.sendMessage("§c俯瞰视角切换失败");
@@ -482,6 +489,15 @@ function toggleOverview(
 }
 
 function exitOverviewState(player: Player): void {
+  const saved = overviewRotations.get(player.id);
+  if (saved) {
+    overviewRotations.delete(player.id);
+    try {
+      player.setRotation(saved);
+    } catch {
+      // 忽略
+    }
+  }
   try {
     player.camera.clear();
   } catch {
@@ -800,7 +816,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     }
   }, 5);
 
-  // 右键交互(普通视角):空手=瞄准格选中/走子;俯瞰下操作全走望远镜 itemUse(与 Go 同构)
+  // 右键交互:空手=选中/走子;普通视角=瞄准格,俯瞰下=玩家所在格
   world.beforeEvents.playerInteractWithBlock.subscribe(
     (event: PlayerInteractWithBlockBeforeEvent) => {
       if (event.itemStack !== undefined) return; // 仅空手(望远镜等走 itemUse)
@@ -809,11 +825,10 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
       const state = games.get(roomId);
       if (!state || runtime.getPhase(roomId) !== "running") return;
       const player = event.player;
-      if (state.overview.has(player.id)) return; // 俯瞰下忽略 interact
       const cell = targetCell(
         getCChessConfig(),
         player,
-        false,
+        state.overview.has(player.id),
         { x: event.block.location.x, z: event.block.location.z },
       );
       if (!cell) return;
@@ -821,7 +836,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     },
   );
 
-  // 物品:望远镜=俯瞰(俯瞰下单击=操作、0.5s 内双击=恢复);book=认输;玻璃瓶=求和
+  // 物品:望远镜=切换俯瞰;book=认输;玻璃瓶=求和
   world.afterEvents.itemUse.subscribe((event) => {
     const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
     if (roomId === undefined) return;
@@ -829,25 +844,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     if (!state || runtime.getPhase(roomId) !== "running") return;
     const player = event.source;
     if (event.itemStack.typeId === SPYGLASS_ITEM) {
-      if (!state.overview.has(player.id)) {
-        toggleOverview(state, player);
-        return;
-      }
-      // 俯瞰中:0.5s 内第二次使用=退出俯瞰;否则=在脚下格操作
-      const now = system.currentTick;
-      const last = lastSpyglassUse.get(player.id) ?? -100;
-      if (now - last <= 10) {
-        lastSpyglassUse.delete(player.id);
-        toggleOverview(state, player);
-        return;
-      }
-      lastSpyglassUse.set(player.id, now);
-      const cell = targetCell(getCChessConfig(), player, true);
-      if (!cell) {
-        player.sendMessage("§c请站到棋盘格上操作");
-        return;
-      }
-      handleInteract(runtime, roomId, state, player, cell);
+      toggleOverview(state, player);
       return;
     }
     if (event.itemStack.typeId === RESIGN_ITEM) {
