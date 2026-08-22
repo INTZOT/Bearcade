@@ -252,7 +252,29 @@ export class MinigameRuntime {
       return;
     }
     try {
-      await this.resetRoomsFromTemplate(roomIds);
+      // 入队后二次校验(TOCTOU):"检查"与"真正执行"之间房间可能转入对局,
+      // 串行队列只能保证删除/重建/放置不互相踩,不能避免这段状态竞态
+      const blocked = await this.enqueueReset(async () => {
+        const nowActive = roomIds.filter((roomId) => {
+          const phase = this.getState(roomId).phase;
+          return phase === "running" || phase === "pending";
+        });
+        if (nowActive.length === 0) {
+          await this.resetRoomsCore(roomIds);
+        }
+        return nowActive;
+      });
+      if (blocked.length > 0) {
+        this.log(`应用模板被拒绝(队列内二次校验):房间 ${blocked.join(",")} 有进行中的对局`);
+        const player = playerId
+          ? world.getAllPlayers().find((p) => p.id === playerId)
+          : undefined;
+        player?.sendMessage(
+          `§c应用模板被拒绝:房间 ${blocked.join("、")} 有进行中的对局,请先结束再重试`,
+        );
+        this.sendRoomStatus();
+        return;
+      }
       // 应用模板后全部房间场地就绪(含此前初始化失败的房间,提供修复路径)。
       // 同时把停留在 resetting 的房间状态恢复为 idle,否则失败重置经 ap 修复后仍永远显示初始化中。
       for (const roomId of roomIds) {
@@ -431,14 +453,20 @@ export class MinigameRuntime {
 
   announce(roomId: number, message: string): void {
     for (const player of this.roomPlayers(roomId)) {
-      player.sendMessage(message);
+      try {
+        player.sendMessage(message);
+      } catch (error) {
+        // 单玩家消息失败(如恰好断线)不影响其他玩家,更不能中断结算流程
+        // (endGame 中 announce 抛错会导致 finishReset 永远不排定,房间卡死在 resetting)
+        this.log(`房间 ${roomId} 消息发送失败`, error);
+      }
     }
   }
 
   teleportPlayer(
     roomId: number,
     player: Player,
-    location: MinigameConfig["startPositions"][number],
+    location: Vec3,
   ): void {
     // 坐标默认按方块中心:传送时 +0.5
     player.teleport(
@@ -713,7 +741,7 @@ export class MinigameRuntime {
    */
   private resetChain: Promise<void> = Promise.resolve();
 
-  private enqueueReset(task: () => Promise<void>): Promise<void> {
+  private enqueueReset<T>(task: () => Promise<T>): Promise<T> {
     const run = this.resetChain.then(task, task);
     this.resetChain = run.then(
       () => undefined,
@@ -736,20 +764,23 @@ export class MinigameRuntime {
   }
 
   private async resetRoomsFromTemplate(roomIds: number[]): Promise<void> {
-    await this.enqueueReset(async () => {
-      const tiles = await this.captureTemplateTiles();
-      for (const roomId of roomIds) {
-        const dim = this.roomDim(roomId);
-        await this.ensureRoomTickingArea(roomId);
-        // 注意:模板范围变更(移动/改尺寸)导致的旧场地残留不再自动清理,
-        // 由开发者在模板维度人工处理(重建房间场地后 ap 覆盖)。
-        if (this.config.tileWindowed) {
-          await this.placeTilesWindowed(dim, tiles);
-        } else {
-          this.placeTiles(dim, tiles);
-        }
+    await this.enqueueReset(() => this.resetRoomsCore(roomIds));
+  }
+
+  /** 捕获模板并放置到全部指定房间(必须在串行队列内调用) */
+  private async resetRoomsCore(roomIds: number[]): Promise<void> {
+    const tiles = await this.captureTemplateTiles();
+    for (const roomId of roomIds) {
+      const dim = this.roomDim(roomId);
+      await this.ensureRoomTickingArea(roomId);
+      // 注意:模板范围变更(移动/改尺寸)导致的旧场地残留不再自动清理,
+      // 由开发者在模板维度人工处理(重建房间场地后 ap 覆盖)。
+      if (this.config.tileWindowed) {
+        await this.placeTilesWindowed(dim, tiles);
+      } else {
+        this.placeTiles(dim, tiles);
       }
-    });
+    }
   }
 
   // ================= 对局状态机 =================
@@ -791,6 +822,8 @@ export class MinigameRuntime {
     if (state.phase === "resetting") return;
     state.pendingDeadlineTick = undefined;
     state.phase = "resetting";
+    // 立即上报:结束/重置期间房间不可加入(消除最长 5 秒"仍显示空闲可加入"的窗口)
+    this.sendRoomStatus();
     this.announce(
       roomId,
       message ?? `§e对局结束(${reason}),即将返回大厅…`,
@@ -817,17 +850,30 @@ export class MinigameRuntime {
       } catch (error) {
         this.log(`房间 ${roomId} 玩家回大厅失败`, error);
       }
+      try {
+        // 统一清空准备阶段的 actionbar(人数/开局倒计时),避免残留到大厅或下一局
+        player.onScreenDisplay.setActionBar("");
+      } catch {
+        // 忽略
+      }
     }
 
     // 场地重置失败时重试一次;仍失败则保持"未就绪"(上报 initializing),
     // 由管理员执行 /bearcade:tmp ap 修复,避免出现"场地未就绪却显示空闲可加入"
     let resetOk = false;
-    for (let attempt = 1; attempt <= 2 && !resetOk; attempt++) {
-      try {
-        await this.resetRoomsFromTemplate([roomId]);
-        resetOk = true;
-      } catch (error) {
-        this.log(`房间 ${roomId} 场地重置失败(第 ${attempt} 次)`, error);
+    if (this.config.resetArenaOnGameEnd === false) {
+      // 死场景模式:场地不重建(静态,由玩法 onBeforeReset 清理实体/箱子),
+      // 场地仅由 /tmp ap 显式重建,避免超大模板每局捕获/放置的开销
+      resetOk = true;
+      this.log(`房间 ${roomId} 已结束(死场景,跳过场地重建)`);
+    } else {
+      for (let attempt = 1; attempt <= 2 && !resetOk; attempt++) {
+        try {
+          await this.resetRoomsFromTemplate([roomId]);
+          resetOk = true;
+        } catch (error) {
+          this.log(`房间 ${roomId} 场地重置失败(第 ${attempt} 次)`, error);
+        }
       }
     }
     if (!resetOk) {

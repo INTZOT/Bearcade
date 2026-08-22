@@ -74,6 +74,8 @@ function isSelected(pack) {
 }
 
 for (const pack of config.packs) {
+  // devOnly 包(如 Template,注册"mygame"游戏)默认不部署,显式指定时才部署
+  if (pack.devOnly && !requestedIds.has(pack.id)) continue;
   if (!isSelected(pack)) continue;
   const src = path.join(root, pack.dir);
   const targetDir = targetRootFor(pack);

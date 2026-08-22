@@ -50,6 +50,15 @@ for (const pack of config.packs) {
   console.log(`已生成 ${zipPath}`);
 }
 
+// 合并 addon 前剔除 devOnly 包(如 Template):
+// 模板包注册的是 "mygame" 游戏,打进正式 bearcade.mcaddon 会在大厅菜单出现"我的小游戏"。
+// 独立 .mcpack 仍会产出(开发套件 distribute 需要),仅不并入合并包。
+for (const pack of config.packs) {
+  if (pack.devOnly) {
+    rmSync(path.join(staging, pack.id), { recursive: true, force: true });
+  }
+}
+
 const addonPath = path.join(dist, "bearcade.mcaddon");
 await zipDirectory(staging, addonPath);
 console.log(`已生成 ${addonPath}`);
