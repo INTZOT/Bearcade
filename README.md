@@ -20,6 +20,7 @@
 
 ```bash
 npm install          # 安装类型定义与构建工具
+npm run create       #自动化创建新小游戏
 npm run typecheck    # TypeScript 类型检查
 npm run check        # 校验 config/packs.json 与各包源码的 packId 一致性
 npm run build        # 生成各包 manifest 并打包脚本
