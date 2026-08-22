@@ -90,6 +90,8 @@ interface RoomSession {
   discardedThisTurn: Set<string>;
   /** 已经告知过宝牌的听牌玩家(宝牌在叫听并打出后才告知) */
   doraTold: Set<string>;
+  /** 四家均听牌并打出后,宝牌是否已公开明置 */
+  doraRevealedPublicly?: boolean;
   doraTile?: string;
   doraLocation?: { x: number; y: number; z: number };
   openedPlayers: Set<string>;
@@ -153,6 +155,7 @@ function getOrCreateSession(roomId: number): RoomSession {
       tingDiscards: new Map(),
       discardedThisTurn: new Set(),
       doraTold: new Set(),
+      doraRevealedPublicly: false,
       openedPlayers: new Set(),
       roundOver: false,
     };
@@ -1147,6 +1150,7 @@ function discardTile(
   ) {
     player.sendMessage(`§b宝牌:${tileDisplayName(session.doraTile)}`);
     session.doraTold.add(player.id);
+    maybeRevealDoraWhenAllTingAndDiscarded(session, runtime);
   }
   clearTingItemsForAll(session);
   if (session.presetName === "mudanjiang") {
@@ -1204,6 +1208,10 @@ function autoDiscardForAway(
   hand.splice(idx, 1);
   session.discardedThisTurn.add(playerId);
   session.tingDiscards.delete(playerId);
+  if (session.tingSeats.has(seat)) {
+    session.doraTold.add(playerId);
+    maybeRevealDoraWhenAllTingAndDiscarded(session, runtime);
+  }
   const dim = runtime.roomDim(roomId);
   const displayList = session.handDisplays.get(playerId) ?? [];
   const entry = displayList.find((e) => e.tileId === chosen);
@@ -1414,6 +1422,7 @@ function declareTing(
   ) {
     player.sendMessage(`§b宝牌:${tileDisplayName(session.doraTile)}`);
     session.doraTold.add(player.id);
+    maybeRevealDoraWhenAllTingAndDiscarded(session, runtime);
   }
   if (session.autoSort) refreshPlayerHandDisplay(session, runtime, player.id);
   // 听牌后先不暗置,等打出牌后再暗置锁定
@@ -1509,6 +1518,34 @@ function revealAllForShowdown(
       "north",
     );
   }
+}
+
+/** 四家均听牌且都已打出牌(手牌全暗置)时,把宝牌明置 */
+function maybeRevealDoraWhenAllTingAndDiscarded(
+  session: RoomSession,
+  runtime: MinigameRuntime,
+): void {
+  if (session.doraRevealedPublicly || !session.doraTile || !session.doraLocation) {
+    return;
+  }
+  const count = session.joinOrder.length;
+  if (count === 0) return;
+  const allTingAndDiscarded = session.joinOrder.every((pid) =>
+    session.doraTold.has(pid),
+  );
+  if (!allTingAndDiscarded) return;
+  session.doraRevealedPublicly = true;
+  placeTileBlock(
+    runtime.roomDim(session.roomId),
+    session.doraLocation,
+    session.doraTile,
+    "up",
+    "north",
+  );
+  runtime.announce(
+    session.roomId,
+    `§b四家均已听牌并打出,宝牌明置:${tileDisplayName(session.doraTile)}`,
+  );
 }
 
 /** 玩家完成一次吃/碰/杠后,重新判定并发放仍有效的行动物品(杠/听) */
@@ -2196,6 +2233,10 @@ function maybeReplaceDora(session: RoomSession, runtime: MinigameRuntime): boole
     if (!placeDoraAtReservedSpot(session, runtime, newTile) && session.doraLocation) {
       placeTileBlock(dim, session.doraLocation, newTile, "down", "north");
     }
+    // 如果已经四家听牌公开明置,新宝也保持明置
+    if (session.doraRevealedPublicly && session.doraLocation) {
+      placeTileBlock(dim, session.doraLocation, newTile, "up", "north");
+    }
     // 新宝位置和旧位置不同时,清掉旧宝牌指示块
     if (
       oldLocation &&
@@ -2613,6 +2654,7 @@ function startNextMudanjiangRound(
   session.tingDiscards.clear();
   session.discardedThisTurn.clear();
   session.doraTold.clear();
+  session.doraRevealedPublicly = false;
   session.openedPlayers.clear();
   session.dealCursor = 0;
   session.drawIndex = 0;
