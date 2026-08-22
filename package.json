@@ -6,6 +6,7 @@
   "description": "Bearcade 基岩版小游戏服务器(分包解耦 + 容器化房间)",
   "scripts": {
     "gen:uuid": "node -e \"console.log(crypto.randomUUID())\"",
+    "create": "node scripts/create.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "node scripts/check-packs.mjs",
     "build": "node scripts/build.mjs",

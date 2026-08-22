@@ -31,6 +31,10 @@
 
 ## 使用步骤
 
+### 自动创建
+执行`npm run create`按照提示填写即可
+
+### 手动创建
 1. 复制 `Template-小游戏模板` 目录,重命名(如 `MyGame-我的游戏`);
 2. 全局替换 `mygame` 为你的游戏 ID(小写字母/数字/下划线,如 `mygame`);
 3. 修改 [src/config.ts](src/config.ts):`DISPLAY_NAME`、`ROOM_COUNT`、`MAX_PLAYERS`,并重新生成 `PACK_ID` 与 manifest UUID;
