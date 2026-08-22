@@ -519,17 +519,20 @@ function toggleOverview(
   const cx = (cfg.gridMinX + cfg.gridMaxX) / 2;
   const cz = (cfg.gridMinZ + cfg.gridMaxZ) / 2;
   try {
-    // 红黑双方俯视角不同:黑方 yaw 0,红方旋转 180°(实测校准)
+    // 保存原朝向
+    const rot = player.getRotation();
+    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
+    // 切换前校准:普通视角下先强制玩家面向固定棋盘方向(红朝 Z-/黑朝 Z+)
+    faceBoardDirection(state, player);
+    // 锁定输入权限(鼠标无法再改朝向)+ 再校准一次
+    lockOverviewControls(state, player);
+    // 切换俯瞰相机:黑方 yaw 0,红方旋转 180°(与朝向校准一致)
     const color: Color = state.players.red === player.id ? "red" : "black";
     player.camera.setCamera(OVERHEAD_PRESET, {
       location: { x: cx, y: cfg.boardY + 1 + cfg.overviewHeight, z: cz },
       rotation: { x: 90, y: color === "red" ? 180 : 0 },
     });
     setOverheadControls(player);
-    // 保存原朝向,禁用相机输入并立即校准为固定棋盘方向(红朝 Z-/黑朝 Z+)
-    const rot = player.getRotation();
-    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
-    lockOverviewControls(state, player);
     // 锁 60 视野(相机作用域,退出时自动还原)——与 Go 俯瞰一致
     try {
       player.camera.setFov({ fov: 60 });
