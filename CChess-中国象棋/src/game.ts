@@ -505,11 +505,11 @@ function toggleOverview(
   const cx = (cfg.gridMinX + cfg.gridMaxX) / 2;
   const cz = (cfg.gridMinZ + cfg.gridMaxZ) / 2;
   try {
-    // 相机 yaw 跟随玩家本体朝向(玩家按 W 永远朝画面顶部走,方向不颠倒);
-    // 双方进俯瞰时面朝棋盘中心,自然形成"自己在下"的红黑视角差异
+    // 红黑双方俯视角不同:黑方 yaw 0,红方旋转 180°(实测校准)
+    const color: Color = state.players.red === player.id ? "red" : "black";
     player.camera.setCamera(OVERHEAD_PRESET, {
       location: { x: cx, y: cfg.boardY + 1 + cfg.overviewHeight, z: cz },
-      rotation: { x: 90, y: player.getRotation().y },
+      rotation: { x: 90, y: color === "red" ? 180 : 0 },
     });
     setOverheadControls(player);
     // 锁 60 视野(相机作用域,退出时自动还原)——与 Go 俯瞰一致
@@ -534,35 +534,6 @@ function exitOverviewState(player: Player): void {
     player.camera.clear();
   } catch {
     // 忽略
-  }
-}
-
-/** 俯瞰相机 yaw 跟随玩家本体朝向(每 2 tick 同步,移动转向时画面跟转) */
-function syncOverviewCamera(
-  runtime: MinigameRuntime,
-  roomId: number,
-  state: CChessState,
-): void {
-  const cfg = getCChessConfig();
-  const cx = (cfg.gridMinX + cfg.gridMaxX) / 2;
-  const cz = (cfg.gridMinZ + cfg.gridMaxZ) / 2;
-  for (const id of state.overview) {
-    const player = runtime
-      .roomPlayers(roomId)
-      .find((p) => p !== undefined && p.id === id);
-    if (!player) continue;
-    try {
-      player.camera.setCamera(OVERHEAD_PRESET, {
-        location: {
-          x: cx,
-          y: cfg.boardY + 1 + cfg.overviewHeight,
-          z: cz,
-        },
-        rotation: { x: 90, y: player.getRotation().y },
-      });
-    } catch {
-      // 忽略
-    }
   }
 }
 
@@ -888,18 +859,6 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
       }
     }
   }, 5);
-
-  // 俯瞰相机 yaw 跟随玩家本体朝向(2 tick 同步)
-  system.runInterval(() => {
-    for (const [roomId, state] of [...games.entries()]) {
-      try {
-        if (runtime.getPhase(roomId) !== "running") continue;
-        syncOverviewCamera(runtime, roomId, state);
-      } catch (error) {
-        console.warn(`[Bearcade CChess] 俯瞰相机同步异常 room=${roomId}`, error);
-      }
-    }
-  }, 2);
 
   // 物品:木棍=唯一操作通道(普通=瞄准方块,俯瞰=玩家所在格);望远镜=切换;book=认输;玻璃瓶=求和
   world.afterEvents.itemUse.subscribe((event) => {
