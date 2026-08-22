@@ -88,6 +88,8 @@ interface RoomSession {
   tingDiscards: Map<string, string[]>;
   /** 本回合已经出过牌的玩家(防止卡顿连打两张) */
   discardedThisTurn: Set<string>;
+  /** 已经告知过宝牌的听牌玩家(宝牌在叫听并打出后才告知) */
+  doraTold: Set<string>;
   doraTile?: string;
   doraLocation?: { x: number; y: number; z: number };
   openedPlayers: Set<string>;
@@ -150,6 +152,7 @@ function getOrCreateSession(roomId: number): RoomSession {
       tingSeats: new Set(),
       tingDiscards: new Map(),
       discardedThisTurn: new Set(),
+      doraTold: new Set(),
       openedPlayers: new Set(),
       roundOver: false,
     };
@@ -1136,6 +1139,15 @@ function discardTile(
     ["north", "west", "south", "east"][seat] ?? "north",
   );
   runtime.announce(roomId, `§e${player.name} 打出 ${tileDisplayName(entry.tileId)}`);
+  // 已提前叫听的玩家,打出牌后才告知宝牌
+  if (
+    session.tingSeats.has(seat) &&
+    session.doraTile &&
+    !session.doraTold.has(player.id)
+  ) {
+    player.sendMessage(`§b宝牌:${tileDisplayName(session.doraTile)}`);
+    session.doraTold.add(player.id);
+  }
   clearTingItemsForAll(session);
   if (session.presetName === "mudanjiang") {
     session.lastDiscard = { playerId: player.id, tileId: entry.tileId };
@@ -1395,8 +1407,13 @@ function declareTing(
       ? `§a你已听牌!听:${[...waits].map(tileDisplayName).join("、")}`
       : `§a你已听牌!可打:${discards.map(tileDisplayName).join("、")} 听:${[...waits].map(tileDisplayName).join("、")}`,
   );
-  if (session.doraTile && !doraReplaced) {
+  if (
+    session.doraTile &&
+    !doraReplaced &&
+    session.discardedThisTurn.has(player.id)
+  ) {
     player.sendMessage(`§b宝牌:${tileDisplayName(session.doraTile)}`);
+    session.doraTold.add(player.id);
   }
   if (session.autoSort) refreshPlayerHandDisplay(session, runtime, player.id);
   // 听牌后先不暗置,等打出牌后再暗置锁定
@@ -2034,15 +2051,12 @@ function performChi(
     }
     session.tingSeats.add(playerSeatIndex(session, player.id));
     session.tingDiscards.set(player.id, discards);
-    const doraReplaced = revealMeldsOnTing(session, runtime, player.id);
-    // 吃听后先不暗置,等打出牌后再暗置锁定
+    revealMeldsOnTing(session, runtime, player.id);
+    // 吃听后先不暗置,等打出牌后再暗置锁定;宝牌也等打出牌后再告知
     clearTingItemsForAll(session);
     player.sendMessage(
       `§a吃听成功!可打:${discards.map(tileDisplayName).join("、")} 听:${[...waits].map(tileDisplayName).join("、")}`,
     );
-    if (session.doraTile && !doraReplaced) {
-      player.sendMessage(`§b宝牌:${tileDisplayName(session.doraTile)}`);
-    }
   }
   session.pendingAction = undefined;
   session.currentTurnSeat = playerSeatIndex(session, player.id);
@@ -2224,7 +2238,8 @@ function maybeReplaceDora(session: RoomSession, runtime: MinigameRuntime): boole
     runtime.announce(session.roomId, "§b宝牌已更换(暗置)");
     for (const pid of session.joinOrder) {
       const seat = playerSeatIndex(session, pid);
-      if (!session.tingSeats.has(seat)) continue;
+      // 只通知已经被告知过宝牌的听牌玩家;新听牌玩家等打出牌后再告知当前宝牌
+      if (!session.tingSeats.has(seat) || !session.doraTold.has(pid)) continue;
       const p = world.getEntity(pid);
       if (p instanceof Player) {
         p.sendMessage(`§b宝牌已更换为新宝:${tileDisplayName(newTile)}`);
@@ -2597,6 +2612,7 @@ function startNextMudanjiangRound(
   session.tingSeats.clear();
   session.tingDiscards.clear();
   session.discardedThisTurn.clear();
+  session.doraTold.clear();
   session.openedPlayers.clear();
   session.dealCursor = 0;
   session.drawIndex = 0;
