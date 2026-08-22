@@ -86,6 +86,8 @@ interface RoomSession {
   tingSeats: Set<number>;
   /** 听牌后当前手牌允许打出的牌(打出后仍保持听牌) */
   tingDiscards: Map<string, string[]>;
+  /** 本回合已经出过牌的玩家(防止卡顿连打两张) */
+  discardedThisTurn: Set<string>;
   doraTile?: string;
   doraLocation?: { x: number; y: number; z: number };
   openedPlayers: Set<string>;
@@ -147,6 +149,7 @@ function getOrCreateSession(roomId: number): RoomSession {
       currentTurnSeat: 0,
       tingSeats: new Set(),
       tingDiscards: new Map(),
+      discardedThisTurn: new Set(),
       openedPlayers: new Set(),
       roundOver: false,
     };
@@ -1074,6 +1077,10 @@ function discardTile(
     player.sendMessage("§c还没轮到你,不能出牌");
     return;
   }
+  if (session.discardedThisTurn.has(player.id)) {
+    player.sendMessage("§c你已经出过牌了,请等待下一轮");
+    return;
+  }
   if (session.tingSeats.has(seat)) {
     const allowed = session.tingDiscards.get(player.id);
     if (allowed && !allowed.includes(entry.tileId)) {
@@ -1089,6 +1096,7 @@ function discardTile(
   const idx = hand.indexOf(entry.tileId);
   if (idx === -1) return;
   hand.splice(idx, 1);
+  session.discardedThisTurn.add(player.id);
   session.tingDiscards.delete(player.id);
   removeTileItem(player, entry.tileId);
 
@@ -1159,6 +1167,7 @@ function autoDiscardForAway(
   isAway = true,
 ): void {
   if (session.roundOver) return;
+  if (session.discardedThisTurn.has(playerId)) return;
   const roomId = session.roomId;
   const seat = playerSeatIndex(session, playerId);
   if (seat < 0) return;
@@ -1181,6 +1190,7 @@ function autoDiscardForAway(
 
   const idx = hand.indexOf(chosen);
   hand.splice(idx, 1);
+  session.discardedThisTurn.add(playerId);
   session.tingDiscards.delete(playerId);
   const dim = runtime.roomDim(roomId);
   const displayList = session.handDisplays.get(playerId) ?? [];
@@ -1235,6 +1245,7 @@ function advanceMudanjiangTurn(session: RoomSession, runtime: MinigameRuntime): 
   const count = session.joinOrder.length;
   if (count === 0) return;
   session.currentTurnSeat = (session.currentTurnSeat + 1) % count;
+  session.discardedThisTurn.clear();
   const playerId = playerIdAtSeat(session, session.currentTurnSeat);
   if (!playerId) return;
   const player = world.getEntity(playerId);
@@ -1876,6 +1887,7 @@ function handlePresetAction(
     if (session.autoSort) refreshPlayerHandDisplay(session, runtime, player.id);
     session.pendingAction = undefined;
     session.currentTurnSeat = playerSeatIndex(session, player.id);
+    session.discardedThisTurn.delete(player.id);
     refreshTurnActionItems(session, player);
     runtime.announce(session.roomId, `§e${player.name} 碰了 ${tileDisplayName(tileId)}`);
     player.sendMessage("§a你碰了这张牌,请打出一张手牌");
@@ -1912,6 +1924,7 @@ function handlePresetAction(
     }
     session.pendingAction = undefined;
     session.currentTurnSeat = playerSeatIndex(session, player.id);
+    session.discardedThisTurn.delete(player.id);
     refreshTurnActionItems(session, player);
     runtime.announce(session.roomId, `§e${player.name} 杠了 ${tileDisplayName(tileId)}`);
     player.sendMessage("§a你杠了这张牌,请打出一张手牌");
@@ -2033,6 +2046,7 @@ function performChi(
   }
   session.pendingAction = undefined;
   session.currentTurnSeat = playerSeatIndex(session, player.id);
+  session.discardedThisTurn.delete(player.id);
   refreshTurnActionItems(session, player);
   const comboName = [need[0], need[1], tileId]
     .sort((a, b) => tileSortValue(a) - tileSortValue(b))
@@ -2582,6 +2596,7 @@ function startNextMudanjiangRound(
   session.melds.clear();
   session.tingSeats.clear();
   session.tingDiscards.clear();
+  session.discardedThisTurn.clear();
   session.openedPlayers.clear();
   session.dealCursor = 0;
   session.drawIndex = 0;
