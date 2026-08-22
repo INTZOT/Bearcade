@@ -491,6 +491,19 @@ function clearOverheadControls(player: Player): void {
   }
 }
 
+/** 俯瞰进入时保存的玩家本体原朝向(退出时恢复) */
+const overviewRotations = new Map<string, { x: number; y: number }>();
+
+/** 玩家水平朝向锁定为固定棋盘方向:红方恒朝 Z-(yaw=180),黑方恒朝 Z+(yaw=0) */
+function faceBoardDirection(state: CChessState, player: Player): void {
+  try {
+    const isRed = state.players.red === player.id;
+    player.setRotation({ x: 0, y: isRed ? 180 : 0 });
+  } catch {
+    // 忽略
+  }
+}
+
 function toggleOverview(
   state: CChessState,
   player: Player,
@@ -512,6 +525,10 @@ function toggleOverview(
       rotation: { x: 90, y: color === "red" ? 180 : 0 },
     });
     setOverheadControls(player);
+    // 保存原朝向并立即校准为固定棋盘方向(红朝 Z-/黑朝 Z+)
+    const rot = player.getRotation();
+    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
+    faceBoardDirection(state, player);
     // 锁 60 视野(相机作用域,退出时自动还原)——与 Go 俯瞰一致
     try {
       player.camera.setFov({ fov: 60 });
@@ -520,7 +537,7 @@ function toggleOverview(
     }
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):右键木棍=瞄准格操作;望远镜右键=切换视角`,
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,朝向已锁定:红朝Z-/黑朝Z+):右键木棍=瞄准格操作;望远镜右键=切换视角`,
     );
   } catch (error) {
     player.sendMessage("§c俯瞰视角切换失败");
@@ -859,6 +876,24 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
       }
     }
   }, 5);
+
+  // 俯瞰朝向锁定:玩家水平朝向恒为固定棋盘方向(红朝 Z-/黑朝 Z+,每 2 tick 覆盖鼠标)
+  system.runInterval(() => {
+    for (const [roomId, state] of [...games.entries()]) {
+      try {
+        if (runtime.getPhase(roomId) !== "running") continue;
+        for (const id of state.overview) {
+          const player = runtime
+            .roomPlayers(roomId)
+            .find((p) => p !== undefined && p.id === id);
+          if (!player) continue;
+          faceBoardDirection(state, player);
+        }
+      } catch (error) {
+        console.warn(`[Bearcade CChess] 俯瞰朝向锁定异常 room=${roomId}`, error);
+      }
+    }
+  }, 2);
 
   // 物品:木棍=唯一操作通道(普通=瞄准方块,俯瞰=玩家所在格);望远镜=切换;book=认输;玻璃瓶=求和
   world.afterEvents.itemUse.subscribe((event) => {
