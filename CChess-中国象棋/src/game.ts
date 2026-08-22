@@ -386,7 +386,7 @@ function spawnMarkers(
       state.selected.col,
       state.turn,
     )) {
-      spawnCellFrame(dim, m.col, m.row, y, "minecraft:villager_happy");
+      spawnCellFrame(dim, m.col, m.row, y, "minecraft:basic_flame_particle");
     }
   }
   // 玩家脚下格提示:仅俯瞰视角生效
