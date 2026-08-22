@@ -624,6 +624,49 @@
         "core"
       ],
       "type": "behavior"
+    },
+    {
+      "id": "ctf",
+      "dir": "Ctf-夺旗",
+      "name": "Bearcade 夺旗",
+      "description": "Bearcade 夺旗小游戏包(骨架阶段,玩法待定)",
+      "headerUuid": "b7bf4418-3194-41a9-b4af-89219c8e247a",
+      "moduleUuid": "83b16297-6389-4f18-9a42-98a5230fd437",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "ctf_hud",
+      "type": "resource",
+      "dir": "Ctf-夺旗/resource-pack",
+      "name": "Bearcade 夺旗 HUD",
+      "description": "Bearcade 夺旗占位资源包(当前无 HUD 内容,保持一对一资源包结构)",
+      "headerUuid": "2b268701-3b94-443e-80a2-687dbf156ae7",
+      "moduleUuid": "f395d425-7a18-48c3-9179-4b541cc0074f",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }

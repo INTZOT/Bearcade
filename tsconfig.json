@@ -3,7 +3,10 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2020", "DOM"],
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -15,22 +18,23 @@
     "types": []
   },
   "include": [
-    "Core-核心/src/**/*.ts",
-    "Gomoku-五子棋/src/**/*.ts",
-    "Template-小游戏模板/src/**/*.ts",
-    "Werewolf-天黑请闭眼/src/**/*.ts",
-    "GuessNBuild-建筑猜猜乐/src/**/*.ts",
     "BridgeWar-急速战桥/src/**/*.ts",
+    "CChess-中国象棋/src/**/*.ts",
     "Collapse-豆腐渣地板/src/**/*.ts",
+    "Core-核心/src/**/*.ts",
+    "Ctf-夺旗/src/**/*.ts",
     "Go-围棋/src/**/*.ts",
+    "Gomoku-五子棋/src/**/*.ts",
+    "GuessNBuild-建筑猜猜乐/src/**/*.ts",
     "HungerGame-饥饿游戏/src/**/*.ts",
     "Knockback-击退战/src/**/*.ts",
     "LabEscape-实验室逃脱/src/**/*.ts",
-    "pillars-幸运之柱/src/**/*.ts",
-    "CChess-中国象棋/src/**/*.ts",
     "PigCatcher-猪猪争夺战/src/**/*.ts",
     "SND5-剑与消亡V/src/**/*.ts",
+    "Template-小游戏模板/src/**/*.ts",
     "Toolkit-开发者工具/src/**/*.ts",
+    "Werewolf-天黑请闭眼/src/**/*.ts",
+    "pillars-幸运之柱/src/**/*.ts",
     "shared/**/*.ts"
   ]
 }
