@@ -527,6 +527,49 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "mahjong",
+      "dir": "Mahjong-麻将",
+      "name": "Bearcade Mahjong",
+      "description": "Bearcade 麻将小游戏包(牡丹江麻将,玩法已实现)",
+      "headerUuid": "6d0963dd-a2cf-4cf6-9218-41d584f26221",
+      "moduleUuid": "a738bce3-2f65-43bb-ae83-798cd40b6944",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "mahjong_hud",
+      "type": "resource",
+      "dir": "Mahjong-麻将/resource-pack",
+      "name": "Bearcade Mahjong HUD",
+      "description": "Bearcade Mahjong HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "c22e5d6c-a434-4fa9-b676-6c0d80d41f13",
+      "moduleUuid": "7b2c3896-8970-4335-8272-4f17a8f3a27c",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }

@@ -1,0 +1,111 @@
+{
+  "format_version": "1.19.0",
+  "mahjong:mahjong_a1": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_a2": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_a3": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_a4": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_a5": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_a6": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_a7": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_a8": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_a9": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b1": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b2": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b3": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b4": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b5": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b6": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b7": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b8": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_b9": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c1": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c2": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c3": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c4": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c5": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c6": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c7": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c8": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_c9": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_d1": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_d2": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_d3": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_d4": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_e1": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_e2": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_e3": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_stack_full": {
+    "sound": "stone"
+  },
+  "mahjong:mahjong_stack_half": {
+    "sound": "stone"
+  }
+}
