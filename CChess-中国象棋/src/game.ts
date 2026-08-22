@@ -656,11 +656,50 @@ function applyMove(
       }
     }
   }
-  if (gr >= 0 && isAttacked(state.board, gr, gc, color)) {
+  const inCheck = gr >= 0 && isAttacked(state.board, gr, gc, color);
+  if (inCheck) {
     runtime.announce(roomId, "§c将军!");
+  }
+  // 绝杀/困毙检测:对方是否还有任何合法走法(canMove 已含禁送将,能解除将军的走法必在其中)
+  if (allLegalMoves(state.board, next).length === 0) {
+    runtime.announce(
+      roomId,
+      inCheck
+        ? `§c绝杀!${next === "red" ? "红方" : "黑方"}无子可解,${color === "red" ? "红方" : "黑方"}获胜!`
+        : `§e困毙!${next === "red" ? "红方" : "黑方"}无子可动,${color === "red" ? "红方" : "黑方"}获胜!`,
+    );
+    runtime.endGame(
+      roomId,
+      inCheck ? "绝杀" : "困毙",
+      `§b${color === "red" ? "红方" : "黑方"}获胜`,
+    );
+    return;
   }
   state.turn = next;
   giveTurn(runtime, roomId, state);
+}
+
+/** 某方全部合法走法(含禁送将校验) */
+function allLegalMoves(
+  board: (PieceType | null)[][],
+  color: Color,
+): { from: { row: number; col: number }; to: { row: number; col: number } }[] {
+  const moves: {
+    from: { row: number; col: number };
+    to: { row: number; col: number };
+  }[] = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const piece = board[r][c];
+      if (!piece || colorOf(piece) !== color) continue;
+      for (const m of pseudoMoves(board, r, c)) {
+        if (canMove(board, { row: r, col: c }, m, color)) {
+          moves.push({ from: { row: r, col: c }, to: m });
+        }
+      }
+    }
+  }
+  return moves;
 }
 
 function giveTurn(
