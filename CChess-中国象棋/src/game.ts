@@ -1,8 +1,8 @@
 // ============================================================
 // CChess(中国象棋)玩法实现
 // 9×10 棋盘,红先黑后,吃帅/将即胜;禁送将/将帅照面;
-// 空手右键选中/走子(俯瞰下=玩家所在格),粒子高亮合法走法;
-// 望远镜俯瞰、book 认输、writable_book 求和(对方确认)。
+// 操作木棍右键=玩家所在格选中/走子(itemUse 驱动,与 Go 落子同构),
+// 粒子高亮合法走法;望远镜俯瞰、book 认输、玻璃瓶求和(对方确认)。
 // ============================================================
 import {
   system,
@@ -13,7 +13,6 @@ import {
   EntityComponentTypes,
   type Dimension,
   type Player,
-  type PlayerInteractWithBlockBeforeEvent,
 } from "@minecraft/server";
 import { MessageFormData } from "@minecraft/server-ui";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
@@ -23,11 +22,13 @@ import {
   COLS,
   defaultLayout,
   DRAW_ITEM,
+  OPERATE_ITEM,
   OVERHEAD_PRESET,
   PIECES,
   RESIGN_ITEM,
   ROWS,
   SLOT_DRAW,
+  SLOT_OPERATE,
   SLOT_RESIGN,
   SLOT_SPYGLASS,
   SPYGLASS_ITEM,
@@ -394,11 +395,9 @@ function spawnMarkers(
       );
     }
   }
-  for (const id of state.overview) {
-    const player = runtime
-      .roomPlayers(roomId)
-      .find((p) => p !== undefined && p.id === id);
-    if (!player) continue;
+  // 双方玩家脚下格提示(当前操作目标格,普通/俯瞰一致)
+  for (const player of runtime.roomPlayers(roomId)) {
+    if (player === undefined) continue;
     const row = Math.floor(player.location.z) - cfg.gridMinZ;
     const col = Math.floor(player.location.x) - cfg.gridMinX;
     if (!inBoard(row, col)) continue;
@@ -406,7 +405,7 @@ function spawnMarkers(
   }
 }
 
-// ================= 俯瞰(复用 Go 模式) =================
+// ================= 俯瞰 =================
 
 function giveItem(player: Player, slot: number, itemId: string): void {
   try {
@@ -429,7 +428,8 @@ function removeGameItems(player: Player): void {
       const item = container.getItem(slot);
       if (
         item &&
-        (item.typeId === SPYGLASS_ITEM ||
+        (item.typeId === OPERATE_ITEM ||
+          item.typeId === SPYGLASS_ITEM ||
           item.typeId === RESIGN_ITEM ||
           item.typeId === DRAW_ITEM)
       ) {
@@ -440,9 +440,6 @@ function removeGameItems(player: Player): void {
     // 忽略
   }
 }
-
-/** 俯瞰进入时保存的玩家本体原朝向(退出时恢复) */
-const overviewRotations = new Map<string, { x: number; y: number }>();
 
 function toggleOverview(
   state: CChessState,
@@ -470,17 +467,9 @@ function toggleOverview(
     } catch {
       // 忽略
     }
-    // 本体视线压到脚下:空手右键的交互射线直指棋盘格,interact 稳定触发
-    const rot = player.getRotation();
-    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
-    try {
-      player.setRotation({ x: 90, y: rot.y });
-    } catch {
-      // 忽略
-    }
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):切到空手格后右键=脚下格操作;望远镜右键=切换视角`,
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):右键木棍=脚下格操作;望远镜右键=切换视角`,
     );
   } catch (error) {
     player.sendMessage("§c俯瞰视角切换失败");
@@ -489,15 +478,6 @@ function toggleOverview(
 }
 
 function exitOverviewState(player: Player): void {
-  const saved = overviewRotations.get(player.id);
-  if (saved) {
-    overviewRotations.delete(player.id);
-    try {
-      player.setRotation(saved);
-    } catch {
-      // 忽略
-    }
-  }
   try {
     player.camera.clear();
   } catch {
@@ -507,17 +487,13 @@ function exitOverviewState(player: Player): void {
 
 // ================= 交互(选中/走子) =================
 
-function targetCell(
+/** 玩家所在格(木棍右键操作目标;与 Go 落子同构的 floor 取格) */
+function feetCell(
   cfg: ReturnType<typeof getCChessConfig>,
   player: Player,
-  overview: boolean,
-  block?: { x: number; z: number },
 ): { row: number; col: number } | null {
-  const x = overview ? Math.floor(player.location.x) : block?.x;
-  const z = overview ? Math.floor(player.location.z) : block?.z;
-  if (x === undefined || z === undefined) return null;
-  const col = x - cfg.gridMinX;
-  const row = z - cfg.gridMinZ;
+  const col = Math.floor(player.location.x) - cfg.gridMinX;
+  const row = Math.floor(player.location.z) - cfg.gridMinZ;
   return inBoard(row, col) ? { row, col } : null;
 }
 
@@ -554,7 +530,7 @@ function handleInteract(
     return;
   }
   if (!piece || colorOf(piece) !== color) {
-    player.sendMessage("§c请选中你的棋子(空手右键棋子所在格)");
+    player.sendMessage("§c请选中你的棋子(走到棋子所在格,右键木棍)");
     return;
   }
   state.selected = cell;
@@ -741,13 +717,14 @@ export function makeCchessHooks(
       runtime.teleportPlayer(roomId, red, cfg.redStart);
       runtime.teleportPlayer(roomId, black, cfg.blackStart);
       for (const player of [red, black]) {
+        giveItem(player, SLOT_OPERATE, OPERATE_ITEM);
         giveItem(player, SLOT_SPYGLASS, SPYGLASS_ITEM);
         giveItem(player, SLOT_RESIGN, RESIGN_ITEM);
         giveItem(player, SLOT_DRAW, DRAW_ITEM);
       }
       runtime.announce(
         roomId,
-        `§a对局开始!红方:${red.name} / 黑方:${black.name},红先;空手右键选中棋子(俯瞰下=脚下格)`,
+        `§a对局开始!红方:${red.name} / 黑方:${black.name},红先;走到目标格后右键木棍=选中/走子`,
       );
       giveTurn(runtime, roomId, state);
     },
@@ -816,33 +793,23 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     }
   }, 5);
 
-  // 右键交互:空手=选中/走子;普通视角=瞄准格,俯瞰下=玩家所在格
-  world.beforeEvents.playerInteractWithBlock.subscribe(
-    (event: PlayerInteractWithBlockBeforeEvent) => {
-      if (event.itemStack !== undefined) return; // 仅空手(望远镜等走 itemUse)
-      const roomId = runtime.roomIdFromDimension(event.block.dimension.id);
-      if (roomId === undefined) return;
-      const state = games.get(roomId);
-      if (!state || runtime.getPhase(roomId) !== "running") return;
-      const player = event.player;
-      const cell = targetCell(
-        getCChessConfig(),
-        player,
-        state.overview.has(player.id),
-        { x: event.block.location.x, z: event.block.location.z },
-      );
-      if (!cell) return;
-      handleInteract(runtime, roomId, state, player, cell);
-    },
-  );
-
-  // 物品:望远镜=切换俯瞰;book=认输;玻璃瓶=求和
+  // 物品:木棍=脚下格操作;望远镜=切换俯瞰;book=认输;玻璃瓶=求和
   world.afterEvents.itemUse.subscribe((event) => {
     const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
     if (roomId === undefined) return;
     const state = games.get(roomId);
     if (!state || runtime.getPhase(roomId) !== "running") return;
     const player = event.source;
+    if (event.itemStack.typeId === OPERATE_ITEM) {
+      // 与 Go 落子同构:itemUse 驱动(对空右键也触发),目标=玩家所在格
+      const cell = feetCell(getCChessConfig(), player);
+      if (!cell) {
+        player.sendMessage("§c请站到棋盘格上操作");
+        return;
+      }
+      handleInteract(runtime, roomId, state, player, cell);
+      return;
+    }
     if (event.itemStack.typeId === SPYGLASS_ITEM) {
       toggleOverview(state, player);
       return;

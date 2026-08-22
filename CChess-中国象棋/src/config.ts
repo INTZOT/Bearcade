@@ -83,9 +83,11 @@ export function defaultLayout(): (PieceType | null)[][] {
 }
 
 // ===== 物品与槽位 =====
+export const OPERATE_ITEM = "minecraft:stick"; // 操作木棍(第 1 格,右键=脚下格操作)
 export const SPYGLASS_ITEM = "minecraft:spyglass"; // 俯瞰切换(第 8 格)
 export const RESIGN_ITEM = "minecraft:book"; // 认输(第 9 格)
 export const DRAW_ITEM = "minecraft:glass_bottle"; // 求和(第 7 格)
+export const SLOT_OPERATE = 0;
 export const SLOT_SPYGLASS = 7;
 export const SLOT_RESIGN = 8;
 export const SLOT_DRAW = 6;
