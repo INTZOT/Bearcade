@@ -2208,37 +2208,44 @@ function declareWin(
   const session = getSession(roomId);
   if (!session || session.presetName !== "mudanjiang") return;
   const seat = playerSeatIndex(session, playerId);
-  const isTing = session.tingSeats.has(seat);
   const isDora = session.doraTile === winTile;
   const handBefore = (session.hands.get(playerId) ?? []).filter((t) => t !== winTile);
   const isBaoZhongBao =
     source === "self" && isDora && isKanchanWait(handBefore, winTile);
 
   const count = session.joinOrder.length;
+  // 未听牌点炮:点炮者一人包赔;听牌后点炮:其他各家各出 1 分
+  const discarderIsTing =
+    source === "discard" && session.lastDiscard
+      ? session.tingSeats.has(
+          playerSeatIndex(session, session.lastDiscard.playerId),
+        )
+      : false;
   let perPlayer = 0;
   let discarderPays = false;
-  if (!isTing && source === "discard") {
+  if (source === "discard" && !discarderIsTing) {
     perPlayer = 0;
     discarderPays = true;
   } else if (source === "discard") {
     perPlayer = 1;
   } else if (isBaoZhongBao) {
-    perPlayer = count === 3 ? 6 : 6;
+    perPlayer = 6;
   } else if (isDora) {
-    perPlayer = count === 3 ? 3 : 3;
+    perPlayer = 3;
   } else {
-    perPlayer = count === 3 ? 2 : 2;
+    perPlayer = 2;
   }
 
   if (discarderPays && session.lastDiscard) {
     const payerId = session.lastDiscard.playerId;
+    const fullPoint = count === 3 ? 2 : 3;
     const cur = session.scores.get(payerId) ?? 0;
-    session.scores.set(payerId, cur - 3);
+    session.scores.set(payerId, cur - fullPoint);
     const winScore = session.scores.get(playerId) ?? 0;
-    session.scores.set(playerId, winScore + 3);
+    session.scores.set(playerId, winScore + fullPoint);
     runtime.announce(
       roomId,
-      `§e${playerName} 胡牌!(未听点炮) ${session.lastDiscard.playerId === playerId ? "" : "点炮者-3"}`,
+      `§e${playerName} 胡牌!(未听点炮) ${session.lastDiscard.playerId === playerId ? "" : `点炮者-${fullPoint}`}`,
     );
   } else {
     for (const pid of session.joinOrder) {
