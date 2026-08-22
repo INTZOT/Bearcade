@@ -477,14 +477,9 @@ function toggleOverview(
     return;
   }
   try {
-    // 第三人称跟随相机:自定义预设(third_person_boom,半径 6,比原版略远);
-    // 引擎渲染帧率跟随玩家,零抖动;红黑双方视角对称,无需 yaw 差异
-    try {
-      player.camera.setCamera(OVERHEAD_PRESET);
-    } catch {
-      // 自定义预设未加载时回退内置 boom
-      player.camera.setCamera("minecraft:third_person_boom");
-    }
+    // 内置 follow_orbit:引擎渲染帧率跟随玩家、零抖动,距离 10(比原版第三人称略远);
+    // 鼠标可环绕(controlscheme 生效时);红黑视角对称,无需 yaw 差异
+    player.camera.setCamera(OVERHEAD_PRESET);
     setOverheadControls(player);
     // 锁 60 视野(相机作用域,退出时自动还原)
     try {

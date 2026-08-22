@@ -92,8 +92,9 @@ export const SLOT_COMPASS = 7;
 export const SLOT_RESIGN = 8;
 export const SLOT_DRAW = 6;
 
-// ===== 俯瞰(第三人称跟随,复用 Go 模式) =====
-export const OVERHEAD_PRESET = "bearcade:cchess_third"; // 自定义预设(third_person_boom,半径6)
+// ===== 第三人称跟随视角(复用 Go 模式) =====
+// 本版本自定义相机预设完全不加载,用内置 follow_orbit(默认半径 10,比原版第三人称略远)
+export const OVERHEAD_PRESET = "minecraft:follow_orbit";
 export const OVERVIEW_TAG = "bearcade_cchess_overview";
 export const AIM_ASSIST_PRESET = "bearcade:cchess_overview";
 export const AIM_ASSIST_CATEGORY = "bearcade:cchess_board";

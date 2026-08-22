@@ -188,10 +188,12 @@
 
 ### 9.5 俯瞰视角/自由相机控制方案(2026-08-17,gomoku/go 实测)
 
-- **自定义预设 `inherit_from: "minecraft:free"` + `control_scheme` 字段在本版本加载失败**:`setCamera` 抛 `Invalid camera preset`,启动日志伴随 `[Camera][error]-Failed to load the contents of file <乱码>`(引擎报错打印文件名是乱码,无法定位是哪个文件;目录大小写 `Cameras/Presets` 正确也无效,疑似该字段在 free 预设上不被本版本 schema 接受);
+- **自定义相机预设在本版本完全不加载**(2026-08-22 cchess 实证):不只 `inherit_from: "minecraft:free" + control_scheme`,连 `inherit_from: "minecraft:third_person_boom" + radius` 也 `Invalid camera preset`;启动日志伴随 `[Camera][error]-Failed to load the contents of file <乱码>`(引擎报错打印文件名是乱码)。Collapse 观战"能用"是因为代码里有**内置 `minecraft:follow_orbit` 回退**,不能证明自定义预设被加载——**结论:一律使用内置预设,自定义预设当作不存在**;
+- **`minecraft:third_person_boom` 在本版本无效**(文档中的 ID,实测 `Invalid camera preset`);可用的内置第三人称/跟随预设:`minecraft:follow_orbit`(默认半径 10,引擎级跟随,零抖动)与 `minecraft:free`、`minecraft:third_person` 等;
 - **原生 `/controlscheme` 命令**(1.21.90 起不再需要 "Experimental Creator Camera" 实验开关,权限 Game Directors、需世界作弊):`/controlscheme <players> set camera_relative|player_relative|camera_relative_strafe|player_relative_strafe|locked_player_relative_strafe`、`/controlscheme <players> clear`;`camera_relative` = 鼠标/摇杆以相机自身为轴转动(俯视视角手感正确);
 - **最终可用组合**(俯瞰视角):`player.camera.setCamera("minecraft:free", { location, rotation: { x: 90, y: 0 } })` + `player.dimension.runCommand("controlscheme @a[tag=xxx] set camera_relative")`(命令层无 `@s`,先打临时 tag 再 selector;脚本 API 无控制方案参数,必须走命令);恢复时 `camera.clear()` + `controlscheme ... clear`;
-- 依赖:世界作弊(与 `/camera` 命令同要求);ScriptAPI 侧 `rotation.x = 90` 合法(俯视极限值)。
+- 依赖:世界作弊(与 `/camera` 命令同要求);ScriptAPI 侧 `rotation.x = 90` 合法(俯视极限值);
+- **第三人称跟随**(cchess 采纳):直接 `setCamera("minecraft:follow_orbit")` 无参数——引擎渲染帧率跟随玩家零抖动、鼠标可环绕(controlscheme 生效时)、距离 10 比原版第三人称(≈4)更远;红黑双方无需 yaw 差异(对称)。
 
 ## 10. 每玩家独立记分板:JSON UI + rawtext score(本轮引入)
 
