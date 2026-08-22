@@ -25,6 +25,7 @@ import {
 } from "@minecraft/server";
 import { MessageFormData } from "@minecraft/server-ui";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { getGoConfig, openGoConfig } from "./go-config";
 import { STONE_BLACK, STONE_WHITE, type GoConfig } from "./config";
@@ -229,7 +230,8 @@ function handlePlace(
   const state = games.get(roomId);
   if (!state || !runtime.isRunning(roomId)) return false;
   if (state.pendingEnd) {
-    system.run(() => player.sendMessage("§c终局确认中,暂不能落子"));
+    // 注意:此处不能引用下方声明的 player(该绑定可能尚未初始化),直接用 event.player
+    system.run(() => event.player.sendMessage("§c终局确认中,暂不能落子"));
     return false;
   }
   const player = event.player;
@@ -484,7 +486,7 @@ function showEndConfirmForm(
         state.endConfirm.add(player.id);
         runtime.announce(
           roomId,
-          `§e${player.name} 确认终局(${state.endConfirm.size}/2)`,
+          `§e${stripSectionCodes(player.name)} 确认终局(${state.endConfirm.size}/2)`,
         );
         if (
           state.endConfirm.has(state.players.black!) &&
@@ -518,7 +520,7 @@ function cancelEndConfirmation(
   runtime.announce(
     roomId,
     canceler !== undefined
-      ? `§e${canceler.name} 取消终局,对局继续`
+      ? `§e${stripSectionCodes(canceler.name)} 取消终局,对局继续`
       : "§e终局确认超时,对局继续",
   );
   const next = runtime
@@ -599,7 +601,8 @@ function pollResign(runtime: MinigameRuntime, roomId: number, state: GoState): v
 }
 
 function pollClock(runtime: MinigameRuntime, roomId: number, state: GoState): void {
-  state.clocks[state.turn] -= 20;
+  // 轮询间隔 10 tick(0.5 秒),每次扣 10 → 每秒扣 20 tick(与 CLOCK_TICKS 的 tick 单位一致)
+  state.clocks[state.turn] -= 10;
   if (state.clocks[state.turn] <= 0) {
     runtime.announce(roomId, `§c${stoneName(state.turn)}方超时!`);
     runtime.endGame(roomId, "超时", `§b${stoneName(other(state.turn))}方获胜`);
@@ -634,7 +637,7 @@ export function makeGoHooks(getRuntime: () => MinigameRuntime): MinigameHooks {
         giveSpyglass(player);
         givePassItem(player);
         player.sendMessage(
-          `§a围棋开始!${players[0].name}(黑) vs ${players[1].name}(白),黑先手;丢出棋子=认输,使用纸张=停一手;每方 ${Math.round(cfg.clockTicks / 1200)} 分钟局时`,
+          `§a围棋开始!${stripSectionCodes(players[0].name)}(黑) vs ${stripSectionCodes(players[1].name)}(白),黑先手;丢出棋子=认输,使用纸张=停一手;每方 ${Math.round(cfg.clockTicks / 1200)} 分钟局时`,
         );
       });
       runtime.teleportPlayer(roomId, players[0], cfg.blackStart);
@@ -705,7 +708,7 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
     const state = games.get(roomId);
     if (!state) return;
     if (state.players[state.turn] === event.player.id) {
-      runtime.announce(roomId, `§c${event.player.name} 离开,视为认输!`);
+      runtime.announce(roomId, `§c${stripSectionCodes(event.player.name)} 离开,视为认输!`);
       runtime.endGame(roomId, "认输", `§b${stoneName(other(state.turn))}方获胜`);
     }
   });

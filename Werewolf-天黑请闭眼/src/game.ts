@@ -24,6 +24,7 @@ import {
   type Vector3,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { CustomForm, ObservableNumber } from "@minecraft/server-ui";
 import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
@@ -127,6 +128,8 @@ export function isFivePlayerDebug(): boolean {
 }
 
 const PHASE_ORDER: Phase[] = ["sniper", "guard", "killer", "police", "day"];
+/** 最大幕数:达到上限仍分不出胜负则判平局(防弃权/平票无限循环占用房间) */
+const MAX_NIGHTS = 8;
 
 const PHASE_NAMES: Record<Phase, string> = {
   sniper: "狙击手",
@@ -691,6 +694,10 @@ function openVoteForm(
 ): void {
   const player = playerInRoom(runtime, roomId, member.playerId);
   if (!player || !member.alive || session.finished) return;
+  // 记录表单打开时的阶段与轮次:提交时若阶段或幕数已切换(阶段切换清空了 selections),
+  // 旧表单的迟到响应必须丢弃,防止把上一阶段的选择写入新阶段(含跨整轮的白天-1 表单在白天-2 提交)
+  const openedPhase = session.phase;
+  const openedRound = session.night;
   const candidates = aliveMembers(session)
     .filter((m) => m.playerId !== member.playerId)
     .sort((a, b) => a.number - b.number);
@@ -718,6 +725,13 @@ function openVoteForm(
   form.spacer();
   form.button("确认投票", () => {
     form.close();
+    if (
+      session.finished ||
+      session.phase !== openedPhase ||
+      session.night !== openedRound
+    ) {
+      return;
+    }
     const opt = options[selected.getData()];
     const oldSeat = session.selections.get(member.playerId);
     if (!opt || opt.value === 0) {
@@ -757,6 +771,9 @@ function openActionForm(
     openVoteForm(runtime, roomId, session, member);
     return;
   }
+  // 记录表单打开时的阶段与轮次:提交时若阶段/幕数已切换,旧表单的迟到响应一律丢弃
+  const openedPhase = session.phase;
+  const openedRound = session.night;
   const role = phaseRole(session.phase);
   if (!role || member.role !== role) {
     player.sendMessage("§7现在不是你的行动阶段");
@@ -794,6 +811,13 @@ function openActionForm(
   form.spacer();
   form.button("确认行动", () => {
     form.close();
+    if (
+      session.finished ||
+      session.phase !== openedPhase ||
+      session.night !== openedRound
+    ) {
+      return;
+    }
     const opt = options[selected.getData()];
     if (!opt || opt.value === 0) {
       if (session.selections.delete(member.playerId)) {
@@ -991,7 +1015,11 @@ function checkWin(
 
   let message = "";
   let reason = "";
-  if (killers === 0) {
+  if (aliveMembers(session).length === 0) {
+    // 全员离场/全员阵亡:没有可对阵的双方,不按阵营判定胜负,直接中止对局
+    reason = "全员离场";
+    message = "§e所有玩家均已离场,对局结束";
+  } else if (killers === 0) {
     reason = "杀手全部出局";
     message = "§b警察阵营胜利!所有杀手已出局。";
   } else if (civilians === 0 || police === 0) {
@@ -1408,6 +1436,13 @@ function enterPhase(
     }
     if (current === "sniper") {
       session.night++;
+      if (session.night > MAX_NIGHTS) {
+        // 最大幕数兜底:弃权/平票等长时间无人淘汰时强制平局,防止房间被无限占用
+        runtime.announce(roomId, "§e已达到最大幕数,本局判为平局");
+        session.finished = true;
+        runtime.endGame(roomId, "最大幕数", "§e达到最大幕数,平局!");
+        return;
+      }
     }
     if (current === "day") {
       session.protectedSeat = 0;
@@ -1649,7 +1684,7 @@ export function makeWerewolfHooks(
         const pad = pads[index] ?? pads[pads.length - 1];
         const member: Member = {
           playerId: player.id,
-          name: player.name,
+          name: stripSectionCodes(player.name),
           // 号码永远从 1 开始顺序排;站到中间的物理色块上,颜色跟随色块
           number: index + 1,
           role: shuffledRoles[index],

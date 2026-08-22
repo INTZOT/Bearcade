@@ -63,12 +63,6 @@ export const STRUCTURE_ID = "bearcade:pigcatcher_room";
 // 开发命令 /bearcade:tmp tp pigcatcher 进入模板维度的落点
 export const TEMPLATE_SPAWN = { x: 0, y: 100, z: 0 };
 // 开局站位(占位,实际按队伍出生点传送)
-export const START_POSITIONS = [
-  { x: -10, y: 65, z: 0 },
-  { x: 0, y: 65, z: -10 },
-  { x: 10, y: 65, z: 0 },
-  { x: 0, y: 65, z: 10 },
-];
 
 // ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
 export interface PigConfig {

@@ -114,6 +114,22 @@ export function clearLoadout(team: Team): boolean {
 
 export function applyLoadout(team: Team, player: Player): void {
   const entity = ensureTeamEntity(team);
+  // 仓库实体/容器不可用时:保留玩家当前物品(宁可不套装备,也不先清空背包导致空手开局)
+  if (!entity) {
+    console.warn(
+      `[Bearcade bridgewar] 装备仓库实体不可用(team=${team}),保留玩家物品`,
+    );
+    return;
+  }
+  const container = entity.getComponent("minecraft:inventory") as
+    | import("@minecraft/server").EntityInventoryComponent
+    | undefined;
+  if (!container?.container) {
+    console.warn(
+      `[Bearcade bridgewar] 装备仓库容器不可用(team=${team}),保留玩家物品`,
+    );
+    return;
+  }
   const playerInventory = player.getComponent("minecraft:inventory") as
     | import("@minecraft/server").EntityInventoryComponent
     | undefined;
@@ -121,7 +137,7 @@ export function applyLoadout(team: Team, player: Player): void {
     | import("@minecraft/server").EntityEquippableComponent
     | undefined;
 
-  // 先清空,再按配置覆盖
+  // 先清空,再按配置覆盖(未配置的队伍 = 空背包,配置即真实)
   if (playerInventory?.container) {
     for (let slot = 0; slot < INVENTORY_SLOTS; slot++) {
       playerInventory.container.setItem(slot, undefined);
@@ -134,12 +150,6 @@ export function applyLoadout(team: Team, player: Player): void {
     equippable.setEquipment(EquipmentSlot.Feet, undefined);
     equippable.setEquipment(EquipmentSlot.Offhand, undefined);
   }
-
-  if (!entity) return;
-  const container = entity.getComponent("minecraft:inventory") as
-    | import("@minecraft/server").EntityInventoryComponent
-    | undefined;
-  if (!container?.container) return;
 
   if (playerInventory?.container) {
     for (let slot = 0; slot < INVENTORY_SLOTS; slot++) {

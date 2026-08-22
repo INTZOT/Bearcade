@@ -10,6 +10,7 @@ import {
   EntityComponentTypes,
   type Player,
 } from "@minecraft/server";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { SPECTATE_ITEM } from "./config";
 
@@ -51,7 +52,7 @@ export function startSpectating(
   giveSpectateItem(spectator);
   if (target) {
     attachSpectateCamera(spectator, target);
-    spectator.sendMessage(`§7正在观战 §e${target.name}§7(手持望远镜切换目标)`);
+    spectator.sendMessage(`§7正在观战 §e${stripSectionCodes(target.name)}§7(手持望远镜切换目标)`);
   } else {
     spectator.sendMessage("§7观战中,等待对局结束");
   }

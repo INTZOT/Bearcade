@@ -82,27 +82,6 @@ export const STRUCTURE_ID = "bearcade:labescape_room";
 // 开发命令 /bearcade:tmp tp labescape 进入模板维度的落点
 export const TEMPLATE_SPAWN = { x: 0, y: GROUND_Y + COLUMN_HEIGHT + 10, z: 0 };
 
-function defaultRingRadius(count: number): number {
-  return Math.max(
-    MIN_RING_RADIUS,
-    Math.ceil((count * COLUMN_SPACING) / (2 * Math.PI)),
-  );
-}
-
-// 仅供运行时类型要求;实际对局会按玩家数量动态分配柱子
-export const START_POSITIONS: Vec3[] = Array.from(
-  { length: MAX_PLAYERS },
-  (_, i) => {
-    const r = defaultRingRadius(MAX_PLAYERS);
-    const angle = (i / MAX_PLAYERS) * Math.PI * 2;
-    return {
-      x: Math.round(Math.cos(angle) * r),
-      y: GROUND_Y + COLUMN_HEIGHT,
-      z: Math.round(Math.sin(angle) * r),
-    };
-  },
-);
-
 // ===== 运行时配置(经 /bearcade:config labescape 修改,持久化优先) =====
 export interface LabEscapeConfig {
   prepSpawn: Vec3;

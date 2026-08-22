@@ -118,8 +118,17 @@ function renderNotice(entry: NoticeEntry): void {
   try {
     lobby = world.getDimension(entry.dimensionId ?? DEFAULT_DIMENSION_ID);
   } catch (error) {
-    console.warn(`[Toolkit] 公告 #${entry.id} 维度不存在:${entry.dimensionId}`);
-    return;
+    // 公告所在维度不可用(如游戏包未加载、维度未注册):
+    // 兜底到主世界渲染保留条目,避免公告"凭空消失"
+    console.warn(
+      `[Toolkit] 公告 #${entry.id} 维度不可用:${entry.dimensionId},兜底到主世界渲染`,
+      error,
+    );
+    try {
+      lobby = world.getDimension(DEFAULT_DIMENSION_ID);
+    } catch {
+      return;
+    }
   }
   // 兼容字面 \n(从输入框粘贴的复制版)与真实换行
   const lines = String(entry.text || "").replace(/\\n/g, "\n").split("\n");

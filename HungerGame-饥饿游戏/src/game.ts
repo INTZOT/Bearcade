@@ -15,10 +15,17 @@ import {
   type PlayerPlaceBlockBeforeEvent,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { hudMessage, setHudTitle, clearHudTitle } from "../../shared/minigame-core/scoreboardHud";
 import { getHungerGameConfig, openHungerGameConfig } from "./game-config";
-import { fillChest, resetCenterChests, getCenterChestLevel, isChestBlock } from "./chests";
+import {
+  fillChest,
+  resetCenterChests,
+  getCenterChestLevel,
+  resetChestState,
+  isChestBlock,
+} from "./chests";
 import { attachSpectateCamera, startSpectating, clearSpectate } from "./spectate";
 import { SPECTATE_ITEM, MAX_PLAYERS } from "./config";
 
@@ -159,7 +166,7 @@ function advancePhase(
       resetCenterChests(runtime.roomDim(roomId).id);
       runtime.announce(
         roomId,
-        `§e阶段4 中心区物资升级为 ${getCenterChestLevel()} 级,可再次搜刮!`,
+        `§e阶段4 中心区物资升级为 ${getCenterChestLevel(runtime.roomDim(roomId).id)} 级,可再次搜刮!`,
       );
       break;
     case 5:
@@ -206,7 +213,7 @@ function checkEnd(runtime: MinigameRuntime, roomId: number, state: HungerGameSta
       roomId,
       "胜利",
       winner
-        ? `§b${winner.name} 最后存活,获胜!`
+        ? `§b${stripSectionCodes(winner.name)} 最后存活,获胜!`
         : "§b最后存活者已离场,对局结束",
     );
     return true;
@@ -292,7 +299,7 @@ function eliminatePlayer(
   if (!state.alive.delete(dead.id)) return;
   runtime.announce(
     roomId,
-    `§c${dead.name} 被淘汰(${killerName}),剩余 ${state.alive.size} 人`,
+    `§c${stripSectionCodes(dead.name)} 被淘汰(${killerName}),剩余 ${state.alive.size} 人`,
   );
   const target = nearestAlive(runtime, roomId, state, dead);
   state.spectators.set(dead.id, target?.id ?? "");
@@ -323,6 +330,8 @@ export function makeHungerGameHooks(
         spectators: new Map(),
       };
       games.set(roomId, state);
+      // 清除上一局的物资箱填充状态(按维度隔离),避免第二局箱子不填充/中心箱等级漂移
+      resetChestState(runtime.roomDim(roomId).id);
       for (const player of players) {
         player.setGameMode(GameMode.Survival);
         clearInventory(player);
@@ -419,7 +428,7 @@ export function initHungerGame(getRuntime: () => MinigameRuntime): void {
     let killerName = "环境";
     if (killer instanceof Player && state.alive.has(killer.id)) {
       state.kills.set(killer.id, (state.kills.get(killer.id) ?? 0) + 1);
-      killerName = killer.name;
+      killerName = stripSectionCodes(killer.name);
     }
     eliminatePlayer(runtime, roomId, state, dead, killerName);
     checkEnd(runtime, roomId, state);
@@ -436,7 +445,18 @@ export function initHungerGame(getRuntime: () => MinigameRuntime): void {
       event.cancel = true;
       return;
     }
-    fillChest(getRuntime, roomId, event.block);
+    // restricted execution:Container.setItem 等原生调用禁止在 before 事件中执行,
+    // 延迟到正常上下文再填充(箱子 UI 会自动同步填充后的内容)
+    const dimId = event.block.dimension.id;
+    const location = event.block.location;
+    system.run(() => {
+      try {
+        const block = world.getDimension(dimId).getBlock(location);
+        if (block) fillChest(getRuntime, roomId, block);
+      } catch (error) {
+        console.warn("[Bearcade hungergame] 物资箱填充失败", error);
+      }
+    });
   });
 
   // 观战切换:望远镜轮换目标
@@ -453,7 +473,7 @@ export function initHungerGame(getRuntime: () => MinigameRuntime): void {
     const next = alive[(idx + 1) % alive.length];
     state.spectators.set(event.source.id, next.id);
     attachSpectateCamera(event.source, next);
-    event.source.sendMessage(`§7正在观战 §e${next.name}`);
+    event.source.sendMessage(`§7正在观战 §e${stripSectionCodes(next.name)}`);
   });
 
   // 离房处理:存活者视为淘汰,观战者清理
@@ -466,13 +486,35 @@ export function initHungerGame(getRuntime: () => MinigameRuntime): void {
       state.alive.delete(event.player.id);
       runtime.announce(
         roomId,
-        `§c${event.player.name} 离开,视为淘汰,剩余 ${state.alive.size} 人`,
+        `§c${stripSectionCodes(event.player.name)} 离开,视为淘汰,剩余 ${state.alive.size} 人`,
       );
       checkEnd(runtime, roomId, state);
     }
     if (state.spectators.has(event.player.id)) {
       state.spectators.delete(event.player.id);
       clearSpectate(event.player);
+    }
+  });
+
+  // 断线处理:playerLeave 不触发维度变化,必须显式把断线玩家视作淘汰,
+  // 否则断线者残留在 alive 集合中,checkEnd 永不成立,对局无法结束
+  world.afterEvents.playerLeave.subscribe((event) => {
+    for (const [roomId, state] of games) {
+      try {
+        if (state.alive.delete(event.playerId)) {
+          runtime.announce(
+            roomId,
+            `§c有玩家断线,视为淘汰,剩余 ${state.alive.size} 人`,
+          );
+          checkEnd(runtime, roomId, state);
+        }
+        state.spectators.delete(event.playerId);
+      } catch (error) {
+        console.warn(
+          `[Bearcade hungergame] 断线清理异常 room=${roomId}`,
+          error,
+        );
+      }
     }
   });
 }

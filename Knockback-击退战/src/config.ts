@@ -56,14 +56,6 @@ export const STRUCTURE_ID = "bearcade:knockback_room";
 export const TEMPLATE_SPAWN = { x: 0, y: 80, z: 0 };
 
 // 开局站位:均匀分布在外围(占位,可自行调整)
-export const START_POSITIONS = Array.from({ length: 8 }, (_, i) => {
-  const angle = (i / 8) * Math.PI * 2;
-  return {
-    x: Math.round(Math.cos(angle) * 10),
-    y: OUTER_FLOOR_Y + 1,
-    z: Math.round(Math.sin(angle) * 10),
-  };
-});
 
 // ===== 击退木棍 =====
 export const KNOCKBACK_ITEM_IDS = {
@@ -75,7 +67,6 @@ export const KNOCKBACK_ITEM_IDS = {
 export type KnockbackTier = keyof typeof KNOCKBACK_ITEM_IDS;
 
 // 木棍最大耐久;weak 无耐久(无限使用),medium/strong 耐久已增强
-export const STICK_MAX_DURABILITY = 128;
 export const STICK_DURABILITY = {
   weak: 0, // 无耐久组件,无限使用
   medium: 40, // 剩余 88(比之前略减一点)
@@ -90,16 +81,6 @@ export const KNOCKBACK_STRENGTH = {
 } as const;
 
 // 场地中刷新中/强木棍(中央高台 + 外围均可刷新)
-export const STICK_SPAWN_POINTS = [
-  { x: 0, y: CENTER_FLOOR_Y + 1, z: 0 },
-  { x: 3, y: CENTER_FLOOR_Y + 1, z: 3 },
-  { x: -3, y: CENTER_FLOOR_Y + 1, z: -3 },
-  { x: 4, y: CENTER_FLOOR_Y + 1, z: -4 },
-  { x: 0, y: OUTER_FLOOR_Y + 1, z: 12 },
-  { x: 12, y: OUTER_FLOOR_Y + 1, z: 0 },
-  { x: 0, y: OUTER_FLOOR_Y + 1, z: -12 },
-  { x: -12, y: OUTER_FLOOR_Y + 1, z: 0 },
-] as const;
 export const STICK_SPAWN_COUNTS = { medium: 2, strong: 1 } as const;
 export const STICK_RESPAWN_TICKS = 300; // 15 秒
 // 剩余时间少于该秒数后停止刷新木棍,避免结束前遗留

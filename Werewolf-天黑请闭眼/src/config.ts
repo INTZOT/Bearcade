@@ -138,7 +138,6 @@ export function usedSeatsFor(playerCount: number): number[] {
 export const CAMERA_LOCATION = { x: 2, y: -55, z: 0 };
 export const CAMERA_FACING = { x: -7, y: -55, z: 0 };
 
-export const START_POSITIONS = SEATS;
 
 // ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
 export interface WerewolfConfig {

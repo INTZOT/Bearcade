@@ -23,11 +23,19 @@ export function loadQuestions(): string[] {
   }
 }
 
-function saveQuestions(list: string[]): void {
-  world.setDynamicProperty(QB_KEY, JSON.stringify(list));
+function saveQuestions(list: string[]): boolean {
+  try {
+    world.setDynamicProperty(QB_KEY, JSON.stringify(list));
+    return true;
+  } catch (error) {
+    console.warn("[Bearcade GuessNBuild] 题库保存失败", error);
+    return false;
+  }
 }
 
-export function addQuestion(answer: string): "ok" | "empty" | "duplicate" {
+export function addQuestion(
+  answer: string,
+): "ok" | "empty" | "duplicate" | "save_failed" {
   const text = answer.trim();
   if (!text) return "empty";
   const list = loadQuestions();
@@ -35,26 +43,26 @@ export function addQuestion(answer: string): "ok" | "empty" | "duplicate" {
     return "duplicate";
   }
   list.push(text);
-  saveQuestions(list);
-  return "ok";
+  return saveQuestions(list) ? "ok" : "save_failed";
 }
 
-export function removeQuestion(indexOneBased: number): boolean {
+export function removeQuestion(
+  indexOneBased: number,
+): "ok" | "invalid" | "save_failed" {
   const list = loadQuestions();
   if (
     !Number.isInteger(indexOneBased) ||
     indexOneBased < 1 ||
     indexOneBased > list.length
   ) {
-    return false;
+    return "invalid";
   }
   list.splice(indexOneBased - 1, 1);
-  saveQuestions(list);
-  return true;
+  return saveQuestions(list) ? "ok" : "save_failed";
 }
 
-export function clearQuestions(): void {
-  saveQuestions([]);
+export function clearQuestions(): boolean {
+  return saveQuestions([]);
 }
 
 type PageOpener = (player: Player, page: number) => void;
@@ -105,7 +113,9 @@ function openAdd(player: Player): void {
         ? "§a已添加"
         : result === "duplicate"
           ? "§c已存在相同答案"
-          : "§c答案不能为空";
+          : result === "save_failed"
+            ? "§c题库保存失败(动态属性写入异常),请查看内容日志"
+            : "§c答案不能为空";
     system.runTimeout(() => player.sendMessage(text), 2);
   });
   form.button("返回", () => {
@@ -152,11 +162,14 @@ function openDelete(player: Player, page = 0): void {
     form.textField("要删除的序号", input);
     form.button("删除", () => {
       form.close();
-      const ok = removeQuestion(Number(input.getData()));
-      system.runTimeout(
-        () => player.sendMessage(ok ? "§a已删除" : "§c序号无效"),
-        2,
-      );
+      const result = removeQuestion(Number(input.getData()));
+      const text =
+        result === "ok"
+          ? "§a已删除"
+          : result === "save_failed"
+            ? "§c题库保存失败(动态属性写入异常),请查看内容日志"
+            : "§c序号无效";
+      system.runTimeout(() => player.sendMessage(text), 2);
     });
   }
   addPageNav(form, player, page, openDelete);
@@ -171,8 +184,11 @@ function openClearConfirm(player: Player): void {
   form.spacer();
   form.button("确认清空", () => {
     form.close();
-    clearQuestions();
-    system.runTimeout(() => player.sendMessage("§a题库已清空"), 2);
+    const ok = clearQuestions();
+    system.runTimeout(
+      () => player.sendMessage(ok ? "§a题库已清空" : "§c题库保存失败,请查看内容日志"),
+      2,
+    );
   });
   form.button("取消", () => {
     form.close();

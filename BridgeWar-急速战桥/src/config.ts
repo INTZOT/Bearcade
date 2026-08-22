@@ -32,14 +32,13 @@ export const TICKING_FROM = { x: -16, y: -1, z: -8 };
 export const TICKING_TO = { x: 16, y: 65, z: 8 };
 export const STRUCTURE_ID = "bearcade:bridgewar_room";
 export const TEMPLATE_SPAWN = { x: 0, y: 100, z: 0 };
-export const START_POSITIONS = [
-  { x: -16, y: 64, z: 0 },
-  { x: 16, y: 64, z: 0 },
-];
 
 // 队伍出生点与核心区(开发者配置,模板场地建好后核对)
-export const RED_SPAWN = { x: -14, y: 64, z: 0 };
-export const BLUE_SPAWN = { x: 14, y: 64, z: 0 };
+// 注意:出生点必须在己方核心区之外,否则"进入己方核心区→传送回出生点"的逻辑
+// 会每 0.5 秒对出生点上的玩家反复触发(原地传送 + 刷屏)。
+// 红核心区 x∈[-16,-13]、蓝核心区 x∈[13,16],出生点取核心区内侧 1 格(x=∓12)。
+export const RED_SPAWN = { x: -12, y: 64, z: 0 };
+export const BLUE_SPAWN = { x: 12, y: 64, z: 0 };
 export const RED_CORE_FROM = { x: -16, y: 63, z: -4 };
 export const RED_CORE_TO = { x: -13, y: 66, z: 4 };
 export const BLUE_CORE_FROM = { x: 13, y: 63, z: -4 };

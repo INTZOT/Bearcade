@@ -14,6 +14,7 @@ import {
   type PlayerPlaceBlockBeforeEvent,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import {
   clearHudTitle,
@@ -190,7 +191,16 @@ function handlePlace(
   // 俯瞰视角:准星脱离相机(本体视线强制水平),右键落子改为落在玩家脚下最近的交叉点
   // (aim assist 在本版本实测不产生锁定,不承担功能;此处无条件脚本落子)
   if (state.overview.has(player.id)) {
-    tryPlaceAtPlayer(runtime, roomId, state, player);
+    // restricted execution:这里的 tryPlaceAtPlayer 需要读 player.location/getComponent,
+    // before 事件中直接调用会抛错——只在此取消引擎放置,实际落子延迟到 system.run。
+    const playerId = player.id;
+    system.run(() => {
+      const p = world.getAllPlayers().find((x) => x.id === playerId);
+      const s = games.get(roomId);
+      if (!p || !s || !runtime.isRunning(roomId)) return;
+      if (!s.overview.has(playerId)) return;
+      tryPlaceAtPlayer(runtime, roomId, s, p);
+    });
     return false; // 取消引擎放置,由脚本放置
   }
 
@@ -398,7 +408,7 @@ export function makeGomokuHooks(
       runtime.teleportPlayer(roomId, white, cfg.whiteStart);
       runtime.announce(
         roomId,
-        `§a对局开始!黑方:${black.name} / 白方:${white.name},放置棋子落子`,
+        `§a对局开始!黑方:${stripSectionCodes(black.name)} / 白方:${stripSectionCodes(white.name)},放置棋子落子`,
       );
       refreshHud(runtime, roomId, games.get(roomId)!);
       giveTurn(runtime, roomId, black, "black");

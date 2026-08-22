@@ -75,12 +75,15 @@ function parseEnchantList(text: string): {
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
-    const match = /^([^\s:]+):?\s*(\d*)$/.exec(line);
+    // 先剥离 minecraft: 前缀(兼容 "minecraft:sharpness 5" 写法),
+    // 再解析 "名称[空格|冒号]等级":sharpness 5 / Sharpness:5 / 锋利 5 / sharpness
+    const normalized = line.replace(/^minecraft:/i, "").trim();
+    const match = /^([^\s:]+)\s*:?\s*(\d*)$/.exec(normalized);
     if (!match) {
       unknown.push(line);
       continue;
     }
-    const rawName = match[1].toLowerCase().replace("minecraft:", "").replace(/_/g, "");
+    const rawName = match[1].toLowerCase().replace(/_/g, "");
     const level =
       match[2] && /^\d+$/.test(match[2])
         ? Math.max(1, Math.min(255, Number(match[2])))

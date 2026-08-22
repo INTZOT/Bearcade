@@ -41,7 +41,6 @@ runtime = new MinigameRuntime(
     tickingTo: TICKING_TO,
     structureId: STRUCTURE_ID,
     templateSpawn: TEMPLATE_SPAWN,
-    startPositions: [],
     lobbyDimensionId: LOBBY_DIMENSION_ID,
     ipcChannel: IPC_CHANNEL,
     startDelayTicks: 60 * 20,

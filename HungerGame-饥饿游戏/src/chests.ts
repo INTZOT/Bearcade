@@ -25,8 +25,10 @@ import {
 const filled = new Set<string>();
 /** 本局已填充的中心箱坐标(dimId -> 坐标列表,阶段 4 重置用) */
 const centerChests = new Map<string, { x: number; y: number; z: number }[]>();
-/** 中心箱当前等级(开局 2,阶段 4 升 4) */
-let centerLevel = 2;
+/** 本局已填充的全部箱子坐标(dimId -> 坐标列表,下一局开始前清空箱内内容) */
+const openedChests = new Map<string, { x: number; y: number; z: number }[]>();
+/** 中心箱当前等级(dimId -> level;开局 2,阶段 4 升 4;按维度隔离,多房间互不影响) */
+const centerLevels = new Map<string, number>();
 
 function chestKey(block: Block): string {
   return `${block.dimension.id}:${block.x},${block.y},${block.z}`;
@@ -50,10 +52,10 @@ export function fillChest(
 ): boolean {
   const key = chestKey(block);
   if (filled.has(key)) return false;
-  // 等级:中心箱固定(centerLevel);野外箱打开时随机 1~4
+  // 等级:中心箱固定(该维度等级);野外箱打开时随机 1~4
   const level =
     block.typeId === CHEST_CENTER
-      ? centerLevel
+      ? (centerLevels.get(block.dimension.id) ?? 2)
       : 1 + Math.floor(Math.random() * 4);
   const pool = poolItems(getRuntime, roomId, level);
   const container = block.getComponent(EntityComponentTypes.Inventory)
@@ -74,6 +76,9 @@ export function fillChest(
     container.setItem(slot, new ItemStack(item.typeId, item.amount));
   }
   filled.add(key);
+  const opened = openedChests.get(block.dimension.id) ?? [];
+  opened.push({ x: block.x, y: block.y, z: block.z });
+  openedChests.set(block.dimension.id, opened);
   if (block.typeId === CHEST_CENTER) {
     const list = centerChests.get(block.dimension.id) ?? [];
     list.push({ x: block.x, y: block.y, z: block.z });
@@ -93,12 +98,39 @@ export function resetCenterChests(dimensionId: string): void {
     filled.delete(`${dimensionId}:${pos.x},${pos.y},${pos.z}`);
   }
   centerChests.set(dimensionId, []);
-  centerLevel = 4;
+  centerLevels.set(dimensionId, 4);
 }
 
 /** 查询中心箱当前等级(游戏内公告用) */
-export function getCenterChestLevel(): number {
-  return centerLevel;
+export function getCenterChestLevel(dimensionId: string): number {
+  return centerLevels.get(dimensionId) ?? 2;
+}
+
+/**
+ * 对局开始前清除上一局的箱填充状态(按维度隔离,不影响其他房间):
+ * 防止第二局"已打开的箱子不再填充/中心箱等级从上局 4 级开始"的跨局泄漏。
+ * 死场景地图不重建,箱内残留物品一并清空(内容不落库)。
+ */
+export function resetChestState(dimensionId: string): void {
+  const prefix = `${dimensionId}:`;
+  for (const key of [...filled]) {
+    if (key.startsWith(prefix)) filled.delete(key);
+  }
+  try {
+    const dim = world.getDimension(dimensionId);
+    for (const pos of openedChests.get(dimensionId) ?? []) {
+      const block = dim.getBlock({ x: pos.x, y: pos.y, z: pos.z });
+      const container = block
+        ?.getComponent(EntityComponentTypes.Inventory)
+        ?.container;
+      if (container) container.clearAll();
+    }
+  } catch (error) {
+    console.warn("[Bearcade hungergame] 重置物资箱内容失败", error);
+  }
+  openedChests.delete(dimensionId);
+  centerChests.delete(dimensionId);
+  centerLevels.delete(dimensionId);
 }
 
 /** 野外/中心箱类型判断 */

@@ -26,10 +26,12 @@ import {
   Player,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { loadGameConfig, saveGameConfig } from "../../shared/minigame-core/configStore";
 import { openConfigMenu, openIntEditor } from "../../shared/minigame-core/configUi";
 import { clearHudTitle } from "../../shared/minigame-core/scoreboardHud";
+import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
 import {
   PILLARS_DEFAULTS,
   PREP_SPAWN,
@@ -74,10 +76,10 @@ interface RoomGame {
   eliminated: { playerId: string; name: string; deathTick: number; kills: number }[];
   /** 中途未死亡主动退出/离开的玩家(排名不计入) */
   quitPlayers: Set<string>;
-  /** 开局时的原始最小人数(结算重置时恢复) */
-  originalMinPlayers: number;
   /** 已触发结束(防止重复结算) */
   ended: boolean;
+  /** 开局时的配置快照(钩子/canPlace/canBreak 使用,避免 restricted 上下文读动态属性) */
+  cfg: PillarsGameConfig;
 }
 
 const roomGames = new Map<number, RoomGame>();
@@ -142,14 +144,12 @@ function arenaRadius(cfg: PillarsGameConfig): number {
   return cfg.outerRingRadius + 3;
 }
 
-/** 地图外 5 格为限制边界:超过此范围会被传送回安全位置 */
-function boundaryRadius(cfg: PillarsGameConfig): number {
-  return arenaRadius(cfg) + 5;
-}
-
-/** 是否允许交互(放置/破坏):边界禁止区(地图外 5 格再往外)以外都允许 */
+/**
+ * 是否允许交互(放置/破坏)与越界回传的判定半径:与地图草地面半径一致,
+ * 避免"地图边缘与限制边界之间存在无地面的虚空带"(默认 16 < r ≤ 21)玩家走入坠落。
+ */
 function canInteractAt(cfg: PillarsGameConfig, x: number, z: number): boolean {
-  const r = boundaryRadius(cfg);
+  const r = arenaRadius(cfg);
   return x * x + z * z <= r * r;
 }
 
@@ -500,8 +500,13 @@ function updateHud(runtime: MinigameRuntime, roomId: number): void {
   }
 }
 
-/** 生成最终排名文本:未死亡退出者不计入,已淘汰者按死亡时间排名,名字用开局存档 */
-function buildRankingText(state: RoomGame): string {
+/** 生成最终排名文本(未死亡退出者不计入,名字用开局存档):
+ * - survival 模式(最后存活结束):存活者恒在已淘汰者之前,存活按击杀数、已淘汰按淘汰时间;
+ * - kills 模式(时间到结束):所有人统一按击杀数排序(与"击杀数最高者为第一名"规则一致)。 */
+function buildRankingText(
+  state: RoomGame,
+  mode: "survival" | "kills" = "survival",
+): string {
   const aliveIds = [...state.alive];
   const entries: {
     id: string;
@@ -531,6 +536,22 @@ function buildRankingText(state: RoomGame): string {
   }
   if (entries.length === 0) return "§c本局没有可排名玩家";
 
+  const lines = ["§6=== 幸运之柱 结算 ==="];
+  if (mode === "kills") {
+    // 时间到:纯击杀数排序,击杀并列同名次;同击杀按淘汰时间(越晚越高)
+    entries.sort((a, b) => b.kills - a.kills || b.deathTick - a.deathTick);
+    let prevKills = -1;
+    let prevPlace = 1;
+    for (let i = 0; i < entries.length; i++) {
+      const kills = entries[i].kills;
+      const place = kills === prevKills ? prevPlace : i + 1;
+      prevKills = kills;
+      prevPlace = place;
+      lines.push(`§e第 ${place} 名:${entries[i].name} §7(击杀 ${kills})`);
+    }
+    return lines.join("\n");
+  }
+
   // 存活者排在已淘汰者之前;存活按击杀数,已淘汰按死亡时间(越晚越高)
   entries.sort((a, b) => {
     if (a.group !== b.group) return a.group === "alive" ? -1 : 1;
@@ -538,7 +559,6 @@ function buildRankingText(state: RoomGame): string {
     return b.deathTick - a.deathTick || b.kills - a.kills;
   });
 
-  const lines = ["§6=== 幸运之柱 结算 ==="];
   let prevKey: number | undefined;
   let prevPlace = 1;
   for (let i = 0; i < entries.length; i++) {
@@ -572,7 +592,8 @@ function endByTime(runtime: MinigameRuntime, roomId: number): void {
   const state = roomGames.get(roomId);
   if (!state || state.ended) return;
   state.ended = true;
-  const message = buildRankingText(state);
+  // 时间到:按击杀数排名(击杀数最高者为第一名)
+  const message = buildRankingText(state, "kills");
   protectPlayersAtEnd(runtime, roomId);
   runtime.endGame(roomId, "时间到", message);
 }
@@ -844,10 +865,10 @@ function handlePrepPhase(runtime: MinigameRuntime): void {
   }
 }
 
-/** 边界限制:地图外 5 格为界,玩家越界则传送回进入前的位置 */
+/** 边界限制:与地图草地面半径一致,玩家越界则传送回进入前的位置 */
 function enforceBoundaries(runtime: MinigameRuntime): void {
   const cfg = getConfig();
-  const limitSq = boundaryRadius(cfg) * boundaryRadius(cfg);
+  const limitSq = arenaRadius(cfg) * arenaRadius(cfg);
   for (const state of roomGames.values()) {
     if (state.ended) continue;
     for (const player of runtime.roomDim(state.roomId).getPlayers()) {
@@ -1034,17 +1055,51 @@ export function makePillarsHooks(
       const runtime = getRuntime();
       const cfg = getConfig();
 
-      // 对局开始后(含 3-2-1 倒计时)最小人数改为 1,避免只剩 1 人时被共享运行时提前结束
-      const originalMinPlayers = runtime.config.minPlayers ?? 2;
-      runtime.config.minPlayers = 1;
-
+      // 注意:不得改动 runtime.config.minPlayers(游戏级共享配置,多房间共用)。
+      // 离场由玩法自身 checkEarlyEnd 处理,运行时已配置 endGameWhenBelowMin:false,
+      // 不会因人数低于下限自动结束。
       const positions = pillarPositions(cfg);
       const assigned = shuffle(positions);
+      // 柱位校验:地图未建/配置与地图错位时拒绝开局并提示修复路径
+      if (positions.length === 0) {
+        runtime.announce(
+          roomId,
+          "§c幸运之柱:未生成柱位,请先 /bearcade:tmp tp pillars 建图并 /bearcade:tmp ap pillars 应用后再开局",
+        );
+        runtime.endGame(roomId, "无柱位", "§c柱位缺失,对局结束");
+        return;
+      }
+      if (players.length > positions.length) {
+        runtime.announce(
+          roomId,
+          `§c警告:柱位(${positions.length})少于玩家(${players.length}),部分玩家将共用柱子`,
+        );
+      }
+      // 柱位与地图实测校验:改柱数/半径后旧地图柱位缺失,直接拒绝开局并提示重建
+      // (避免玩家被传送到空柱位坠落;只测柱顶一格,20~40 次 getBlock 成本可忽略)
+      try {
+        const dim = runtime.roomDim(roomId);
+        let missing = 0;
+        for (const pos of positions) {
+          const block = dim.getBlock({ x: pos.x, y: pos.y, z: pos.z });
+          if (!block || block.typeId !== "minecraft:bedrock") missing++;
+        }
+        if (missing > 0) {
+          runtime.announce(
+            roomId,
+            `§c柱位校验失败(${missing}/${positions.length} 根缺失):请先 /bearcade:tmp tp pillars 重新生成地图并 /bearcade:tmp ap pillars 应用后再开局`,
+          );
+          runtime.endGame(roomId, "柱位校验失败", "§c柱位与地图不一致,对局已结束");
+          return;
+        }
+      } catch (error) {
+        runtime.dbg("柱位校验异常", error);
+      }
       const countdownEndTick = system.currentTick + 3 * 20;
       const state: RoomGame = {
         roomId,
         alive: new Set(players.map((p) => p.id)),
-        playerNames: new Map(players.map((p) => [p.id, p.nameTag])),
+        playerNames: new Map(players.map((p) => [p.id, stripSectionCodes(p.nameTag)])),
         kills: new Map(players.map((p) => [p.id, 0])),
         startTick: countdownEndTick,
         endTick:
@@ -1055,8 +1110,8 @@ export function makePillarsHooks(
         lastSafePositions: new Map(),
         eliminated: [],
         quitPlayers: new Set(),
-        originalMinPlayers,
         ended: false,
+        cfg,
       };
       roomGames.set(roomId, state);
 
@@ -1131,8 +1186,6 @@ export function makePillarsHooks(
     onBeforeReset(roomId) {
       const runtime = getRuntime();
       const state = roomGames.get(roomId);
-      // 恢复原始最小人数,避免下一局 1 人也能开局
-      runtime.config.minPlayers = state?.originalMinPlayers ?? 2;
       if (state) {
         for (const id of state.alive) {
           const player = playerById(id);
@@ -1150,7 +1203,13 @@ export function makePillarsHooks(
       }
       for (const player of runtime.roomPlayers(roomId)) {
         clearHudTitle(player);
+        clearAllPlayerItems(player);
         setPlayerMovementLocked(player, false);
+        try {
+          player.setGameMode(GameMode.Adventure);
+        } catch {
+          // 玩家可能已不在场,忽略
+        }
       }
       // 只清理实体,方块由模板重置负责
       clearRoomEntities(runtime.roomDim(roomId));
@@ -1167,7 +1226,8 @@ export function makePillarsHooks(
       const state = roomGames.get(roomId);
       if (!state || state.ended) return false;
       if (system.currentTick < state.countdownEndTick) return false;
-      const cfg = getConfig();
+      // 使用开局配置快照(restricted 上下文不读动态属性/持久化)
+      const cfg = state.cfg;
       if (event.block.location.y < cfg.minBuildY) return false;
       if (event.block.location.y >= cfg.maxBuildY) return false;
       return canInteractAt(cfg, event.block.location.x, event.block.location.z);
@@ -1177,17 +1237,23 @@ export function makePillarsHooks(
       const state = roomGames.get(roomId);
       if (!state || state.ended) return false;
       if (system.currentTick < state.countdownEndTick) return false;
-      const cfg = getConfig();
+      const cfg = state.cfg;
       return canInteractAt(cfg, event.block.location.x, event.block.location.z);
     },
 
     openConfig(player) {
-      openPillarsConfig(player);
+      openPillarsConfig(player, getRuntime());
     },
   };
 }
 
-function openPillarsConfig(player: Player): void {
+function openPillarsConfig(player: Player, runtime: MinigameRuntime): void {
+  // 对局中禁止修改:柱位/半径等几何参数改动会与已建地图错位,
+  // 在下一次开局前必须重新生成地图(/tmp ap)
+  if (runtime.hasActiveGame()) {
+    player.sendMessage("§c对局进行中禁止修改配置,请先结束对局");
+    return;
+  }
   const cfg = getConfig();
   const save = (patch: Partial<PillarsGameConfig>) => {
     const next = { ...getConfig(), ...patch };
@@ -1204,7 +1270,7 @@ function openPillarsConfig(player: Player): void {
           "游戏时长",
           cfg.gameDurationSeconds,
           (v) => save({ gameDurationSeconds: v }),
-          { min: 10, max: 600, hint: "一局最长秒数,默认 300", back: () => openPillarsConfig(player) },
+          { min: 10, max: 600, hint: "一局最长秒数,默认 300", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1215,7 +1281,7 @@ function openPillarsConfig(player: Player): void {
           "发物品间隔",
           cfg.itemIntervalSeconds,
           (v) => save({ itemIntervalSeconds: v }),
-          { min: 1, max: 60, hint: "每多少秒给所有存活玩家发一件随机物品,默认 5", back: () => openPillarsConfig(player) },
+          { min: 1, max: 60, hint: "每多少秒给所有存活玩家发一件随机物品,默认 5", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1226,7 +1292,7 @@ function openPillarsConfig(player: Player): void {
           "内环柱子数",
           cfg.innerRingCount,
           (v) => save({ innerRingCount: v }),
-          { min: 1, max: 20, hint: "默认 10,与外环合计建议 20", back: () => openPillarsConfig(player) },
+          { min: 1, max: 20, hint: "默认 10,与外环合计建议 20", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1237,7 +1303,7 @@ function openPillarsConfig(player: Player): void {
           "外环柱子数",
           cfg.outerRingCount,
           (v) => save({ outerRingCount: v }),
-          { min: 1, max: 20, hint: "默认 10,与外环合计建议 20", back: () => openPillarsConfig(player) },
+          { min: 1, max: 20, hint: "默认 10,与外环合计建议 20", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1248,7 +1314,7 @@ function openPillarsConfig(player: Player): void {
           "内环半径",
           cfg.innerRingRadius,
           (v) => save({ innerRingRadius: v }),
-          { min: 3, max: 16, hint: "默认 8,相邻柱间距约 5 格", back: () => openPillarsConfig(player) },
+          { min: 3, max: 16, hint: "默认 8,相邻柱间距约 5 格", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1259,7 +1325,7 @@ function openPillarsConfig(player: Player): void {
           "外环半径",
           cfg.outerRingRadius,
           (v) => save({ outerRingRadius: v }),
-          { min: 4, max: 16, hint: "默认 13,与内环保持较近距离", back: () => openPillarsConfig(player) },
+          { min: 4, max: 16, hint: "默认 13,与内环保持较近距离", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1270,7 +1336,7 @@ function openPillarsConfig(player: Player): void {
           "柱子高度",
           cfg.pillarHeight,
           (v) => save({ pillarHeight: v }),
-          { min: 10, max: 60, hint: "默认 35,足够从柱顶摔落致死", back: () => openPillarsConfig(player) },
+          { min: 10, max: 60, hint: "默认 35,足够从柱顶摔落致死", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1281,7 +1347,7 @@ function openPillarsConfig(player: Player): void {
           "地面 Y",
           cfg.groundY,
           (v) => save({ groundY: v }),
-          { min: -60, max: 5, hint: "草方块地面高度,默认 0", back: () => openPillarsConfig(player) },
+          { min: -60, max: 5, hint: "草方块地面高度,默认 0", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1292,7 +1358,7 @@ function openPillarsConfig(player: Player): void {
           "搭建高度上限",
           cfg.maxBuildY,
           (v) => save({ maxBuildY: v }),
-          { min: 1, max: 319, hint: "y >= 该值禁止放置方块,默认 50", back: () => openPillarsConfig(player) },
+          { min: 1, max: 319, hint: "y >= 该值禁止放置方块,默认 50", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
@@ -1303,7 +1369,7 @@ function openPillarsConfig(player: Player): void {
           "搭建高度下限",
           cfg.minBuildY,
           (v) => save({ minBuildY: v }),
-          { min: -64, max: 50, hint: "y < 该值禁止放置方块,默认 0(即 y=-1 及以下禁止)", back: () => openPillarsConfig(player) },
+          { min: -64, max: 50, hint: "y < 该值禁止放置方块,默认 0(即 y=-1 及以下禁止)", back: () => openPillarsConfig(player, runtime) },
         ),
     },
     {
