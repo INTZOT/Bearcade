@@ -487,13 +487,28 @@ function exitOverviewState(player: Player): void {
 
 // ================= 交互(选中/走子) =================
 
-/** 玩家所在格(木棍右键操作目标;与 Go 落子同构的 floor 取格) */
-function feetCell(
+/**
+ * 木棍操作目标格:俯瞰下=玩家所在格(floor,与 Go 落子同构);
+ * 普通视角=视线瞄准的方块(脚本射线,不依赖 interact 事件)。
+ */
+function operateCell(
   cfg: ReturnType<typeof getCChessConfig>,
   player: Player,
+  overview: boolean,
 ): { row: number; col: number } | null {
-  const col = Math.floor(player.location.x) - cfg.gridMinX;
-  const row = Math.floor(player.location.z) - cfg.gridMinZ;
+  let x: number;
+  let z: number;
+  if (overview) {
+    x = Math.floor(player.location.x);
+    z = Math.floor(player.location.z);
+  } else {
+    const hit = player.getBlockFromViewDirection({ maxDistance: 10 });
+    if (!hit) return null;
+    x = hit.block.location.x;
+    z = hit.block.location.z;
+  }
+  const col = x - cfg.gridMinX;
+  const row = z - cfg.gridMinZ;
   return inBoard(row, col) ? { row, col } : null;
 }
 
@@ -530,7 +545,7 @@ function handleInteract(
     return;
   }
   if (!piece || colorOf(piece) !== color) {
-    player.sendMessage("§c请选中你的棋子(走到棋子所在格,右键木棍)");
+    player.sendMessage("§c请选中你的棋子(右键木棍,普通视角需瞄准棋子格)");
     return;
   }
   state.selected = cell;
@@ -793,7 +808,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     }
   }, 5);
 
-  // 物品:木棍=脚下格操作;望远镜=切换俯瞰;book=认输;玻璃瓶=求和
+  // 物品:木棍=唯一操作通道(普通=瞄准方块,俯瞰=玩家所在格);望远镜=切换;book=认输;玻璃瓶=求和
   world.afterEvents.itemUse.subscribe((event) => {
     const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
     if (roomId === undefined) return;
@@ -801,10 +816,13 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     if (!state || runtime.getPhase(roomId) !== "running") return;
     const player = event.source;
     if (event.itemStack.typeId === OPERATE_ITEM) {
-      // 与 Go 落子同构:itemUse 驱动(对空右键也触发),目标=玩家所在格
-      const cell = feetCell(getCChessConfig(), player);
+      // itemUse 驱动(对空右键也触发);空手不处理
+      const overview = state.overview.has(player.id);
+      const cell = operateCell(getCChessConfig(), player, overview);
       if (!cell) {
-        player.sendMessage("§c请站到棋盘格上操作");
+        player.sendMessage(
+          overview ? "§c请站到棋盘格上操作" : "§c请瞄准棋盘格操作",
+        );
         return;
       }
       handleInteract(runtime, roomId, state, player, cell);
