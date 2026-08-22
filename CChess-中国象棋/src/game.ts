@@ -32,8 +32,8 @@ import {
   SLOT_DRAW,
   SLOT_OPERATE,
   SLOT_RESIGN,
-  SLOT_COMPASS,
-  COMPASS_ITEM,
+  SLOT_SPYGLASS,
+  SPYGLASS_ITEM,
   type PieceType,
 } from "./config";
 
@@ -427,7 +427,7 @@ function removeGameItems(player: Player): void {
       if (
         item &&
         (item.typeId === OPERATE_ITEM ||
-          item.typeId === COMPASS_ITEM ||
+          item.typeId === SPYGLASS_ITEM ||
           item.typeId === RESIGN_ITEM ||
           item.typeId === DRAW_ITEM)
       ) {
@@ -773,7 +773,7 @@ export function makeCchessHooks(
       runtime.teleportPlayer(roomId, black, cfg.blackStart);
       for (const player of [red, black]) {
         giveItem(player, SLOT_OPERATE, OPERATE_ITEM);
-        giveItem(player, SLOT_COMPASS, COMPASS_ITEM);
+        giveItem(player, SLOT_SPYGLASS, SPYGLASS_ITEM);
         giveItem(player, SLOT_RESIGN, RESIGN_ITEM);
         giveItem(player, SLOT_DRAW, DRAW_ITEM);
       }
@@ -868,7 +868,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
       handleInteract(runtime, roomId, state, player, cell);
       return;
     }
-    if (event.itemStack.typeId === COMPASS_ITEM) {
+    if (event.itemStack.typeId === SPYGLASS_ITEM) {
       toggleOverview(state, player);
       return;
     }
