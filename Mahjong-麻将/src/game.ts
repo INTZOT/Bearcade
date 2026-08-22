@@ -996,15 +996,26 @@ function revealMeldsOnTing(
 ): boolean {
   const melds = session.melds.get(playerId);
   if (!melds) return false;
+  const playerName =
+    world.getEntity(playerId)?.nameTag ??
+    `座位${playerSeatIndex(session, playerId) + 1}`;
   let changed = false;
+  const revealed: string[] = [];
   for (const m of melds) {
     if (m.concealed) {
       m.concealed = false;
       changed = true;
+      revealed.push(tileDisplayName(m.tileId));
     }
   }
   if (!changed) return false;
   refreshMeldDisplay(session, runtime, playerId);
+  if (revealed.length > 0) {
+    runtime.announce(
+      session.roomId,
+      `§e${playerName} 的暗杠亮出:${revealed.join("、")}`,
+    );
+  }
   return maybeReplaceDora(session, runtime);
 }
 
@@ -1158,6 +1169,10 @@ function discardTile(
     session.doraTold.add(player.id);
     maybeRevealDoraWhenAllTingAndDiscarded(session, runtime);
   }
+  // 已听牌玩家打出牌后,暗杠改为明置并公布
+  if (session.tingSeats.has(seat)) {
+    revealMeldsOnTing(session, runtime, player.id);
+  }
   clearTingItemsForAll(session);
   if (session.presetName === "mudanjiang") {
     session.lastDiscard = { playerId: player.id, tileId: entry.tileId };
@@ -1225,6 +1240,7 @@ function autoDiscardForAway(
   if (session.tingSeats.has(seat)) {
     session.doraTold.add(playerId);
     maybeRevealDoraWhenAllTingAndDiscarded(session, runtime);
+    revealMeldsOnTing(session, runtime, playerId);
   }
   const dim = runtime.roomDim(roomId);
   const displayList = session.handDisplays.get(playerId) ?? [];
@@ -1468,7 +1484,10 @@ function declareTing(
   }
   session.tingSeats.add(seat);
   session.tingDiscards.set(player.id, discards);
-  const doraReplaced = revealMeldsOnTing(session, runtime, player.id);
+  // 暗杠在听牌且打出牌后才亮出;这里如果是打出牌后补叫听,则立即亮出
+  const doraReplaced = session.discardedThisTurn.has(player.id)
+    ? revealMeldsOnTing(session, runtime, player.id)
+    : false;
   player.sendMessage(
     readyNow.length > 0
       ? `§a你已听牌!听:${[...waits].map(tileDisplayName).join("、")}`
@@ -1859,10 +1878,7 @@ function handleSelfGang(
     if (session.autoSort) refreshPlayerHandDisplay(session, runtime, player.id);
     applyTingHandLock(session, runtime, player.id);
     refreshTurnActionItems(session, player);
-    runtime.announce(
-      session.roomId,
-      `§e${player.name} 暗杠了 ${tileDisplayName(concealed)}`,
-    );
+    runtime.announce(session.roomId, `§e${player.name} 暗杠了`);
     player.sendMessage("§a你暗杠了,请打出一张手牌");
     return;
   }
@@ -2147,8 +2163,7 @@ function performChi(
     }
     session.tingSeats.add(playerSeatIndex(session, player.id));
     session.tingDiscards.set(player.id, discards);
-    revealMeldsOnTing(session, runtime, player.id);
-    // 吃听后先不暗置,等打出牌后再暗置锁定;宝牌也等打出牌后再告知
+    // 暗杠等打出牌后再亮出;宝牌也等打出牌后再告知
     clearTingItemsForAll(session);
     player.sendMessage(
       `§a吃听成功!可打:${discards.map(tileDisplayName).join("、")} 听:${[...waits].map(tileDisplayName).join("、")}`,
