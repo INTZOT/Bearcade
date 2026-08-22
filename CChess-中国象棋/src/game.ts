@@ -370,7 +370,8 @@ function spawnCellFrame(
   }
 }
 
-/** 格子中心撒粒子(棋子可走位置标记用,高于棋子模型顶部) */
+/** 格子中心撒粒子(棋子可走位置标记用) */
+let markerParticleWarned = false;
 function spawnCellCenter(
   dim: Dimension,
   col: number,
@@ -386,8 +387,11 @@ function spawnCellCenter(
         z: row + 0.35 + Math.random() * 0.3,
       });
     }
-  } catch {
-    // 忽略
+  } catch (error) {
+    if (!markerParticleWarned) {
+      markerParticleWarned = true;
+      console.warn(`[Bearcade CChess] 走法标记粒子无效: ${effect}`, error);
+    }
   }
 }
 
@@ -399,7 +403,8 @@ function spawnMarkers(
 ): void {
   const cfg = getCChessConfig();
   const dim = runtime.roomDim(roomId);
-  const y = cfg.boardY + 1 + 0.3;
+  const yMove = cfg.boardY + 1 + 0.3;
+  const yCapture = cfg.boardY + 1 + 0.8; // 高于棋子模型顶部
   if (state.selected) {
     for (const m of legalMoves(
       state.board,
@@ -411,10 +416,8 @@ function spawnMarkers(
         dim,
         m.col,
         m.row,
-        y,
-        m.capture
-          ? "minecraft:crimson_spore"
-          : "minecraft:balloon_gas_particle",
+        m.capture ? yCapture : yMove,
+        m.capture ? "minecraft:flame" : "minecraft:balloon_gas_particle",
       );
     }
   }
