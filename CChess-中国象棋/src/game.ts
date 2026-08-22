@@ -395,7 +395,7 @@ function spawnCellCenter(
   }
 }
 
-/** 选中高亮(格子中心粒子)+ 俯瞰脚下格提示(仅俯瞰,四边框) */
+/** 选中高亮(格子中心粒子,可走/可吃统一)+ 俯瞰脚下格提示(仅俯瞰,四边框) */
 function spawnMarkers(
   runtime: MinigameRuntime,
   roomId: number,
@@ -403,8 +403,7 @@ function spawnMarkers(
 ): void {
   const cfg = getCChessConfig();
   const dim = runtime.roomDim(roomId);
-  const yMove = cfg.boardY + 1 + 0.3;
-  const yCapture = cfg.boardY + 1 + 0.8; // 高于棋子模型顶部
+  const y = cfg.boardY + 1 + 0.6; // 统一高度,高于棋子模型顶部
   if (state.selected) {
     for (const m of legalMoves(
       state.board,
@@ -412,13 +411,7 @@ function spawnMarkers(
       state.selected.col,
       state.turn,
     )) {
-      spawnCellCenter(
-        dim,
-        m.col,
-        m.row,
-        m.capture ? yCapture : yMove,
-        m.capture ? "minecraft:flame" : "minecraft:balloon_gas_particle",
-      );
+      spawnCellCenter(dim, m.col, m.row, y, "minecraft:balloon_gas_particle");
     }
   }
   // 玩家脚下格提示:仅俯瞰视角生效
