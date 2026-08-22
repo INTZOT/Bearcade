@@ -463,12 +463,12 @@ function removeGameItems(player: Player): void {
   }
 }
 
-/** 开启相机相对控制(与 Go 完全一致:临时 tag + 维度命令) */
+/** 开启控制方案(临时 tag + 维度命令;player_relative_strafe:移动相对相机方向,解决红方 180° 反向) */
 function setOverheadControls(player: Player): void {
   try {
     player.addTag(OVERVIEW_TAG);
     player.dimension.runCommand(
-      `controlscheme @a[tag=${OVERVIEW_TAG}] set camera_relative`,
+      `controlscheme @a[tag=${OVERVIEW_TAG}] set player_relative_strafe`,
     );
   } catch {
     // 忽略
