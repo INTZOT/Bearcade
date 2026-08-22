@@ -35,7 +35,7 @@
       "id": "gomoku",
       "dir": "Gomoku-五子棋",
       "name": "Bearcade Gomoku",
-      "description": "Bearcade 五子棋小游戏包(当前阶段:房间与模板维度注册)",
+      "description": "Bearcade 五子棋小游戏包(15×15 棋盘、随机黑白、五连判定,完整可运行)",
       "headerUuid": "cae46db7-ef95-477a-841c-5c29d38eefe5",
       "moduleUuid": "91f71048-555d-4beb-8460-759401953142",
       "minEngineVersion": [
@@ -63,6 +63,7 @@
       "dir": "Template-小游戏模板",
       "name": "Bearcade Minigame Template",
       "description": "Bearcade 小游戏模板包:复制后替换 mygame 即可开发新小游戏",
+      "devOnly": true,
       "headerUuid": "95076440-41a8-49f8-9aeb-f57f4edd0db5",
       "moduleUuid": "606ae45a-4410-4625-adba-f1532e850615",
       "minEngineVersion": [
@@ -109,7 +110,8 @@
       ],
       "packDependencies": [
         "core"
-      ]
+      ],
+      "type": "behavior"
     },
     {
       "id": "guessnbuild",
@@ -250,7 +252,7 @@
       "id": "cchess",
       "dir": "CChess-中国象棋",
       "name": "Bearcade CChess",
-      "description": "Bearcade 中国象棋小游戏包(骨架阶段,玩法待定;含测试自定义方块)",
+      "description": "Bearcade 中国象棋小游戏包(完整规则:车/马/炮/象/士/兵、将军/困毙/绝杀、记谱、求和/认输;含自定义方块与第三人称俯瞰)",
       "headerUuid": "fc9ae3e0-6996-4083-8c57-ec24fdaff4dd",
       "moduleUuid": "ebbab28c-288a-4fee-9e5c-64fad4295d55",
       "minEngineVersion": [
@@ -489,7 +491,7 @@
       "id": "hungergame",
       "dir": "HungerGame-饥饿游戏",
       "name": "Bearcade HungerGame",
-      "description": "Bearcade 饥饿游戏小游戏包(骨架阶段,玩法待定)",
+      "description": "Bearcade 饥饿游戏小游戏包(FFA 六阶段、物资箱热刷新、击杀记录与观战,玩法已实现)",
       "headerUuid": "25db9388-fb9c-47c6-ad91-cdf0915ec7d6",
       "moduleUuid": "2820b299-3884-4042-9b27-9fddcdd7ac66",
       "minEngineVersion": [
@@ -544,7 +546,7 @@
       "type": "resource",
       "dir": "HungerGame-饥饿游戏/resource-pack",
       "name": "Bearcade HungerGame HUD",
-      "description": "Bearcade 饥饿游戏占位资源包(当前无 HUD 内容,保持一对一资源包结构)",
+      "description": "Bearcade HungerGame HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
       "headerUuid": "18af88c8-bdc5-4dc4-a491-6cbf61167409",
       "moduleUuid": "27e2f0e3-6e95-4707-a8d2-2ff0d2455e79",
       "minEngineVersion": [
@@ -560,7 +562,7 @@
       "type": "resource",
       "dir": "Knockback-击退战/resource-pack",
       "name": "Bearcade Knockback HUD",
-      "description": "Bearcade Knockback HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "description": "Bearcade Knockback HUD:与对应行为包一对一分布的 JSON UI hud_screen 副本(玩法以 actionbar 与浮空字计分为主,不写 scoreboard objective)",
       "headerUuid": "6122c4d4-2ed4-46a2-b536-123776d1adb9",
       "moduleUuid": "66bd4875-cc03-4d10-964f-9e42a0575213",
       "minEngineVersion": [
@@ -597,6 +599,22 @@
         "core"
       ],
       "type": "behavior"
+    },
+    {
+      "id": "labescape_hud",
+      "type": "resource",
+      "dir": "LabEscape-实验室逃脱/resource-pack",
+      "name": "Bearcade LabEscape HUD",
+      "description": "Bearcade LabEscape HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "d8464542-4c2c-486b-a89e-81b80d20a5f1",
+      "moduleUuid": "cfdd29de-e9af-4d61-96e6-10dc29c8c38d",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     },
     {
       "id": "pillars",
