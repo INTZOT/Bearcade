@@ -10,6 +10,7 @@ import {
   GameMode,
   ItemStack,
   ItemLockMode,
+  BlockPermutation,
   EntityComponentTypes,
   type Dimension,
   type Player,
@@ -591,20 +592,34 @@ function applyMove(
   state.board[to.row][to.col] = piece;
   state.board[from.row][from.col] = null;
   state.selected = null;
-  // 世界同步
+  // 世界同步(保留源棋子的朝向:placement_direction 状态还原到目标格)
   const dim = runtime.roomDim(roomId);
   const stoneY = cfg.boardY + 1;
   const gx = (c: number) => c + cfg.gridMinX;
   const gz = (r: number) => r + cfg.gridMinZ;
   system.run(() => {
     try {
+      const fromBlock = dim.getBlock({
+        x: gx(from.col),
+        y: stoneY,
+        z: gz(from.row),
+      });
+      const facing = fromBlock?.permutation.getState(
+        "minecraft:facing_direction",
+      );
+      const target: string | BlockPermutation =
+        typeof facing === "string"
+          ? BlockPermutation.resolve(pieceId(piece), {
+              "minecraft:facing_direction": facing,
+            })
+          : pieceId(piece);
       dim.setBlockType(
         { x: gx(from.col), y: stoneY, z: gz(from.row) },
         "minecraft:air",
       );
       dim.setBlockType(
         { x: gx(to.col), y: stoneY, z: gz(to.row) },
-        pieceId(piece),
+        target,
       );
     } catch (error) {
       console.warn("[Bearcade CChess] 走子写方块失败", error);
