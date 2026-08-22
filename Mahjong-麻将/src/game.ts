@@ -1507,7 +1507,7 @@ function refreshTurnActionItems(
   if (canSelfGang(session, player.id)) {
     giveItem(player, "mahjong:mahjong_action_gang", "§d暗杠/补杠");
   }
-  giveTingItemIfReady(session, player.id);
+  // 碰/吃/杠后不直接发听;等打出牌后再检测是否可叫听
 }
 
 /** 返回所有可能的吃牌组合(need 为手牌需打出的两张) */
