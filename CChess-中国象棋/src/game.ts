@@ -370,27 +370,26 @@ function spawnCellFrame(
   }
 }
 
-/** 格子中心撒粒子(棋子可走位置标记用) */
+/** 格子中心撒绿色星光粒子(可落点标记:villager_happy,固定中心不散步) */
 let markerParticleWarned = false;
 function spawnCellCenter(
   dim: Dimension,
   col: number,
   row: number,
   y: number,
-  effect: string,
 ): void {
   try {
-    for (let i = 0; i < 4; i++) {
-      dim.spawnParticle(effect, {
-        x: col + 0.35 + Math.random() * 0.3,
-        y: y + Math.random() * 0.15,
-        z: row + 0.35 + Math.random() * 0.3,
+    for (let i = 0; i < 3; i++) {
+      dim.spawnParticle("minecraft:villager_happy", {
+        x: col + 0.5,
+        y,
+        z: row + 0.5,
       });
     }
   } catch (error) {
     if (!markerParticleWarned) {
       markerParticleWarned = true;
-      console.warn(`[Bearcade CChess] 走法标记粒子无效: ${effect}`, error);
+      console.warn("[Bearcade CChess] 走法标记粒子无效: minecraft:villager_happy", error);
     }
   }
 }
@@ -411,7 +410,7 @@ function spawnMarkers(
       state.selected.col,
       state.turn,
     )) {
-      spawnCellCenter(dim, m.col, m.row, y, "minecraft:balloon_gas_particle");
+      spawnCellCenter(dim, m.col, m.row, y);
     }
   }
   // 玩家脚下格提示:仅俯瞰视角生效
