@@ -347,6 +347,7 @@ function notation(
 
 // ================= 粒子高亮 =================
 
+/** 沿格子四条边撒粒子画框(俯瞰脚下格提示用) */
 function spawnCellFrame(
   dim: Dimension,
   col: number,
@@ -368,7 +369,28 @@ function spawnCellFrame(
   }
 }
 
-/** 选中高亮 + 俯瞰脚下格提示(0.25s 轮询) */
+/** 格子中心撒粒子(棋子可走位置标记用,高于棋子模型顶部) */
+function spawnCellCenter(
+  dim: Dimension,
+  col: number,
+  row: number,
+  y: number,
+  effect: string,
+): void {
+  try {
+    for (let i = 0; i < 4; i++) {
+      dim.spawnParticle(effect, {
+        x: col + 0.35 + Math.random() * 0.3,
+        y: y + Math.random() * 0.15,
+        z: row + 0.35 + Math.random() * 0.3,
+      });
+    }
+  } catch {
+    // 忽略
+  }
+}
+
+/** 选中高亮(格子中心粒子)+ 俯瞰脚下格提示(仅俯瞰,四边框) */
 function spawnMarkers(
   runtime: MinigameRuntime,
   roomId: number,
@@ -376,7 +398,7 @@ function spawnMarkers(
 ): void {
   const cfg = getCChessConfig();
   const dim = runtime.roomDim(roomId);
-  const y = cfg.boardY + 1 + 0.1;
+  const y = cfg.boardY + 1 + 0.3;
   if (state.selected) {
     for (const m of legalMoves(
       state.board,
@@ -384,7 +406,7 @@ function spawnMarkers(
       state.selected.col,
       state.turn,
     )) {
-      spawnCellFrame(
+      spawnCellCenter(
         dim,
         m.col,
         m.row,
@@ -395,13 +417,16 @@ function spawnMarkers(
       );
     }
   }
-  // 双方玩家脚下格提示(当前操作目标格,普通/俯瞰一致)
-  for (const player of runtime.roomPlayers(roomId)) {
-    if (player === undefined) continue;
+  // 玩家脚下格提示:仅俯瞰视角生效
+  for (const id of state.overview) {
+    const player = runtime
+      .roomPlayers(roomId)
+      .find((p) => p !== undefined && p.id === id);
+    if (!player) continue;
     const row = Math.floor(player.location.z) - cfg.gridMinZ;
     const col = Math.floor(player.location.x) - cfg.gridMinX;
     if (!inBoard(row, col)) continue;
-    spawnCellFrame(dim, col, row, y, "minecraft:balloon_gas_particle");
+    spawnCellFrame(dim, col, row, cfg.boardY + 1 + 0.1, "minecraft:balloon_gas_particle");
   }
 }
 
