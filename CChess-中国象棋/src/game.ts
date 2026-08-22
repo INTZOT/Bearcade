@@ -470,24 +470,23 @@ function toggleOverview(
   state: CChessState,
   player: Player,
 ): void {
-  const cfg = getCChessConfig();
   if (state.overview.has(player.id)) {
     state.overview.delete(player.id);
     exitOverviewState(player);
     player.sendMessage("§7已恢复普通视角");
     return;
   }
-  const cx = (cfg.gridMinX + cfg.gridMaxX) / 2;
-  const cz = (cfg.gridMinZ + cfg.gridMaxZ) / 2;
   try {
-    // 俯瞰相机:黑方 yaw 0,红方旋转 180°
-    const color: Color = state.players.red === player.id ? "red" : "black";
-    player.camera.setCamera(OVERHEAD_PRESET, {
-      location: { x: cx, y: cfg.boardY + 1 + cfg.overviewHeight, z: cz },
-      rotation: { x: 90, y: color === "red" ? 180 : 0 },
-    });
+    // 第三人称跟随相机:自定义预设(third_person_boom,半径 6,比原版略远);
+    // 引擎渲染帧率跟随玩家,零抖动;红黑双方视角对称,无需 yaw 差异
+    try {
+      player.camera.setCamera(OVERHEAD_PRESET);
+    } catch {
+      // 自定义预设未加载时回退内置 boom
+      player.camera.setCamera("minecraft:third_person_boom");
+    }
     setOverheadControls(player);
-    // 锁 60 视野(相机作用域,退出时自动还原)——与 Go 俯瞰一致
+    // 锁 60 视野(相机作用域,退出时自动还原)
     try {
       player.camera.setFov({ fov: 60 });
     } catch {
@@ -495,11 +494,11 @@ function toggleOverview(
     }
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):右键木棍=瞄准格操作;望远镜右键=切换视角`,
+      `§a第三人称视角(镜头跟随,略远于原版):右键木棍=脚下格操作;指南针右键=切换视角`,
     );
   } catch (error) {
-    player.sendMessage("§c俯瞰视角切换失败");
-    console.warn("[Bearcade CChess] 俯瞰视角设置失败", error);
+    player.sendMessage("§c第三人称视角切换失败");
+    console.warn("[Bearcade CChess] 第三人称视角设置失败", error);
   }
 }
 

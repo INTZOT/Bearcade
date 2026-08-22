@@ -1,0 +1,8 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:camera_preset": {
+    "identifier": "bearcade:cchess_third",
+    "inherit_from": "minecraft:third_person_boom",
+    "radius": 6.0
+  }
+}

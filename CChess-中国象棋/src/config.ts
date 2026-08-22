@@ -92,8 +92,8 @@ export const SLOT_COMPASS = 7;
 export const SLOT_RESIGN = 8;
 export const SLOT_DRAW = 6;
 
-// ===== 俯瞰(复用 Go 模式) =====
-export const OVERHEAD_PRESET = "minecraft:free";
+// ===== 俯瞰(第三人称跟随,复用 Go 模式) =====
+export const OVERHEAD_PRESET = "bearcade:cchess_third"; // 自定义预设(third_person_boom,半径6)
 export const OVERVIEW_TAG = "bearcade_cchess_overview";
 export const AIM_ASSIST_PRESET = "bearcade:cchess_overview";
 export const AIM_ASSIST_CATEGORY = "bearcade:cchess_board";
