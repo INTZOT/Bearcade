@@ -94,7 +94,7 @@ export const SLOT_DRAW = 6;
 
 // ===== 俯瞰(复用 Go 模式) =====
 export const OVERHEAD_PRESET = "minecraft:free";
-export const OVERVIEW_TAG = "bearcade_overview";
+export const OVERVIEW_TAG = "bearcade_cchess_overview";
 export const AIM_ASSIST_PRESET = "bearcade:cchess_overview";
 export const AIM_ASSIST_CATEGORY = "bearcade:cchess_board";
 export const CHESS_PIECE_IDS = Object.values(PIECES);
