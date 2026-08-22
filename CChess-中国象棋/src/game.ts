@@ -1,8 +1,8 @@
 // ============================================================
-// CChess(中国象棋)玩法实现
-// 9×10 棋盘,红先黑后,吃帅/将即胜;禁送将/将帅照面;
-// 操作木棍右键=玩家所在格选中/走子(itemUse 驱动,与 Go 落子同构),
-// 粒子高亮合法走法;望远镜俯瞰、book 认输、玻璃瓶求和(对方确认)。
+// CChess(涓浗璞℃)鐜╂硶瀹炵幇
+// 9脳10 妫嬬洏,绾㈠厛榛戝悗,鍚冨竻/灏嗗嵆鑳?绂侀€佸皢/灏嗗竻鐓ч潰;
+// 鎿嶄綔鏈ㄦ鍙抽敭=鐜╁鎵€鍦ㄦ牸閫変腑/璧板瓙(itemUse 椹卞姩,涓?Go 钀藉瓙鍚屾瀯),
+// 绮掑瓙楂樹寒鍚堟硶璧版硶;鏈涜繙闀滀刊鐬般€乥ook 璁よ緭銆佺幓鐠冪摱姹傚拰(瀵规柟纭)銆?
 // ============================================================
 import {
   system,
@@ -31,32 +31,32 @@ import {
   SLOT_DRAW,
   SLOT_OPERATE,
   SLOT_RESIGN,
-  SLOT_SPYGLASS,
-  SPYGLASS_ITEM,
+  SLOT_COMPASS,
+  COMPASS_ITEM,
   type PieceType,
 } from "./config";
 
 type Color = "red" | "black";
 
 interface CChessState {
-  /** board[row][col],row=z 行、col=x 列 */
+  /** board[row][col],row=z 琛屻€乧ol=x 鍒?*/
   board: (PieceType | null)[][];
   turn: Color;
   players: { red?: string; black?: string };
   selected: { row: number; col: number } | null;
   overview: Set<string>;
   clocks: Record<Color, number>;
-  /** 求和提议方(等待对方确认) */
+  /** 姹傚拰鎻愯鏂?绛夊緟瀵规柟纭) */
   drawProposer?: Color;
 }
 
 const games = new Map<number, CChessState>();
 
 const PIECE_NAMES: Record<PieceType, string> = {
-  red_shuai: "帅", red_shi: "仕", red_xiang: "相", red_ma: "马",
-  red_ju: "车", red_pao: "炮", red_bing: "兵",
-  black_jiang: "将", black_shi: "士", black_xiang: "象", black_ma: "马",
-  black_ju: "车", black_pao: "炮", black_zu: "卒",
+  red_shuai: "甯?, red_shi: "浠?, red_xiang: "鐩?, red_ma: "椹?,
+  red_ju: "杞?, red_pao: "鐐?, red_bing: "鍏?,
+  black_jiang: "灏?, black_shi: "澹?, black_xiang: "璞?, black_ma: "椹?,
+  black_ju: "杞?, black_pao: "鐐?, black_zu: "鍗?,
 };
 
 function colorOf(piece: PieceType): Color {
@@ -79,12 +79,12 @@ function inPalace(row: number, col: number, color: Color): boolean {
   );
 }
 
-/** 是否过河(红方过河=进入黑方半场 row<=4;黑方=row>=5) */
+/** 鏄惁杩囨渤(绾㈡柟杩囨渤=杩涘叆榛戞柟鍗婂満 row<=4;榛戞柟=row>=5) */
 function crossedRiver(row: number, color: Color): boolean {
   return color === "red" ? row <= 4 : row >= 5;
 }
 
-/** 棋子伪走法(不含吃己方、不含送将/照面检查) */
+/** 妫嬪瓙浼蛋娉?涓嶅惈鍚冨繁鏂广€佷笉鍚€佸皢/鐓ч潰妫€鏌? */
 function pseudoMoves(
   board: (PieceType | null)[][],
   row: number,
@@ -117,7 +117,7 @@ function pseudoMoves(
       break;
     }
     case "xiang": {
-      // 相/象:田字,塞相眼,不过河(目标与起点均须在己方半场)
+      // 鐩?璞?鐢板瓧,濉炵浉鐪?涓嶈繃娌?鐩爣涓庤捣鐐瑰潎椤诲湪宸辨柟鍗婂満)
       for (const [dr, dc] of [[2, 2], [2, -2], [-2, 2], [-2, -2]]) {
         const r = row + dr, c = col + dc;
         const eye = board[row + dr / 2]?.[col + dc / 2];
@@ -193,7 +193,7 @@ function pseudoMoves(
   return moves;
 }
 
-/** 模拟走子后的棋盘副本 */
+/** 妯℃嫙璧板瓙鍚庣殑妫嬬洏鍓湰 */
 function afterMove(
   board: (PieceType | null)[][],
   from: { row: number; col: number },
@@ -205,7 +205,7 @@ function afterMove(
   return next;
 }
 
-/** (row,col) 是否被 color 方任意棋子攻击 */
+/** (row,col) 鏄惁琚?color 鏂逛换鎰忔瀛愭敾鍑?*/
 function isAttacked(
   board: (PieceType | null)[][],
   row: number,
@@ -226,7 +226,7 @@ function isAttacked(
   return false;
 }
 
-/** 帅将是否照面(同列且中间无子) */
+/** 甯呭皢鏄惁鐓ч潰(鍚屽垪涓斾腑闂存棤瀛? */
 function kingsFacing(board: (PieceType | null)[][]): boolean {
   let redRow = -1;
   let blackRow = -1;
@@ -241,7 +241,7 @@ function kingsFacing(board: (PieceType | null)[][]): boolean {
     }
   }
   if (redRow === -1 || blackRow === -1 || col === -1) return false;
-  // 同列且两帅之间无子
+  // 鍚屽垪涓斾袱甯呬箣闂存棤瀛?
   if (board[blackRow][col] !== "black_jiang") return false;
   const lo = Math.min(redRow, blackRow) + 1;
   const hi = Math.max(redRow, blackRow) - 1;
@@ -251,7 +251,7 @@ function kingsFacing(board: (PieceType | null)[][]): boolean {
   return true;
 }
 
-/** 合法走子(含禁送将/照面) */
+/** 鍚堟硶璧板瓙(鍚閫佸皢/鐓ч潰) */
 function canMove(
   board: (PieceType | null)[][],
   from: { row: number; col: number },
@@ -285,7 +285,7 @@ function canMove(
   return true;
 }
 
-/** 某棋子的全部合法走法(高亮用) */
+/** 鏌愭瀛愮殑鍏ㄩ儴鍚堟硶璧版硶(楂樹寒鐢? */
 function legalMoves(
   board: (PieceType | null)[][],
   row: number,
@@ -297,13 +297,13 @@ function legalMoves(
     .map((m) => ({ ...m, capture: board[m.row][m.col] !== null }));
 }
 
-// ================= 棋谱 =================
+// ================= 妫嬭氨 =================
 
 function columnNum(col: number, color: Color): number {
   return color === "red" ? COLS - col : col + 1;
 }
 
-/** 传统记谱,如 兵三进一 / 车二平五 / 马八进七;返回 null 表示无法记谱 */
+/** 浼犵粺璁拌氨,濡?鍏典笁杩涗竴 / 杞︿簩骞充簲 / 椹叓杩涗竷;杩斿洖 null 琛ㄧず鏃犳硶璁拌氨 */
 function notation(
   board: (PieceType | null)[][],
   from: { row: number; col: number },
@@ -314,7 +314,7 @@ function notation(
   const name = PIECE_NAMES[piece];
   const colFrom = columnNum(from.col, color);
   const colTo = columnNum(to.col, color);
-  // 同列同名棋子 >1 时加 前/后(红方前=行小,黑方前=行大)
+  // 鍚屽垪鍚屽悕妫嬪瓙 >1 鏃跺姞 鍓?鍚?绾㈡柟鍓?琛屽皬,榛戞柟鍓?琛屽ぇ)
   let prefix = "";
   const sameCol: number[] = [];
   for (let r = 0; r < ROWS; r++) {
@@ -323,7 +323,7 @@ function notation(
   if (sameCol.length > 1) {
     const isFront =
       color === "red" ? from.row < sameCol[1] : from.row > sameCol[0];
-    prefix = isFront ? "前" : "后";
+    prefix = isFront ? "鍓? : "鍚?;
   }
   const dz = to.row - from.row;
   const dx = to.col - from.col;
@@ -332,23 +332,23 @@ function notation(
   );
   let movePart: string;
   if (dz === 0 && dx !== 0) {
-    movePart = `平${colTo}`;
+    movePart = `骞?{colTo}`;
   } else if (straight) {
     const isForward = color === "red" ? dz < 0 : dz > 0;
-    movePart = `${isForward ? "进" : "退"}${Math.abs(dz)}`;
+    movePart = `${isForward ? "杩? : "閫€"}${Math.abs(dz)}`;
   } else {
-    // 斜走(马/相/仕):进/退 + 目标列号
+    // 鏂滆蛋(椹?鐩?浠?:杩?閫€ + 鐩爣鍒楀彿
     const isForward = color === "red" ? dz < 0 : dz > 0;
-    movePart = `${isForward ? "进" : "退"}${colTo}`;
+    movePart = `${isForward ? "杩? : "閫€"}${colTo}`;
   }
   const captured = board[to.row][to.col];
-  const capturePart = captured ? `,吃${PIECE_NAMES[captured]}` : "";
+  const capturePart = captured ? `,鍚?{PIECE_NAMES[captured]}` : "";
   return `${prefix}${name}${colFrom}${movePart}${capturePart}`;
 }
 
-// ================= 粒子高亮 =================
+// ================= 绮掑瓙楂樹寒 =================
 
-/** 沿格子四条边撒粒子画框(俯瞰脚下格提示用) */
+/** 娌挎牸瀛愬洓鏉¤竟鎾掔矑瀛愮敾妗?淇灠鑴氫笅鏍兼彁绀虹敤) */
 function spawnCellFrame(
   dim: Dimension,
   col: number,
@@ -366,11 +366,11 @@ function spawnCellFrame(
       dim.spawnParticle(effect, { x: gx + 1, y, z: gz + t });
     }
   } catch {
-    // 忽略
+    // 蹇界暐
   }
 }
 
-/** 选中高亮(可落点四边框,villager_happy)+ 俯瞰脚下格提示(仅俯瞰,四边框) */
+/** 閫変腑楂樹寒(鍙惤鐐瑰洓杈规,villager_happy)+ 淇灠鑴氫笅鏍兼彁绀?浠呬刊鐬?鍥涜竟妗? */
 function spawnMarkers(
   runtime: MinigameRuntime,
   roomId: number,
@@ -378,7 +378,7 @@ function spawnMarkers(
 ): void {
   const cfg = getCChessConfig();
   const dim = runtime.roomDim(roomId);
-  const y = cfg.boardY + 1 + 0.1; // 贴板面高度(与脚下格提示一致)
+  const y = cfg.boardY + 1 + 0.1; // 璐存澘闈㈤珮搴?涓庤剼涓嬫牸鎻愮ず涓€鑷?
   if (state.selected) {
     for (const m of legalMoves(
       state.board,
@@ -389,7 +389,7 @@ function spawnMarkers(
       spawnCellFrame(dim, m.col, m.row, y, "minecraft:villager_happy");
     }
   }
-  // 玩家脚下格提示:仅俯瞰视角生效
+  // 鐜╁鑴氫笅鏍兼彁绀?浠呬刊鐬拌瑙掔敓鏁?
   for (const id of state.overview) {
     const player = runtime
       .roomPlayers(roomId)
@@ -402,7 +402,7 @@ function spawnMarkers(
   }
 }
 
-// ================= 俯瞰 =================
+// ================= 淇灠 =================
 
 function giveItem(player: Player, slot: number, itemId: string): void {
   try {
@@ -412,7 +412,7 @@ function giveItem(player: Player, slot: number, itemId: string): void {
       .getComponent(EntityComponentTypes.Inventory)
       ?.container?.setItem(slot, item);
   } catch {
-    // 忽略
+    // 蹇界暐
   }
 }
 
@@ -426,7 +426,7 @@ function removeGameItems(player: Player): void {
       if (
         item &&
         (item.typeId === OPERATE_ITEM ||
-          item.typeId === SPYGLASS_ITEM ||
+          item.typeId === COMPASS_ITEM ||
           item.typeId === RESIGN_ITEM ||
           item.typeId === DRAW_ITEM)
       ) {
@@ -434,11 +434,11 @@ function removeGameItems(player: Player): void {
       }
     }
   } catch {
-    // 忽略
+    // 蹇界暐
   }
 }
 
-/** 开启控制方案(临时 tag + 维度命令;player_relative_strafe:移动相对相机方向,解决红方 180° 反向) */
+/** 寮€鍚帶鍒舵柟妗?涓存椂 tag + 缁村害鍛戒护;player_relative_strafe:绉诲姩鐩稿鐩告満鏂瑰悜,瑙ｅ喅绾㈡柟 180掳 鍙嶅悜) */
 function setOverheadControls(player: Player): void {
   try {
     player.addTag(OVERVIEW_TAG);
@@ -446,13 +446,13 @@ function setOverheadControls(player: Player): void {
       `controlscheme @a[tag=${OVERVIEW_TAG}] set player_relative_strafe`,
     );
   } catch {
-    // 忽略
+    // 蹇界暐
   } finally {
     player.removeTag(OVERVIEW_TAG);
   }
 }
 
-/** 清除相机控制方案(与 Go 完全一致) */
+/** 娓呴櫎鐩告満鎺у埗鏂规(涓?Go 瀹屽叏涓€鑷? */
 function clearOverheadControls(player: Player): void {
   try {
     player.addTag(OVERVIEW_TAG);
@@ -460,7 +460,7 @@ function clearOverheadControls(player: Player): void {
       `controlscheme @a[tag=${OVERVIEW_TAG}] clear`,
     );
   } catch {
-    // 忽略
+    // 蹇界暐
   } finally {
     player.removeTag(OVERVIEW_TAG);
   }
@@ -474,32 +474,32 @@ function toggleOverview(
   if (state.overview.has(player.id)) {
     state.overview.delete(player.id);
     exitOverviewState(player);
-    player.sendMessage("§7已恢复普通视角");
+    player.sendMessage("搂7宸叉仮澶嶆櫘閫氳瑙?);
     return;
   }
   const cx = (cfg.gridMinX + cfg.gridMaxX) / 2;
   const cz = (cfg.gridMinZ + cfg.gridMaxZ) / 2;
   try {
-    // 俯瞰相机:黑方 yaw 0,红方旋转 180°
+    // 淇灠鐩告満:榛戞柟 yaw 0,绾㈡柟鏃嬭浆 180掳
     const color: Color = state.players.red === player.id ? "red" : "black";
     player.camera.setCamera(OVERHEAD_PRESET, {
       location: { x: cx, y: cfg.boardY + 1 + cfg.overviewHeight, z: cz },
       rotation: { x: 90, y: color === "red" ? 180 : 0 },
     });
     setOverheadControls(player);
-    // 锁 60 视野(相机作用域,退出时自动还原)——与 Go 俯瞰一致
+    // 閿?60 瑙嗛噹(鐩告満浣滅敤鍩?閫€鍑烘椂鑷姩杩樺師)鈥斺€斾笌 Go 淇灠涓€鑷?
     try {
       player.camera.setFov({ fov: 60 });
     } catch {
-      // 忽略
+      // 蹇界暐
     }
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):右键木棍=瞄准格操作;望远镜右键=切换视角`,
+      `搂a淇灠瑙嗚(楂樺害 ${cfg.overviewHeight} 鏍?:鍙抽敭鏈ㄦ=鐬勫噯鏍兼搷浣?鏈涜繙闀滃彸閿?鍒囨崲瑙嗚`,
     );
   } catch (error) {
-    player.sendMessage("§c俯瞰视角切换失败");
-    console.warn("[Bearcade CChess] 俯瞰视角设置失败", error);
+    player.sendMessage("搂c淇灠瑙嗚鍒囨崲澶辫触");
+    console.warn("[Bearcade CChess] 淇灠瑙嗚璁剧疆澶辫触", error);
   }
 }
 
@@ -508,15 +508,15 @@ function exitOverviewState(player: Player): void {
   try {
     player.camera.clear();
   } catch {
-    // 忽略
+    // 蹇界暐
   }
 }
 
-// ================= 交互(选中/走子) =================
+// ================= 浜や簰(閫変腑/璧板瓙) =================
 
 /**
- * 木棍操作目标格:俯瞰下=玩家所在格(floor,与 Go 落子同构);
- * 普通视角=视线瞄准的方块(脚本射线,不依赖 interact 事件)。
+ * 鏈ㄦ鎿嶄綔鐩爣鏍?淇灠涓?鐜╁鎵€鍦ㄦ牸(floor,涓?Go 钀藉瓙鍚屾瀯);
+ * 鏅€氳瑙?瑙嗙嚎鐬勫噯鐨勬柟鍧?鑴氭湰灏勭嚎,涓嶄緷璧?interact 浜嬩欢)銆?
  */
 function operateCell(
   cfg: ReturnType<typeof getCChessConfig>,
@@ -549,34 +549,34 @@ function handleInteract(
   const piece = state.board[cell.row][cell.col];
   const color = state.players.red === player.id ? "red" : "black";
   if (state.turn !== color) {
-    player.sendMessage("§c还没轮到你走棋");
+    player.sendMessage("搂c杩樻病杞埌浣犺蛋妫?);
     return;
   }
   if (state.selected) {
     const sel = state.selected;
     if (cell.row === sel.row && cell.col === sel.col) {
       state.selected = null;
-      player.sendMessage("§7已取消选中");
+      player.sendMessage("搂7宸插彇娑堥€変腑");
       return;
     }
     if (piece && colorOf(piece) === color) {
       state.selected = cell;
-      player.sendMessage(`§a选中 ${PIECE_NAMES[piece]}`);
+      player.sendMessage(`搂a閫変腑 ${PIECE_NAMES[piece]}`);
       return;
     }
     if (!canMove(state.board, sel, cell, color)) {
-      player.sendMessage("§c非法走法,请重新选择目标格");
+      player.sendMessage("搂c闈炴硶璧版硶,璇烽噸鏂伴€夋嫨鐩爣鏍?);
       return;
     }
     applyMove(runtime, roomId, state, sel, cell);
     return;
   }
   if (!piece || colorOf(piece) !== color) {
-    player.sendMessage("§c请选中你的棋子(右键木棍,普通视角需瞄准棋子格)");
+    player.sendMessage("搂c璇烽€変腑浣犵殑妫嬪瓙(鍙抽敭鏈ㄦ,鏅€氳瑙掗渶鐬勫噯妫嬪瓙鏍?");
     return;
   }
   state.selected = cell;
-  player.sendMessage(`§a选中 ${PIECE_NAMES[piece]}`);
+  player.sendMessage(`搂a閫変腑 ${PIECE_NAMES[piece]}`);
 }
 
 function applyMove(
@@ -592,12 +592,12 @@ function applyMove(
   const captured = state.board[to.row][to.col];
   const moveText =
     notation(state.board, from, to, piece) ??
-    `${PIECE_NAMES[piece]} 移动`;
-  // 先落库再播报(notation 依赖走子前棋盘)
+    `${PIECE_NAMES[piece]} 绉诲姩`;
+  // 鍏堣惤搴撳啀鎾姤(notation 渚濊禆璧板瓙鍓嶆鐩?
   state.board[to.row][to.col] = piece;
   state.board[from.row][from.col] = null;
   state.selected = null;
-  // 世界同步
+  // 涓栫晫鍚屾
   const dim = runtime.roomDim(roomId);
   const stoneY = cfg.boardY + 1;
   const gx = (c: number) => c + cfg.gridMinX;
@@ -613,24 +613,24 @@ function applyMove(
         pieceId(piece),
       );
     } catch (error) {
-      console.warn("[Bearcade CChess] 走子写方块失败", error);
+      console.warn("[Bearcade CChess] 璧板瓙鍐欐柟鍧楀け璐?, error);
     }
   });
-  runtime.announce(roomId, `§e${moveText}`);
-  // 吃帅/将 → 胜
+  runtime.announce(roomId, `搂e${moveText}`);
+  // 鍚冨竻/灏?鈫?鑳?
   if (captured === "red_shuai" || captured === "black_jiang") {
     runtime.announce(
       roomId,
-      `§e${PIECE_NAMES[captured]}被吃,${color === "red" ? "红方" : "黑方"}获胜!`,
+      `搂e${PIECE_NAMES[captured]}琚悆,${color === "red" ? "绾㈡柟" : "榛戞柟"}鑾疯儨!`,
     );
     runtime.endGame(
       roomId,
-      "将死",
-      `§b${color === "red" ? "红方" : "黑方"}获胜`,
+      "灏嗘",
+      `搂b${color === "red" ? "绾㈡柟" : "榛戞柟"}鑾疯儨`,
     );
     return;
   }
-  // 将军检测(对手帅/将是否被攻击)
+  // 灏嗗啗妫€娴?瀵规墜甯?灏嗘槸鍚﹁鏀诲嚮)
   const next: Color = state.turn === "red" ? "black" : "red";
   const general = next === "red" ? "red_shuai" : "black_jiang";
   let gr = -1;
@@ -644,7 +644,7 @@ function applyMove(
     }
   }
   if (gr >= 0 && isAttacked(state.board, gr, gc, color)) {
-    runtime.announce(roomId, "§c将军!");
+    runtime.announce(roomId, "搂c灏嗗啗!");
   }
   state.turn = next;
   giveTurn(runtime, roomId, state);
@@ -662,15 +662,15 @@ function giveTurn(
   if (!player) {
     runtime.endGame(
       roomId,
-      "对手已离开",
-      `§b${next === "red" ? "黑方" : "红方"}获胜`,
+      "瀵规墜宸茬寮€",
+      `搂b${next === "red" ? "榛戞柟" : "绾㈡柟"}鑾疯儨`,
     );
     return;
   }
-  player.sendMessage(`§a轮到你走棋(${next === "red" ? "红方" : "黑方"})`);
+  player.sendMessage(`搂a杞埌浣犺蛋妫?${next === "red" ? "绾㈡柟" : "榛戞柟"})`);
 }
 
-// ================= 认输 / 求和 / 计时 =================
+// ================= 璁よ緭 / 姹傚拰 / 璁℃椂 =================
 
 function handleResign(
   runtime: MinigameRuntime,
@@ -679,11 +679,11 @@ function handleResign(
   player: Player,
 ): void {
   const color = state.players.red === player.id ? "red" : "black";
-  runtime.announce(roomId, `§c${color === "red" ? "红方" : "黑方"}认输!`);
+  runtime.announce(roomId, `搂c${color === "red" ? "绾㈡柟" : "榛戞柟"}璁よ緭!`);
   runtime.endGame(
     roomId,
-    "认输",
-    `§b${color === "red" ? "黑方" : "红方"}获胜`,
+    "璁よ緭",
+    `搂b${color === "red" ? "榛戞柟" : "绾㈡柟"}鑾疯儨`,
   );
 }
 
@@ -695,7 +695,7 @@ function handleDrawOffer(
 ): void {
   const color = state.players.red === player.id ? "red" : "black";
   if (state.drawProposer) {
-    player.sendMessage("§c已有求和提议在等待确认");
+    player.sendMessage("搂c宸叉湁姹傚拰鎻愯鍦ㄧ瓑寰呯‘璁?);
     return;
   }
   state.drawProposer = color;
@@ -706,25 +706,25 @@ function handleDrawOffer(
         p !== undefined &&
         p.id === state.players[color === "red" ? "black" : "red"],
     );
-  runtime.announce(roomId, `§e${color === "red" ? "红方" : "黑方"}提出求和`);
+  runtime.announce(roomId, `搂e${color === "red" ? "绾㈡柟" : "榛戞柟"}鎻愬嚭姹傚拰`);
   if (!opponent) {
     state.drawProposer = undefined;
     return;
   }
   const form = new MessageFormData()
-    .title("求和")
-    .body(`${color === "red" ? "红方" : "黑方"}提出和棋,是否同意?`)
-    .button1("§a同意和棋")
-    .button2("§7拒绝");
+    .title("姹傚拰")
+    .body(`${color === "red" ? "绾㈡柟" : "榛戞柟"}鎻愬嚭鍜屾,鏄惁鍚屾剰?`)
+    .button1("搂a鍚屾剰鍜屾")
+    .button2("搂7鎷掔粷");
   form
     .show(opponent)
     .then((response) => {
       if (games.get(roomId) !== state) return;
       if (response.selection === 0) {
-        runtime.endGame(roomId, "和棋", "§e双方同意和棋");
+        runtime.endGame(roomId, "鍜屾", "搂e鍙屾柟鍚屾剰鍜屾");
       } else {
         state.drawProposer = undefined;
-        runtime.announce(roomId, "§e对方拒绝和棋,对局继续");
+        runtime.announce(roomId, "搂e瀵规柟鎷掔粷鍜屾,瀵瑰眬缁х画");
       }
     })
     .catch(() => {
@@ -732,7 +732,7 @@ function handleDrawOffer(
     });
 }
 
-// ================= 钩子 =================
+// ================= 閽╁瓙 =================
 
 export function makeCchessHooks(
   getRuntime: () => MinigameRuntime,
@@ -760,13 +760,13 @@ export function makeCchessHooks(
       runtime.teleportPlayer(roomId, black, cfg.blackStart);
       for (const player of [red, black]) {
         giveItem(player, SLOT_OPERATE, OPERATE_ITEM);
-        giveItem(player, SLOT_SPYGLASS, SPYGLASS_ITEM);
+        giveItem(player, SLOT_COMPASS, COMPASS_ITEM);
         giveItem(player, SLOT_RESIGN, RESIGN_ITEM);
         giveItem(player, SLOT_DRAW, DRAW_ITEM);
       }
       runtime.announce(
         roomId,
-        `§a对局开始!红方:${red.name} / 黑方:${black.name},红先;走到目标格后右键木棍=选中/走子`,
+        `搂a瀵瑰眬寮€濮?绾㈡柟:${red.name} / 榛戞柟:${black.name},绾㈠厛;璧板埌鐩爣鏍煎悗鍙抽敭鏈ㄦ=閫変腑/璧板瓙`,
       );
       giveTurn(runtime, roomId, state);
     },
@@ -777,7 +777,7 @@ export function makeCchessHooks(
         try {
           player.setGameMode(GameMode.Adventure);
         } catch {
-          // 忽略
+          // 蹇界暐
         }
         exitOverviewState(player);
         removeGameItems(player);
@@ -785,7 +785,7 @@ export function makeCchessHooks(
       games.delete(roomId);
     },
     canPlace() {
-      // 死场景:禁止一切放置
+      // 姝诲満鏅?绂佹涓€鍒囨斁缃?
       return false;
     },
     openConfig(player) {
@@ -794,12 +794,12 @@ export function makeCchessHooks(
   };
 }
 
-// ================= 初始化 =================
+// ================= 鍒濆鍖?=================
 
 export function initCChess(getRuntime: () => MinigameRuntime): void {
   const runtime = getRuntime();
 
-  // 计时轮询(1s):当前玩家减时,超时判负;求和确认期间暂停
+  // 璁℃椂杞(1s):褰撳墠鐜╁鍑忔椂,瓒呮椂鍒よ礋;姹傚拰纭鏈熼棿鏆傚仠
   system.runInterval(() => {
     for (const [roomId, state] of [...games.entries()]) {
       try {
@@ -809,33 +809,33 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
         if (state.clocks[state.turn] <= 0) {
           runtime.announce(
             roomId,
-            `§c${state.turn === "red" ? "红方" : "黑方"}超时!`,
+            `搂c${state.turn === "red" ? "绾㈡柟" : "榛戞柟"}瓒呮椂!`,
           );
           runtime.endGame(
             roomId,
-            "超时",
-            `§b${state.turn === "red" ? "黑方" : "红方"}获胜`,
+            "瓒呮椂",
+            `搂b${state.turn === "red" ? "榛戞柟" : "绾㈡柟"}鑾疯儨`,
           );
         }
       } catch (error) {
-        console.warn(`[Bearcade CChess] 计时异常 room=${roomId}`, error);
+        console.warn(`[Bearcade CChess] 璁℃椂寮傚父 room=${roomId}`, error);
       }
     }
   }, 20);
 
-  // 选中高亮 + 俯瞰脚下格粒子(0.25s)
+  // 閫変腑楂樹寒 + 淇灠鑴氫笅鏍肩矑瀛?0.25s)
   system.runInterval(() => {
     for (const [roomId, state] of [...games.entries()]) {
       try {
         if (runtime.getPhase(roomId) !== "running") continue;
         spawnMarkers(runtime, roomId, state);
       } catch (error) {
-        console.warn(`[Bearcade CChess] 高亮异常 room=${roomId}`, error);
+        console.warn(`[Bearcade CChess] 楂樹寒寮傚父 room=${roomId}`, error);
       }
     }
   }, 5);
 
-  // 物品:木棍=唯一操作通道(普通=瞄准方块,俯瞰=玩家所在格);望远镜=切换;book=认输;玻璃瓶=求和
+  // 鐗╁搧:鏈ㄦ=鍞竴鎿嶄綔閫氶亾(鏅€?鐬勫噯鏂瑰潡,淇灠=鐜╁鎵€鍦ㄦ牸);鏈涜繙闀?鍒囨崲;book=璁よ緭;鐜荤拑鐡?姹傚拰
   world.afterEvents.itemUse.subscribe((event) => {
     const roomId = runtime.roomIdFromDimension(event.source.dimension.id);
     if (roomId === undefined) return;
@@ -843,19 +843,19 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     if (!state || runtime.getPhase(roomId) !== "running") return;
     const player = event.source;
     if (event.itemStack.typeId === OPERATE_ITEM) {
-      // itemUse 驱动(对空右键也触发);空手不处理
+      // itemUse 椹卞姩(瀵圭┖鍙抽敭涔熻Е鍙?;绌烘墜涓嶅鐞?
       const overview = state.overview.has(player.id);
       const cell = operateCell(getCChessConfig(), player, overview);
       if (!cell) {
         player.sendMessage(
-          overview ? "§c请站到棋盘格上操作" : "§c请瞄准棋盘格操作",
+          overview ? "搂c璇风珯鍒版鐩樻牸涓婃搷浣? : "搂c璇风瀯鍑嗘鐩樻牸鎿嶄綔",
         );
         return;
       }
       handleInteract(runtime, roomId, state, player, cell);
       return;
     }
-    if (event.itemStack.typeId === SPYGLASS_ITEM) {
+    if (event.itemStack.typeId === COMPASS_ITEM) {
       toggleOverview(state, player);
       return;
     }
@@ -868,7 +868,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     }
   });
 
-  // 离房:当前持棋玩家离开=认输;俯瞰清理
+  // 绂绘埧:褰撳墠鎸佹鐜╁绂诲紑=璁よ緭;淇灠娓呯悊
   world.afterEvents.playerDimensionChange.subscribe((event) => {
     const roomId = runtime.roomIdFromDimension(event.fromDimension.id);
     if (roomId === undefined) return;
@@ -879,11 +879,11 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     }
     if (state.players[state.turn] === event.player.id) {
       const color = state.turn;
-      runtime.announce(roomId, `§c${event.player.name} 离开,视为认输!`);
+      runtime.announce(roomId, `搂c${event.player.name} 绂诲紑,瑙嗕负璁よ緭!`);
       runtime.endGame(
         roomId,
-        "认输",
-        `§b${color === "red" ? "黑方" : "红方"}获胜`,
+        "璁よ緭",
+        `搂b${color === "red" ? "榛戞柟" : "绾㈡柟"}鑾疯儨`,
       );
     }
   });
