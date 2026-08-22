@@ -378,7 +378,7 @@ function spawnMarkers(
 ): void {
   const cfg = getCChessConfig();
   const dim = runtime.roomDim(roomId);
-  const y = cfg.boardY + 1 + 0.6; // 统一高度,高于棋子模型顶部
+  const y = cfg.boardY + 1 + 0.1; // 贴板面高度(与脚下格提示一致)
   if (state.selected) {
     for (const m of legalMoves(
       state.board,
