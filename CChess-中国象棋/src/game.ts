@@ -607,20 +607,24 @@ function applyMove(
       const facing = fromBlock?.permutation.getState(
         "minecraft:facing_direction",
       );
-      const target: string | BlockPermutation =
-        typeof facing === "string"
-          ? BlockPermutation.resolve(pieceId(piece), {
-              "minecraft:facing_direction": facing,
-            })
-          : pieceId(piece);
       dim.setBlockType(
         { x: gx(from.col), y: stoneY, z: gz(from.row) },
         "minecraft:air",
       );
-      dim.setBlockType(
-        { x: gx(to.col), y: stoneY, z: gz(to.row) },
-        target,
-      );
+      if (typeof facing === "string") {
+        // 保留源棋子朝向
+        dim.setBlockPermutation(
+          { x: gx(to.col), y: stoneY, z: gz(to.row) },
+          BlockPermutation.resolve(pieceId(piece), {
+            "minecraft:facing_direction": facing,
+          }),
+        );
+      } else {
+        dim.setBlockType(
+          { x: gx(to.col), y: stoneY, z: gz(to.row) },
+          pieceId(piece),
+        );
+      }
     } catch (error) {
       console.warn("[Bearcade CChess] 走子写方块失败", error);
     }
