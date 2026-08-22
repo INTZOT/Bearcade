@@ -442,8 +442,7 @@ function removeGameItems(player: Player): void {
 }
 
 /** 俯瞰进入时保存的玩家本体原朝向(退出时恢复) */
-const overviewRotations = new Map<string, { x: number; y: number }>();
-/** 望远镜使用 tick 记录(俯瞰下:1s 内第二次使用=退出俯瞰) */
+/** 望远镜使用 tick 记录(俯瞰下:0.5s 内第二次使用=退出俯瞰) */
 const lastSpyglassUse = new Map<string, number>();
 
 function toggleOverview(
@@ -466,17 +465,15 @@ function toggleOverview(
       location: { x: cx, y: cfg.boardY + 1 + cfg.overviewHeight, z: cz },
       rotation: { x: 90, y: color === "red" ? 180 : 0 },
     });
-    // 本体视线压到脚下:保证空手右键的交互射线命中棋盘(interact 事件依赖瞄准方块)
-    const rot = player.getRotation();
-    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
+    // 锁 60 视野(相机作用域,退出时自动还原)——与 Go 俯瞰一致
     try {
-      player.setRotation({ x: 90, y: rot.y });
+      player.camera.setFov({ fov: 60 });
     } catch {
       // 忽略
     }
     state.overview.add(player.id);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):空手或望远镜右键=在脚下格操作;望远镜 1 秒内双击=恢复普通视角`,
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):望远镜右键=在脚下格操作;0.5 秒内双击望远镜=恢复普通视角`,
     );
   } catch (error) {
     player.sendMessage("§c俯瞰视角切换失败");
@@ -485,15 +482,6 @@ function toggleOverview(
 }
 
 function exitOverviewState(player: Player): void {
-  const saved = overviewRotations.get(player.id);
-  if (saved) {
-    overviewRotations.delete(player.id);
-    try {
-      player.setRotation(saved);
-    } catch {
-      // 忽略
-    }
-  }
   try {
     player.camera.clear();
   } catch {
@@ -812,7 +800,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     }
   }, 5);
 
-  // 右键交互:空手=选中/走子(俯瞰下=玩家所在格);手持望远镜交给 itemUse 处理
+  // 右键交互(普通视角):空手=瞄准格选中/走子;俯瞰下操作全走望远镜 itemUse(与 Go 同构)
   world.beforeEvents.playerInteractWithBlock.subscribe(
     (event: PlayerInteractWithBlockBeforeEvent) => {
       if (event.itemStack !== undefined) return; // 仅空手(望远镜等走 itemUse)
@@ -821,10 +809,11 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
       const state = games.get(roomId);
       if (!state || runtime.getPhase(roomId) !== "running") return;
       const player = event.player;
+      if (state.overview.has(player.id)) return; // 俯瞰下忽略 interact
       const cell = targetCell(
         getCChessConfig(),
         player,
-        state.overview.has(player.id),
+        false,
         { x: event.block.location.x, z: event.block.location.z },
       );
       if (!cell) return;
