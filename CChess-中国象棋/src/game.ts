@@ -10,6 +10,7 @@ import {
   GameMode,
   ItemStack,
   ItemLockMode,
+  InputPermissionCategory,
   EntityComponentTypes,
   type Dimension,
   type Player,
@@ -479,6 +480,31 @@ function faceBoardDirection(state: CChessState, player: Player): void {
   }
 }
 
+/** 锁定:禁用相机输入权限(鼠标无法再改朝向,setRotation 才不会被覆盖)+ 立即校准 */
+function lockOverviewControls(state: CChessState, player: Player): void {
+  try {
+    player.inputPermissions.setPermissionCategory(
+      InputPermissionCategory.Camera,
+      false,
+    );
+  } catch {
+    // 忽略
+  }
+  faceBoardDirection(state, player);
+}
+
+/** 解锁:恢复相机输入权限(朝向由 exitOverviewState 恢复原值) */
+function unlockOverviewControls(player: Player): void {
+  try {
+    player.inputPermissions.setPermissionCategory(
+      InputPermissionCategory.Camera,
+      true,
+    );
+  } catch {
+    // 忽略
+  }
+}
+
 function toggleOverview(
   state: CChessState,
   player: Player,
@@ -500,10 +526,10 @@ function toggleOverview(
       rotation: { x: 90, y: color === "red" ? 180 : 0 },
     });
     setOverheadControls(player);
-    // 保存原朝向并立即校准为固定棋盘方向(红朝 Z-/黑朝 Z+)
+    // 保存原朝向,禁用相机输入并立即校准为固定棋盘方向(红朝 Z-/黑朝 Z+)
     const rot = player.getRotation();
     overviewRotations.set(player.id, { x: rot.x, y: rot.y });
-    faceBoardDirection(state, player);
+    lockOverviewControls(state, player);
     // 锁 60 视野(相机作用域,退出时自动还原)——与 Go 俯瞰一致
     try {
       player.camera.setFov({ fov: 60 });
@@ -522,6 +548,16 @@ function toggleOverview(
 
 function exitOverviewState(player: Player): void {
   clearOverheadControls(player);
+  unlockOverviewControls(player); // 恢复相机输入权限
+  const saved = overviewRotations.get(player.id);
+  if (saved) {
+    overviewRotations.delete(player.id);
+    try {
+      player.setRotation(saved); // 恢复进入前的本体朝向
+    } catch {
+      // 忽略
+    }
+  }
   try {
     player.camera.clear();
   } catch {
