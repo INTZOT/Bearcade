@@ -10,7 +10,6 @@ import {
   GameMode,
   ItemStack,
   ItemLockMode,
-  InputPermissionCategory,
   EntityComponentTypes,
   type Dimension,
   type Player,
@@ -467,44 +466,6 @@ function clearOverheadControls(player: Player): void {
   }
 }
 
-/** 俯瞰进入时保存的玩家本体原朝向(退出时恢复) */
-const overviewRotations = new Map<string, { x: number; y: number }>();
-
-/** 玩家水平朝向锁定为固定棋盘方向:红方恒朝 Z-(yaw=180),黑方恒朝 Z+(yaw=0) */
-function faceBoardDirection(state: CChessState, player: Player): void {
-  try {
-    const isRed = state.players.red === player.id;
-    player.setRotation({ x: 0, y: isRed ? 180 : 0 });
-  } catch {
-    // 忽略
-  }
-}
-
-/** 锁定:禁用相机输入权限(鼠标无法再改朝向,setRotation 才不会被覆盖)+ 立即校准 */
-function lockOverviewControls(state: CChessState, player: Player): void {
-  try {
-    player.inputPermissions.setPermissionCategory(
-      InputPermissionCategory.Camera,
-      false,
-    );
-  } catch {
-    // 忽略
-  }
-  faceBoardDirection(state, player);
-}
-
-/** 解锁:恢复相机输入权限(朝向由 exitOverviewState 恢复原值) */
-function unlockOverviewControls(player: Player): void {
-  try {
-    player.inputPermissions.setPermissionCategory(
-      InputPermissionCategory.Camera,
-      true,
-    );
-  } catch {
-    // 忽略
-  }
-}
-
 function toggleOverview(
   state: CChessState,
   player: Player,
@@ -519,12 +480,7 @@ function toggleOverview(
   const cx = (cfg.gridMinX + cfg.gridMaxX) / 2;
   const cz = (cfg.gridMinZ + cfg.gridMaxZ) / 2;
   try {
-    // 保存原朝向
-    const rot = player.getRotation();
-    overviewRotations.set(player.id, { x: rot.x, y: rot.y });
-    // 先禁用相机输入权限(鼠标无法再写朝向),再切换相机
-    lockOverviewControls(state, player);
-    // 切换俯瞰相机:黑方 yaw 0,红方旋转 180°(与朝向校准一致)
+    // 俯瞰相机:黑方 yaw 0,红方旋转 180°
     const color: Color = state.players.red === player.id ? "red" : "black";
     player.camera.setCamera(OVERHEAD_PRESET, {
       location: { x: cx, y: cfg.boardY + 1 + cfg.overviewHeight, z: cz },
@@ -538,16 +494,8 @@ function toggleOverview(
       // 忽略
     }
     state.overview.add(player.id);
-    // 输入禁用确认后(3 tick)再校准一次:强制玩家面向固定棋盘方向(红朝 Z-/黑朝 Z+)
-    system.runTimeout(() => {
-      try {
-        faceBoardDirection(state, player);
-      } catch {
-        // 忽略
-      }
-    }, 3);
     player.sendMessage(
-      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格,朝向已锁定:红朝Z-/黑朝Z+):右键木棍=瞄准格操作;望远镜右键=切换视角`,
+      `§a俯瞰视角(高度 ${cfg.overviewHeight} 格):右键木棍=瞄准格操作;望远镜右键=切换视角`,
     );
   } catch (error) {
     player.sendMessage("§c俯瞰视角切换失败");
@@ -557,16 +505,6 @@ function toggleOverview(
 
 function exitOverviewState(player: Player): void {
   clearOverheadControls(player);
-  unlockOverviewControls(player); // 恢复相机输入权限
-  const saved = overviewRotations.get(player.id);
-  if (saved) {
-    overviewRotations.delete(player.id);
-    try {
-      player.setRotation(saved); // 恢复进入前的本体朝向
-    } catch {
-      // 忽略
-    }
-  }
   try {
     player.camera.clear();
   } catch {
@@ -896,24 +834,6 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
       }
     }
   }, 5);
-
-  // 俯瞰朝向锁定:玩家水平朝向恒为固定棋盘方向(红朝 Z-/黑朝 Z+,每 tick 覆盖)
-  system.runInterval(() => {
-    for (const [roomId, state] of [...games.entries()]) {
-      try {
-        if (runtime.getPhase(roomId) !== "running") continue;
-        for (const id of state.overview) {
-          const player = runtime
-            .roomPlayers(roomId)
-            .find((p) => p !== undefined && p.id === id);
-          if (!player) continue;
-          faceBoardDirection(state, player);
-        }
-      } catch (error) {
-        console.warn(`[Bearcade CChess] 俯瞰朝向锁定异常 room=${roomId}`, error);
-      }
-    }
-  }, 1);
 
   // 物品:木棍=唯一操作通道(普通=瞄准方块,俯瞰=玩家所在格);望远镜=切换;book=认输;玻璃瓶=求和
   world.afterEvents.itemUse.subscribe((event) => {
