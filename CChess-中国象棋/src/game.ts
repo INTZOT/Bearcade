@@ -370,31 +370,7 @@ function spawnCellFrame(
   }
 }
 
-/** 格子中心撒绿色星光粒子(可落点标记:villager_happy,固定中心不散步) */
-let markerParticleWarned = false;
-function spawnCellCenter(
-  dim: Dimension,
-  col: number,
-  row: number,
-  y: number,
-): void {
-  try {
-    for (let i = 0; i < 3; i++) {
-      dim.spawnParticle("minecraft:villager_happy", {
-        x: col + 0.5,
-        y,
-        z: row + 0.5,
-      });
-    }
-  } catch (error) {
-    if (!markerParticleWarned) {
-      markerParticleWarned = true;
-      console.warn("[Bearcade CChess] 走法标记粒子无效: minecraft:villager_happy", error);
-    }
-  }
-}
-
-/** 选中高亮(格子中心粒子,可走/可吃统一)+ 俯瞰脚下格提示(仅俯瞰,四边框) */
+/** 选中高亮(可落点四边框,villager_happy)+ 俯瞰脚下格提示(仅俯瞰,四边框) */
 function spawnMarkers(
   runtime: MinigameRuntime,
   roomId: number,
@@ -410,7 +386,7 @@ function spawnMarkers(
       state.selected.col,
       state.turn,
     )) {
-      spawnCellCenter(dim, m.col, m.row, y);
+      spawnCellFrame(dim, m.col, m.row, y, "minecraft:villager_happy");
     }
   }
   // 玩家脚下格提示:仅俯瞰视角生效
