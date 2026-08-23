@@ -1,0 +1,116 @@
+{
+  "texture_data": {
+    "mahjong_a1": {
+      "textures": "textures/blocks/mahjong_a1"
+    },
+    "mahjong_a2": {
+      "textures": "textures/blocks/mahjong_a2"
+    },
+    "mahjong_a3": {
+      "textures": "textures/blocks/mahjong_a3"
+    },
+    "mahjong_a4": {
+      "textures": "textures/blocks/mahjong_a4"
+    },
+    "mahjong_a5": {
+      "textures": "textures/blocks/mahjong_a5"
+    },
+    "mahjong_a6": {
+      "textures": "textures/blocks/mahjong_a6"
+    },
+    "mahjong_a7": {
+      "textures": "textures/blocks/mahjong_a7"
+    },
+    "mahjong_a8": {
+      "textures": "textures/blocks/mahjong_a8"
+    },
+    "mahjong_a9": {
+      "textures": "textures/blocks/mahjong_a9"
+    },
+    "mahjong_b1": {
+      "textures": "textures/blocks/mahjong_b1"
+    },
+    "mahjong_b2": {
+      "textures": "textures/blocks/mahjong_b2"
+    },
+    "mahjong_b3": {
+      "textures": "textures/blocks/mahjong_b3"
+    },
+    "mahjong_b4": {
+      "textures": "textures/blocks/mahjong_b4"
+    },
+    "mahjong_b5": {
+      "textures": "textures/blocks/mahjong_b5"
+    },
+    "mahjong_b6": {
+      "textures": "textures/blocks/mahjong_b6"
+    },
+    "mahjong_b7": {
+      "textures": "textures/blocks/mahjong_b7"
+    },
+    "mahjong_b8": {
+      "textures": "textures/blocks/mahjong_b8"
+    },
+    "mahjong_b9": {
+      "textures": "textures/blocks/mahjong_b9"
+    },
+    "mahjong_c1": {
+      "textures": "textures/blocks/mahjong_c1"
+    },
+    "mahjong_c2": {
+      "textures": "textures/blocks/mahjong_c2"
+    },
+    "mahjong_c3": {
+      "textures": "textures/blocks/mahjong_c3"
+    },
+    "mahjong_c4": {
+      "textures": "textures/blocks/mahjong_c4"
+    },
+    "mahjong_c5": {
+      "textures": "textures/blocks/mahjong_c5"
+    },
+    "mahjong_c6": {
+      "textures": "textures/blocks/mahjong_c6"
+    },
+    "mahjong_c7": {
+      "textures": "textures/blocks/mahjong_c7"
+    },
+    "mahjong_c8": {
+      "textures": "textures/blocks/mahjong_c8"
+    },
+    "mahjong_c9": {
+      "textures": "textures/blocks/mahjong_c9"
+    },
+    "mahjong_d1": {
+      "textures": "textures/blocks/mahjong_d1"
+    },
+    "mahjong_d2": {
+      "textures": "textures/blocks/mahjong_d2"
+    },
+    "mahjong_d3": {
+      "textures": "textures/blocks/mahjong_d3"
+    },
+    "mahjong_d4": {
+      "textures": "textures/blocks/mahjong_d4"
+    },
+    "mahjong_e1": {
+      "textures": "textures/blocks/mahjong_e1"
+    },
+    "mahjong_e2": {
+      "textures": "textures/blocks/mahjong_e2"
+    },
+    "mahjong_e3": {
+      "textures": "textures/blocks/mahjong_e3"
+    },
+    "mahjong_stack_full": {
+      "textures": "textures/blocks/mahjong_stack_full"
+    },
+    "mahjong_stack_half": {
+      "textures": "textures/blocks/mahjong_stack_half"
+    }
+  },
+  "resource_pack_name": "bearcade_mahjong",
+  "texture_name": "atlas.terrain",
+  "num_mip_levels": 4,
+  "padding": 8
+}

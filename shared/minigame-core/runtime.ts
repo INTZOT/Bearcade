@@ -816,6 +816,36 @@ export class MinigameRuntime {
     this.sendRoomStatus();
   }
 
+  /**
+   * 手动开局:在 manualStart 模式下由玩法调用,
+   * 将空闲房间切入倒计时(pending),随后由共享运行时按人数/派对/调试规则倒计时。
+   */
+  beginPending(roomId: number): boolean {
+    const state = this.getState(roomId);
+    if (state.phase !== "idle") return false;
+    const players = this.roomPlayers(roomId);
+    if (players.length < (this.config.minPlayers ?? 2)) return false;
+    this.startPending(roomId);
+    this.sendRoomStatus();
+    return true;
+  }
+
+  /**
+   * 房主强制立即开始:跳过倒计时,直接进入 running 并触发 onGameStart。
+   * 房间处于 idle 且人数足够时也会直接开始。
+   */
+  forceStartGame(roomId: number): boolean {
+    const state = this.getState(roomId);
+    if (state.phase === "running" || state.phase === "resetting") return false;
+    const players = this.roomPlayers(roomId);
+    if (players.length < (this.config.minPlayers ?? 2)) return false;
+    if (state.phase !== "pending") {
+      state.phase = "pending";
+    }
+    this.startGame(roomId);
+    return true;
+  }
+
   /** 结束对局并进入重置流程;message 为空时使用默认提示 */
   endGame(roomId: number, reason: string, message?: string): void {
     const state = this.getState(roomId);
@@ -902,7 +932,7 @@ export class MinigameRuntime {
         const state = this.getState(roomId);
         const count = this.roomPlayers(roomId).length;
         const min = this.config.minPlayers ?? 2;
-        if (state.phase === "idle" && count >= min) {
+        if (!this.config.manualStart && state.phase === "idle" && count >= min) {
           this.startPending(roomId);
         } else if (state.phase === "pending" && count < min) {
           state.phase = "idle";

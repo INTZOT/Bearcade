@@ -67,6 +67,8 @@ export interface MinigameConfig {
   endGameWhenBelowMin?: boolean;
   /** 满员后缩短倒计时:剩余时间大于该 tick 数时压到该值(默认 100 tick = 5 秒) */
   startFullShortenTicks?: number;
+  /** 手动开局:为 true 时不会因人数达到 minPlayers 自动进入倒计时,需由玩法调用 beginPending */
+  manualStart?: boolean;
 }
 
 export interface MinigameHooks {

@@ -33,6 +33,7 @@
 | `HungerGame-饥饿游戏/` | 小游戏包 | 饥饿游戏,FFA 六阶段大逃杀,2 个房间(512² 死场景,`tileWindowed` + `resetRoomsOnLoad:false`) |
 | `Knockback-击退战/` | 小游戏包 | 击退战,中央高台得分 + 强/中/弱击退木棍,4 个房间 |
 | `LabEscape-实验室逃脱/` | 小游戏包 | 实验室逃脱,圆环挖柱竞速,4 个房间 |
+| `Mahjong-麻将/` | 小游戏包 | 麻将,牡丹江麻将已实现(吃碰杠听胡、宝牌/换宝、计分、流局/下一局、离线托管) |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 | `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,屏幕右侧垂直居中的每玩家独立记分板 |
 
@@ -167,6 +168,7 @@ bearcade:gomoku_template
 | Werewolf | 4 | `bearcade:werewolf_1` ~ `bearcade:werewolf_4` |
 | Pillars | 4 | `bearcade:pillars_1` ~ `bearcade:pillars_4` |
 | Go | 8 | `bearcade:go_1` ~ `bearcade:go_8` |
+| Mahjong | 8 | `bearcade:mahjong_1` ~ `bearcade:mahjong_8` |
 | CChess | 8 | `bearcade:cchess_1` ~ `bearcade:cchess_8` |
 | HungerGame | 2 | `bearcade:hungergame_1` ~ `bearcade:hungergame_2` |
 | Knockback | 4 | `bearcade:knockback_1` ~ `bearcade:knockback_4` |

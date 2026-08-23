@@ -1,0 +1,24 @@
+{
+  "resource_pack_name": "bearcade_mahjong",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "chi": {
+      "textures": "textures/items/chi"
+    },
+    "peng": {
+      "textures": "textures/items/peng"
+    },
+    "gang": {
+      "textures": "textures/items/gang"
+    },
+    "hu": {
+      "textures": "textures/items/hu"
+    },
+    "guo": {
+      "textures": "textures/items/guo"
+    },
+    "ting": {
+      "textures": "textures/items/ting"
+    }
+  }
+}
