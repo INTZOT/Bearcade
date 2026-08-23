@@ -1,12 +1,13 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
-import { makeTemplateHooks } from "./game";
+import { makeCTFHooks } from "./game";
 import {
   DISPLAY_NAME,
   GAME_ID,
   IPC_CHANNEL,
   LOBBY_DIMENSION_ID,
   MAX_PLAYERS,
+  MIN_PLAYERS,
   PARTY_AVAILABLE,
   PACK_ID,
   PREP_SPAWN,
@@ -29,6 +30,7 @@ runtime = new MinigameRuntime(
     packId: PACK_ID,
     roomCount: ROOM_COUNT,
     maxPlayers: MAX_PLAYERS,
+    minPlayers: MIN_PLAYERS,  
     partyAvailable: PARTY_AVAILABLE,
     prepSpawn: PREP_SPAWN,
     templateFrom: TEMPLATE_FROM,
@@ -44,7 +46,7 @@ runtime = new MinigameRuntime(
     startDelayTicks: 60 * 20,
     debugStartDelayTicks: 10 * 20,
   },
-  makeTemplateHooks(() => runtime),
+  makeCTFHooks(() => runtime),
 );
 
 system.beforeEvents.startup.subscribe((event) => {

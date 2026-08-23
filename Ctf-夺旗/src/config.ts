@@ -10,6 +10,7 @@ export const IPC_CHANNEL = "bearcade:ipc";
 export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 export const ROOM_COUNT = 2;
 export const MAX_PLAYERS = 12;
+export const MIN_PLAYERS = 2;
 // 派对模式可用性:去除最大人数上限后仍可正常运行才设为 true
 export const PARTY_AVAILABLE = false;
 
@@ -43,3 +44,37 @@ export const START_POSITIONS = [
   { x: 1, y: 65, z: -2 },
   { x: 2, y: 65, z: -1 },
 ];
+
+/**
+ * CTF-夺旗之战 配置文件
+ */
+ export const config = {
+  teams: [
+    { id: "red", name: "红队", color: "§c", hex: "#FF5555" },
+    { id: "blue", name: "蓝队", color: "§9", hex: "#5555FF" },
+    { id: "green", name: "绿队", color: "§a", hex: "#55FF55" },
+    { id: "yellow", name: "黄队", color: "§e", hex: "#FFFF55" }
+  ] as const,
+
+  maxScore: 3,              // 夺旗次数获胜
+  matchTime: 300,           // 单局时长（秒）
+  flagReturnTime: 30,       // 旗帜掉落回城时间（秒）
+  respawnTime: 5,           // 复活等待时间（秒）
+
+  economy: {
+    initial: 100,
+    killReward: 50,
+    flagReward: 200,
+    winReward: 100
+  },
+
+  // ===== 场地坐标（建议通过 /bearcade:tmp sz 动态配置） =====
+  arena: {
+    spawnPoints: {
+    },
+    flagBases: {
+    },
+    captureRadius: 5
+  }
+};
+

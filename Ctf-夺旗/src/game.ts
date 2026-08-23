@@ -2,12 +2,15 @@ import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import {
   clearHudTitle,
-  hudMessage,
-  setHudTitle,
 } from "../../shared/minigame-core/scoreboardHud";
 import { START_POSITIONS } from "./config";
+import { system } from "@minecraft/server";
+import { GameManager } from "./GameManager";
 
-export function makeTemplateHooks(
+let intervalID: number;
+const gameManager = GameManager.getInstance();
+
+export function makeCTFHooks(
   getRuntime: () => MinigameRuntime,
 ): MinigameHooks {
   return {
@@ -21,20 +24,20 @@ export function makeTemplateHooks(
         );
       });
       runtime.announce(roomId, "§a对局开始!在这里实现你的玩法");
-      for (const roomPlayer of players) {
-        setHudTitle(
-          roomPlayer,
-          hudMessage([
-            { text: "§e对局进行中§r" },
-            { text: "\n" },
-            { text: "在这里实现你的玩法 HUD" },
-          ]),
-          6000,
-        );
-      }
-      // TODO: 玩法初始化(发道具/初始化棋盘/计分等)
+
+
+
+      gameManager.initialize(runtime, roomId);
+      gameManager.start();
+
+      intervalID = system.runInterval(() => {
+        gameManager.tick();
+      }, 2)
     },
     onBeforeReset(roomId) {
+      if (intervalID !== null) system.clearRun(intervalID);
+      gameManager.end();
+
       const runtime = getRuntime();
       for (const player of runtime.roomPlayers(roomId)) {
         clearHudTitle(player);
