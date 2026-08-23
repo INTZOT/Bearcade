@@ -1,5 +1,7 @@
-import { Player, ItemStack } from "@minecraft/server";
+import { Player, ItemStack, Entity } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
+import { GameManager } from "./GameManager";
+import { Vector3 } from "./types";
 
 export interface ShopItem {
   tag: string;
@@ -14,26 +16,26 @@ export interface ShopItem {
 export class Shop {
   public readonly name: string;
   private title: string;
+  private description: string;
   private items: Map<string, ShopItem>;
   private callbacks: Map<string, (player: Player, tag: string, price: number) => void>;
+  private shopEntity: Entity | undefined;
 
   constructor(name: string) {
     this.name = name;
     this.title = name;
+    this.description = "";
     this.items = new Map();
     this.callbacks = new Map();
+    this.shopEntity = undefined;
   }
 
   setTitle(title: string): void {
     this.title = title;
   }
 
-  setName(name: string): void {
-    // 内部标识名
-  }
-
   setDescription(desc: string): void {
-    // TODO: 商店副标题或整体描述
+    this.description = desc;
   }
 
   /** 设置栏目（标签名、栏目名、价格） */
@@ -46,11 +48,25 @@ export class Shop {
     this.callbacks.set(tag, callback);
   }
 
+  spawnShopEntity(location: Vector3): void {
+    if (this.shopEntity !== undefined) return;
+
+    const gameManager = GameManager.getInstance();
+    this.shopEntity = gameManager.getGameDimension()?.spawnEntity("minecraft:armor_stand", location, { initialPersistence: true });
+  }
+
+  clearShopEntity(): void {
+    if (this.shopEntity === undefined) return;
+
+    this.shopEntity.remove();
+    this.shopEntity = undefined;
+  }
+
   /** 展示商店给玩家（使用 ActionFormData） */
   async show(player: Player): Promise<void> {
     const form = new ActionFormData();
     form.title(this.title);
-    form.body("选择你要购买的物品");
+    form.body(this.description);
 
     for (const item of this.items.values()) {
       form.button(`${item.name}\n§e${item.price} 金币`, item.icon || "");
