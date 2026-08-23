@@ -20,8 +20,7 @@ const EXTERNALS = [
   "@minecraft/common",
   "@minecraft/math",
   "@minecraft/server",
-  "@minecraft/server-ui",
-  "@minecraft/vanilla-data",
+  "@minecraft/server-ui"
 ];
 
 for (const pack of config.packs) {
