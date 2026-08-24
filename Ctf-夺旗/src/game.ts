@@ -29,8 +29,7 @@ export function makeCTFHooks(
       });
       runtime.announce(roomId, "§a对局开始!在这里实现你的玩法");
 
-      gameManager.initialize(runtime, roomId);
-      gameManager.start();
+      gameManager.start(runtime, roomId);
 
       intervalID = system.runInterval(() => {
         gameManager.tick();
