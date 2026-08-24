@@ -1,4 +1,4 @@
-import { Player } from "@minecraft/server";
+import { Entity, Player } from "@minecraft/server";
 import { config } from "./config";
 import { Shop } from "./Shop";
 
@@ -20,14 +20,24 @@ export class ShopManager {
   }
 
   spawnShopEntity(): void {
-    this.shops.get("red")?.spawnShopEntity(config.arena.redShop);
-    this.shops.get("blue")?.spawnShopEntity(config.arena.blueShop);
+    // this.shops.get("tiem_shop")?.spawnShopEntity(config.arena.redShop);
+    // this.shops.get("ti")?.spawnShopEntity(config.arena.blueShop);
   }
 
   removeShopEntity(): void {
     this.shops.forEach((shop) => {
       shop.clearShopEntity();
     });
+  }
+
+  /** 根据实体 ID 在所有商店中查找对应的 Shop */
+  findShopByEntity(entity: Entity): Shop | undefined {
+    for (const shop of this.shops.values()) {
+      if (shop.hasEntity(entity.id)) {
+        return shop;
+      }
+    }
+    return undefined;
   }
 
   showShop(player: Player, shopName: string): void {
