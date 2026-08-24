@@ -18,7 +18,7 @@ export class Shop {
   private title: string;
   private description: string | undefined;
   private items: Map<string, ShopItem>;
-  private callbacks: Map<string, (player: Player, tag: string, price: number) => void>;
+  private callbacks: Map<string, (player: Player, name: string) => boolean>;
   private shopEntity: Map<string, Entity>;
 
   constructor(name: string) {
@@ -43,7 +43,7 @@ export class Shop {
   }
 
   /** 设置回调函数(标签名, (栏目标签名, 价格, 玩家对象)) */
-  setCallback(tag: string, callback: (player: Player, tag: string, price: number) => void): void {
+  setCallback(tag: string, callback: (player: Player, name: string) => boolean): void {
     this.callbacks.set(tag, callback);
   }
 
@@ -51,8 +51,9 @@ export class Shop {
 
     const gameManager = GameManager.getInstance();
     const entity = gameManager.getGameDimension()?.spawnEntity(MinecraftEntityTypes.ArmorStand, location);
-    
+
     if (entity === undefined) throw new Error("无法创建实体");
+    entity.setDynamicProperty("ctf:entity_need_remove", true);
     this.shopEntity.set(entity.id, entity);
   }
 
@@ -77,7 +78,7 @@ export class Shop {
   getShopEntity(id: string): Entity | undefined {
     return this.shopEntity.get(id);
   }
-  
+
   /** 判断指定实体是否属于本商店 */
   hasEntity(entityId: string): boolean {
     return this.shopEntity.has(entityId);
@@ -89,20 +90,40 @@ export class Shop {
     form.title(this.title);
     if(this.description) form.body(this.description);
 
-    for (const item of this.items.values()) {
+    const itemList = Array.from(this.items.values());
+    for (const item of itemList) {
       form.button(`${item.name}\n§e${item.price} 金币`, item.icon || "");
     }
+
+    // 最后一项为关闭按钮
+    form.button("§c关闭");
 
     const response = await form.show(player);
     if (response.canceled || response.selection === undefined) return;
 
-    const selected = Array.from(this.items.values())[response.selection];
+    // 点击关闭按钮
+    if (response.selection === itemList.length) return;
+
+    const selected = itemList[response.selection];
+    if (!selected) return;
+
     const callback = this.callbacks.get(selected.tag);
     if (callback) {
-      callback(player, selected.tag, selected.price);
+      const targetpPlayer = GameManager.getInstance().getPlayerManager().getOrCreatePlayer(player);
+      if (targetpPlayer.getEconomy() < selected.price) {
+        player.sendMessage(`§c你没有足够的金币来购买 ${selected.name}`);
+        return;
+      }
+      if(callback(player, selected.name)) {
+        targetpPlayer.reduceEconomy(selected.price);
+        player.sendMessage(`§a你成功购买了 ${selected.name}`);
+      }
     }
     if (selected.callback) {
       selected.callback(player, selected);
     }
+
+    // 购买完成后再次弹出商店表单
+    this.show(player);
   }
 }

@@ -58,7 +58,27 @@ export class CTFPlayer {
     this.economy += amount;
     // TODO: 触发计分板更新、播放音效
   }
+  getEconomy(): number {
+    return this.economy;
+  }
+  /**
+   * 设置经济
+   * - 无法设置负值
+   * @param amount 金额
+   * @returns 是否成功设置
+   */
+  setEconomy(amount: number): boolean {
+    if (amount < 0) return false;
+    this.economy = amount;
+    return true;
+    // TODO: 触发计分板更新
+  }
 
+  /**
+   * 尝试扣除经济
+   * @param amount 扣除金额
+   * @returns 是否成功扣除
+   */
   reduceEconomy(amount: number): boolean {
     if (this.economy < amount) return false;
     this.economy -= amount;
@@ -74,10 +94,5 @@ export class CTFPlayer {
   onRespawn(): void {
     this.state = PlayerState.ALIVE;
     // TODO: 传送回队伍出生点、重置装备、恢复状态
-  }
-
-  // ===== 商店 =====
-  openShop(shopName: string): void {
-    // TODO: 调用 ShopManager.showShop()
   }
 }
