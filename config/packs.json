@@ -685,6 +685,49 @@
         "core"
       ],
       "type": "behavior"
+    },
+    {
+      "id": "frozenfloor",
+      "dir": "FrozenFloor-冰冻地板",
+      "name": "Bearcade FrozenFloor",
+      "description": "Bearcade 冰冻地板小游戏包(环形蓝冰场+雪球互怼,玩法已实现)",
+      "headerUuid": "8978bb6f-80dc-4af8-8741-966304bf3e57",
+      "moduleUuid": "29d75370-8955-4bb6-af46-58602e954737",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "frozenfloor_hud",
+      "type": "resource",
+      "dir": "FrozenFloor-冰冻地板/resource-pack",
+      "name": "Bearcade FrozenFloor HUD",
+      "description": "Bearcade FrozenFloor HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "da9cfa1a-20b5-4ae9-ae4d-a6e5e4f6a53b",
+      "moduleUuid": "fb0efdfd-247c-45b1-8be9-e787169dda6f",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }
