@@ -7,7 +7,6 @@ import { Vector3 } from "./types";
 export interface ShopItem {
   tag: string;
   name: string;
-  description: string;
   price: number;
   icon?: string;           // 贴图路径
   itemStack?: ItemStack;   // 购买后给予的物品
@@ -17,7 +16,7 @@ export interface ShopItem {
 export class Shop {
   public readonly name: string;
   private title: string;
-  private description: string;
+  private description: string | undefined;
   private items: Map<string, ShopItem>;
   private callbacks: Map<string, (player: Player, tag: string, price: number) => void>;
   private shopEntity: Map<string, Entity>;
@@ -25,7 +24,6 @@ export class Shop {
   constructor(name: string) {
     this.name = name;
     this.title = name;
-    this.description = "";
     this.items = new Map();
     this.callbacks = new Map();
     this.shopEntity = new Map();
@@ -89,7 +87,7 @@ export class Shop {
   async show(player: Player): Promise<void> {
     const form = new ActionFormData();
     form.title(this.title);
-    form.body(this.description);
+    if(this.description) form.body(this.description);
 
     for (const item of this.items.values()) {
       form.button(`${item.name}\n§e${item.price} 金币`, item.icon || "");
