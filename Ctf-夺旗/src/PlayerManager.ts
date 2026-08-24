@@ -14,7 +14,6 @@ export class PlayerManager {
     let ctfPlayer = this.players.get(player.id);
     if (!ctfPlayer) {
       ctfPlayer = new CTFPlayer(player);
-      ctfPlayer.economy = 100; // initial economy from config
       this.players.set(player.id, ctfPlayer);
     }
     return ctfPlayer;
