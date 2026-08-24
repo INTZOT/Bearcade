@@ -21,6 +21,8 @@ import {
   TICKING_FROM,
   TICKING_TO,
 } from "./config";
+import { GameManager } from "./GameManager";
+import { initCTFListener } from "./listener";
 
 let runtime: MinigameRuntime;
 runtime = new MinigameRuntime(
@@ -30,7 +32,7 @@ runtime = new MinigameRuntime(
     packId: PACK_ID,
     roomCount: ROOM_COUNT,
     maxPlayers: MAX_PLAYERS,
-    minPlayers: MIN_PLAYERS,  
+    minPlayers: MIN_PLAYERS,
     partyAvailable: PARTY_AVAILABLE,
     prepSpawn: PREP_SPAWN,
     templateFrom: TEMPLATE_FROM,
@@ -49,6 +51,8 @@ runtime = new MinigameRuntime(
   makeCTFHooks(() => runtime),
 );
 
+const gameManager = GameManager.getInstance();
+
 system.beforeEvents.startup.subscribe((event) => {
   runtime.initStartup(event);
 });
@@ -56,4 +60,7 @@ system.beforeEvents.startup.subscribe((event) => {
 world.afterEvents.worldLoad.subscribe(() => {
   runtime.initWorld();
   runtime.initEvents();
+
+  gameManager.initialize();
+  initCTFListener();
 });
