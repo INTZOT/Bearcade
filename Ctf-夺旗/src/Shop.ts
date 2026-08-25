@@ -48,12 +48,8 @@ export class Shop {
   }
 
   spawnShopEntity(location: Vector3): void {
-
     const gameManager = GameManager.getInstance();
-    const entity = gameManager.getGameDimension()?.spawnEntity(MinecraftEntityTypes.ArmorStand, location);
-
-    if (entity === undefined) throw new Error("无法创建实体");
-    entity.setDynamicProperty("ctf:entity_need_remove", true);
+    const entity = gameManager.spawnEntity(MinecraftEntityTypes.ArmorStand, location);
     this.shopEntity.set(entity.id, entity);
   }
 
