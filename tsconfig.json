@@ -28,6 +28,7 @@
     "Knockback-击退战/src/**/*.ts",
     "LabEscape-实验室逃脱/src/**/*.ts",
     "pillars-幸运之柱/src/**/*.ts",
+    "FrozenFloor-冰冻地板/src/**/*.ts",
     "CChess-中国象棋/src/**/*.ts",
     "PigCatcher-猪猪争夺战/src/**/*.ts",
     "SND5-剑与消亡V/src/**/*.ts",
