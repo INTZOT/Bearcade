@@ -404,7 +404,7 @@ export class TeamManager {
     this.playerToTeam.clear();
     this.capacityOverrides.clear();
     this.roundRobinIndex = 0;
-    this.eventBus.clear();
+    // this.eventBus.clear();
   }
 
   // ==================== 调试辅助 ====================
