@@ -88,6 +88,8 @@ interface RoomSession {
   tingDiscards: Map<string, string[]>;
   /** 本回合已经出过牌的玩家(防止卡顿连打两张) */
   discardedThisTurn: Set<string>;
+  /** 每位玩家最近一次摸入的牌(用于退出后自动打出刚摸的牌) */
+  lastDrawnTile: Map<string, string>;
   /** 已经告知过宝牌的听牌玩家(宝牌在叫听并打出后才告知) */
   doraTold: Set<string>;
   /** 四家均听牌并打出后,宝牌是否已公开明置 */
@@ -158,6 +160,7 @@ function getOrCreateSession(roomId: number): RoomSession {
       tingSeats: new Set(),
       tingDiscards: new Map(),
       discardedThisTurn: new Set(),
+      lastDrawnTile: new Map(),
       doraTold: new Set(),
       doraRevealedPublicly: false,
       doraReplaceCount: 0,
@@ -1120,6 +1123,7 @@ function discardTile(
   if (idx === -1) return;
   hand.splice(idx, 1);
   session.discardedThisTurn.add(player.id);
+  session.lastDrawnTile.delete(player.id);
   session.tingDiscards.delete(player.id);
   removeTileItem(player, entry.tileId);
 
@@ -1216,6 +1220,7 @@ function autoDiscardForAway(
   const roomId = session.roomId;
   const seat = playerSeatIndex(session, playerId);
   if (seat < 0) return;
+  if (!drawnTile) drawnTile = session.lastDrawnTile.get(playerId);
   const hand = session.hands.get(playerId);
   if (!hand || hand.length === 0) return;
 
@@ -1236,6 +1241,7 @@ function autoDiscardForAway(
   const idx = hand.indexOf(chosen);
   hand.splice(idx, 1);
   session.discardedThisTurn.add(playerId);
+  session.lastDrawnTile.delete(playerId);
   session.tingDiscards.delete(playerId);
   if (session.tingSeats.has(seat)) {
     session.doraTold.add(playerId);
@@ -1366,6 +1372,7 @@ function advanceMudanjiangTurn(session: RoomSession, runtime: MinigameRuntime): 
   const hand = session.hands.get(playerId) ?? [];
   hand.push(tile);
   session.hands.set(playerId, hand);
+  session.lastDrawnTile.set(playerId, tile);
   if (session.autoSort) refreshPlayerHandDisplay(session, runtime, playerId);
   applyTingHandLock(session, runtime, playerId);
   if (session.tingSeats.has(session.currentTurnSeat)) {
@@ -2735,6 +2742,7 @@ function startNextMudanjiangRound(
   session.tingSeats.clear();
   session.tingDiscards.clear();
   session.discardedThisTurn.clear();
+  session.lastDrawnTile.clear();
   session.doraTold.clear();
   session.doraRevealedPublicly = false;
   session.doraReplaceCount = 0;
@@ -3381,6 +3389,25 @@ export function initMahjong(getRuntime: () => MinigameRuntime): void {
           session.away.add(session.hostId);
           transferHost(session, runtime);
           refreshHostBook(session);
+        }
+      }
+      // 当前回合玩家已退出:自动打出刚摸的牌,直到其回到房间
+      if (
+        session.started &&
+        session.presetName === "mudanjiang" &&
+        !session.roundOver &&
+        !session.pendingAction
+      ) {
+        const currentId = playerIdAtSeat(session, session.currentTurnSeat);
+        if (
+          currentId &&
+          session.away.has(currentId) &&
+          !session.discardedThisTurn.has(currentId)
+        ) {
+          system.runTimeout(
+            () => autoDiscardForAway(session, runtime, currentId),
+            1,
+          );
         }
       }
     }
