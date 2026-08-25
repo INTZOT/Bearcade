@@ -1,5 +1,4 @@
 import { Vector3 } from './types';
-import { generateUUID } from './utils';
 
 /**
  * 队伍配置接口

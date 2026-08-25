@@ -1,5 +1,4 @@
 import { Entity, Player } from "@minecraft/server";
-import { config } from "./config";
 import { Shop } from "./Shop";
 
 export class ShopManager {
