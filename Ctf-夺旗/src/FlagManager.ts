@@ -1,23 +1,35 @@
-import { Flag } from "./Flag";
-import { Team } from "./Team";
-import { Vector3 } from "./types";
+import { Flag } from './Flag';
+import { Vector3 } from './types';
 
 export class FlagManager {
-  private flags: Map<string, Flag>; // teamId -> Flag
+  private flags = new Map<string, Flag>(); // teamId -> Flag
 
-  constructor() {
-    this.flags = new Map();
-  }
+  constructor() {}
 
-  createFlag(team: Team, homePosition: Vector3): Flag {
-    const flag = new Flag(team, homePosition);
-    team.flag = flag;
-    this.flags.set(team.id, flag);
+  /**
+   * 创建旗帜
+   */
+  createFlag(teamId: string, homePosition: Vector3): Flag {
+    if (this.flags.has(teamId)) {
+      console.warn(`[FlagManager] Flag for team '${teamId}' already exists, overwriting`);
+    }
+    const flag = new Flag(teamId, homePosition);
+    this.flags.set(teamId, flag);
     return flag;
   }
 
+  /**
+   * 获取旗帜
+   */
   getFlag(teamId: string): Flag | undefined {
     return this.flags.get(teamId);
+  }
+
+  /**
+   * 获取所有旗帜
+   */
+  getAllFlags(): Flag[] {
+    return Array.from(this.flags.values());
   }
 
   updateAll(): void {
@@ -32,19 +44,10 @@ export class FlagManager {
     }
   }
 
-  /** 检查夺旗条件（携带者进入敌方基地） */
-  checkCaptures(): void {
+  clear(): void {
     for (const flag of this.flags.values()) {
-      if (flag.state !== "carried" || !flag.carrier) continue;
-      const carrierTeam = flag.carrier.team;
-      if (!carrierTeam) continue;
-
-      // 检查是否进入敌方基地（简化逻辑，实际需遍历所有非己方队伍基地）
-      for (const [teamId, targetFlag] of this.flags) {
-        if (teamId === carrierTeam.id) continue; // 跳过己方
-        // TODO: 使用 distance() 检查 carrier 与 targetFlag.homePosition 距离 < captureRadius
-        // 若满足：carrierTeam.addWin(); flag.returnHome();
-      }
+      flag.flagEntity?.remove();
     }
+    this.flags.clear();
   }
 }
