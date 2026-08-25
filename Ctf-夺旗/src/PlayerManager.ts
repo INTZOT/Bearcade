@@ -1,13 +1,11 @@
-import { Player } from "@minecraft/server";
-import { CTFPlayer } from "./CTFPlayer";
+import { Player } from '@minecraft/server';
+import { CTFPlayer } from './CTFPlayer';
 
+/**
+ * 玩家对象生命周期管理
+ */
 export class PlayerManager {
-  private players: Map<string, CTFPlayer>;
-  
-
-  constructor() {
-    this.players = new Map();
-  }
+  private players = new Map<string, CTFPlayer>();
 
   /** 创建或获取 CTF 玩家对象 */
   getOrCreatePlayer(player: Player): CTFPlayer {
@@ -23,6 +21,7 @@ export class PlayerManager {
     return this.players.get(uuid);
   }
 
+  /** 删除玩家 */
   removePlayer(uuid: string): boolean {
     return this.players.delete(uuid);
   }
@@ -33,15 +32,13 @@ export class PlayerManager {
 
   /** 给所有玩家增加经济 */
   addEconomyToAll(amount: number): void {
+    if (amount <= 0) return;
     for (const player of this.players.values()) {
       player.addEconomy(amount);
     }
   }
 
-  getPlayersByTeam(teamId: string): CTFPlayer[] {
-    return this.getAllPlayers().filter(p => p.team?.id === teamId);
-  }
-
+  /** 清空所有玩家 */
   clear(): void {
     this.players.clear();
   }
