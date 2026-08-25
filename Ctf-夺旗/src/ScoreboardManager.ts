@@ -3,8 +3,13 @@ import { ensureObjective, setHudTitle, clearHudTitle } from "../../shared/miniga
 import { ScoreboardTemplate } from "./ScoreboardTemplate";
 
 export class ScoreboardManager {
-  private templates: Map<string, ScoreboardTemplate> = new Map();
-  private playerDisplay: Map<string, string> = new Map();
+  private templates: Map<string, ScoreboardTemplate>;
+  private playerDisplay: Map<string, string>;
+
+  constructor() {
+    this.templates = new Map();
+    this.playerDisplay = new Map();
+  }
 
   public createTemplate(templateName: string): ScoreboardTemplate {
     const template = new ScoreboardTemplate();

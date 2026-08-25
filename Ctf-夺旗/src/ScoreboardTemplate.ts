@@ -7,10 +7,12 @@ type ColumnDef = {
 };
 
 export class ScoreboardTemplate {
-  private columns: Map<string, ColumnDef> = new Map();
-  public visible: boolean = true;
+  private columns: Map<string, ColumnDef>;
+  public visible: boolean;
 
   constructor() {
+    this.columns = new Map();
+    this.visible = true;
   }
 
   /**
