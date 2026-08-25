@@ -1,25 +1,36 @@
-import { CTFPlayer } from "./CTFPlayer";
-import { Team } from "./Team";
-import { Vector3, FlagState } from "./types";
-import { generateUUID } from "./utils";
+import { Entity } from '@minecraft/server';
+import { MinecraftEntityTypes } from '@minecraft/vanilla-data';
+import { config } from './config';
+import { CTFPlayer } from './CTFPlayer';
+import { GameManager } from './GameManager';
+import { Vector3, FlagState } from './types';
+import { generateUUID } from './utils';
 
+/**
+ * Flag - 旗帜实体
+ */
 export class Flag {
+  public flagEntity: Entity | null;
   public readonly uuid: string;
-  public team: Team;
+  public readonly teamId: string;
   public state: FlagState;
   public position: Vector3;
   public homePosition: Vector3;
   public carrier: CTFPlayer | null;
-  public dropTimer: number; // 掉落回城倒计时（刻）
+  /** 掉落回城倒计时（刻） */
+  public dropTimer: number;
 
-  constructor(team: Team, homePosition: Vector3) {
+  constructor(teamId: string, homePosition: Vector3) {
     this.uuid = generateUUID();
-    this.team = team;
+    this.teamId = teamId;
     this.homePosition = { ...homePosition };
     this.position = { ...homePosition };
     this.state = FlagState.HOME;
     this.carrier = null;
     this.dropTimer = 0;
+    this.flagEntity = null;
+
+    this.spawnFlagEntity();
   }
 
   /** 回城（被夺回或回合重置） */
@@ -28,7 +39,10 @@ export class Flag {
     this.position = { ...this.homePosition };
     this.carrier = null;
     this.dropTimer = 0;
-    // TODO: 实体传送、粒子特效、清除旧实体
+
+    this.flagEntity?.remove();
+    this.spawnFlagEntity();
+
     return true;
   }
 
@@ -38,30 +52,57 @@ export class Flag {
     this.state = FlagState.DROPPED;
     this.position = { ...position };
     this.carrier = null;
-    this.dropTimer = 30 * 20; // 30秒回城（单位：刻）
-    // TODO: 生成旗帜掉落实体、启动回城计时器
+    this.dropTimer = config.flagReturnTime * 20; // 30秒回城
+
+    this.spawnFlagEntity();
+
     return true;
   }
 
-  /** 捡起（敌方/己方规则需根据玩法调整） */
-  pickup(carrier: CTFPlayer): boolean {
-    // 常规规则：不能捡自家旗帜；特殊规则可在此扩展
-    if (this.state === FlagState.HOME && carrier.team === this.team) return false;
+  /**
+   * 捡起
+   * @param carrier 携带者
+   * @param canPickup 外部传入的判断函数
+   */
+  pickup(carrier: CTFPlayer, canPickup: boolean = true): boolean {
+    if (!canPickup) return false;
     this.state = FlagState.CARRIED;
     this.carrier = carrier;
     this.dropTimer = 0;
-    // TODO: 绑定到玩家、更新 HUD、播放音效
+
+    this.flagEntity?.remove();
+    this.flagEntity = null;
+
     return true;
   }
 
   /** 每 tick 更新（掉落回城逻辑等） */
   update(): void {
     if (this.state === FlagState.DROPPED) {
-      this.dropTimer -= 2; // 假设每 100ms 调用（2刻）
+      this.dropTimer -= 2;
       if (this.dropTimer <= 0) {
         this.returnHome();
       }
     }
-    // TODO: 同步携带者位置、检查是否进入敌方基地
+    if (this.state === FlagState.CARRIED && this.carrier) {
+      this.position = this.carrier.getPlayer()?.location ?? this.position;
+    }
+    if (this.flagEntity) {
+      this.position = this.flagEntity.location;
+    }
+  }
+
+  /** 是否被敌方携带 */
+  isCarriedByEnemy(carrierTeamId: string | null): boolean {
+    return this.state === FlagState.CARRIED && carrierTeamId !== null && carrierTeamId !== this.teamId;
+  }
+
+  /**
+   * 生成旗帜实体
+   */
+  private spawnFlagEntity(): void {
+    if (this.flagEntity) return;
+    this.flagEntity = GameManager.getInstance().spawnEntity(MinecraftEntityTypes.ArmorStand, this.position);
+    this.flagEntity.nameTag = `${this.teamId}的旗帜`;
   }
 }
