@@ -88,4 +88,31 @@ export function initCTFListener(): void {
   }, {
     allowedHealCauses: [EntityHealCause.SelfHeal],
   });
+
+  // 记录玩家放置的方块
+  world.afterEvents.playerPlaceBlock.subscribe((event) => {
+    if (gameManager.getGameState() !== GameState.RUNNING) return;
+    const player = event.player;
+    const ctfPlayer = gameManager.getPlayerManager().getPlayer(player.id);
+    if (ctfPlayer) {
+      gameManager.addPlacedBlock(event.block.location);
+    }
+  });
+
+  // 破坏方块前检查：仅允许破坏玩家放置过的方块
+  world.beforeEvents.playerBreakBlock.subscribe((event) => {
+    if (gameManager.getGameState() !== GameState.RUNNING) return;
+    const player = event.player;
+    const ctfPlayer = gameManager.getPlayerManager().getPlayer(player.id);
+    if (!ctfPlayer) return;
+
+    const blockLoc = event.block.location;
+    if (gameManager.isPlacedBlock(blockLoc)) {
+      // 允许破坏，并移除记录（防止重复记录）
+      gameManager.removePlacedBlock(blockLoc);
+    } else {
+      event.cancel = true;
+      player.sendMessage("§c你不能破坏该方块！");
+    }
+  });
 }

@@ -19,6 +19,7 @@ export class GameManager {
   private waterTickCounter = new Map<string, number>();
   private deathPlayers: Map<string, number> = new Map();
   private readonly RESPAWN_DELAY_TICKS = config.respawnTime * 20;
+  private placedBlocks: Set<string> = new Set();
   private gamestate: GameState;
   private roomId: number | undefined;
   private runtime: MinigameRuntime | undefined;
@@ -162,6 +163,9 @@ export class GameManager {
       ctfPlayer.setEconomy(config.economy.initial);
       this.scoreboardManager.setPlayerDisplay(mcPlayer.id, 'ctf_main');
 
+      // 轮询自动分配
+      this.teamManager.autoAssignPlayer(ctfPlayer.uuid);
+
       // 分配初始护甲
       const equippable = mcPlayer.getComponent('equippable');
       if (equippable) {
@@ -177,13 +181,20 @@ export class GameManager {
           inventory.addItem(new ItemStack(entry.item, entry.count));
         }
       }
+      const team = this.teamManager.getTeamOfPlayer(mcPlayer.id);
+      if (team && inventory) {
+        const woolId = `minecraft:${team.color}_wool`;
+        try {
+          inventory.addItem(new ItemStack(woolId, config.initialBlockCount));
+        } catch (err) {
+          console.warn(`[GameManager] 无法生成: ${woolId}`, err);
+        }
+      }
 
-      // 轮询自动分配
-      this.teamManager.autoAssignPlayer(ctfPlayer.uuid);
-
-      // 玩家饱和&满血
+      // 玩家饱和&满血&生存模式
       mcPlayer.addEffect(MinecraftEffectTypes.Saturation, 99999, { showParticles: false });
       mcPlayer.getComponent('minecraft:health')?.resetToMaxValue();
+      mcPlayer.setGameMode(GameMode.Survival);
     }
 
     // 5. 传送玩家到各队出生点
@@ -206,6 +217,7 @@ export class GameManager {
     this.gamestate = GameState.ENDING;
 
     try {
+      this.clearPlacedBlocks();
       this.waterTickCounter.clear();
       this.flagManager.clear();
       this.teamManager.resetTeams();
@@ -460,6 +472,22 @@ export class GameManager {
     }
     entity.setDynamicProperty('ctf:entity_need_remove', true);
     return entity;
+  }
+
+  addPlacedBlock(location: Vector3): void {
+    this.placedBlocks.add(`${location.x},${location.y},${location.z}`);
+  }
+
+  isPlacedBlock(location: Vector3): boolean {
+    return this.placedBlocks.has(`${location.x},${location.y},${location.z}`);
+  }
+
+  removePlacedBlock(location: Vector3): void {
+    this.placedBlocks.delete(`${location.x},${location.y},${location.z}`);
+  }
+
+  private clearPlacedBlocks(): void {
+    this.placedBlocks.clear();
   }
 
   getGameState(): GameState { return this.gamestate; }

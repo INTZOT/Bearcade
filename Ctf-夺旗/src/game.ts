@@ -35,6 +35,10 @@ export function makeCTFHooks(
         gameManager.tick();
       }, 2)
     },
+
+    canPlace() { return true; },
+    canBreak() { return true; },
+
     onBeforeReset(roomId) {
       if (intervalID !== null) system.clearRun(intervalID);
       gameManager.end();
