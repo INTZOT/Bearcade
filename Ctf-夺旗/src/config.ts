@@ -68,6 +68,19 @@ export const START_POSITIONS = [
     }
   ] as const,
 
+  initialArmor: {
+    chestplate: 'minecraft:diamond_chestplate',
+    leggings: 'minecraft:diamond_leggings',
+    boots: 'minecraft:diamond_boots'
+  } as const,
+
+  initialInventory: [
+    { item: 'minecraft:diamond_sword', count: 1 },
+    { item: 'minecraft:bow', count: 1 },
+    { item: 'minecraft:arrow', count: 16 }
+  ],
+
+
   maxScore: 3,
   matchTime: 300,
   flagReturnTime: 20,

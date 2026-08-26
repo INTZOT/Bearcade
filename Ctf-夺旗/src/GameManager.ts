@@ -1,4 +1,4 @@
-import { Dimension, Entity, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
+import { Dimension, Entity, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
 import { MinecraftEffectTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
 import { MinigameRuntime } from '../../shared/minigame-core/runtime';
 import { config, PREP_SPAWN } from './config';
@@ -161,6 +161,22 @@ export class GameManager {
       const ctfPlayer = this.playerManager.getOrCreatePlayer(mcPlayer);
       ctfPlayer.setEconomy(config.economy.initial);
       this.scoreboardManager.setPlayerDisplay(mcPlayer.id, 'ctf_main');
+
+      // 分配初始护甲
+      const equippable = mcPlayer.getComponent('equippable');
+      if (equippable) {
+        equippable.setEquipment(EquipmentSlot.Chest, new ItemStack(config.initialArmor.chestplate));
+        equippable.setEquipment(EquipmentSlot.Legs, new ItemStack(config.initialArmor.leggings));
+        equippable.setEquipment(EquipmentSlot.Feet, new ItemStack(config.initialArmor.boots));
+      }
+
+      // 分配初始物品到背包
+      const inventory = mcPlayer.getComponent('inventory')?.container;
+      if (inventory) {
+        for (const entry of config.initialInventory) {
+          inventory.addItem(new ItemStack(entry.item, entry.count));
+        }
+      }
 
       // 轮询自动分配
       this.teamManager.autoAssignPlayer(ctfPlayer.uuid);
