@@ -9,7 +9,7 @@ import { ScoreboardManager } from './ScoreboardManager';
 import { ShopManager } from './ShopManager';
 import { TeamManager } from './TeamManager';
 import { Timer } from './Timer';
-import { FlagState, GameState, Vector3 } from './types';
+import { FlagState, GameState, PlayerState, Vector3 } from './types';
 import { distance } from './utils';
 
 export class GameManager {
@@ -352,6 +352,7 @@ export class GameManager {
         if (!mcPlayer?.isValid) continue;               // 玩家离线
         if (!ctfPlayer.teamId) continue;       // 未分配队伍
         if (ctfPlayer.teamId === flag.teamId) continue; // 同队不能拾取
+        if (ctfPlayer.state === PlayerState.DEAD) continue; // 玩家已死亡
 
         // 计算距离
         if (distance(mcPlayer.location, flagPos) > captureRadius) continue;
