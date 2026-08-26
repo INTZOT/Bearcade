@@ -53,7 +53,7 @@ export const START_POSITIONS = [
     {
       id: 'blue',
       name: '蓝队',
-      color: '§9',
+      color: 'blue',
       hex: '#5555FF',
       spawnPoint: { x: 5, y: 65, z: 0 },
       flagHomePosition: { x: 6, y: 65, z: 0 }
@@ -61,7 +61,7 @@ export const START_POSITIONS = [
     {
       id: 'green',
       name: '绿队',
-      color: '§a',
+      color: 'green',
       hex: '#55FF55',
       spawnPoint: { x: -5, y: 65, z: 0 },
       flagHomePosition: { x: -6, y: 65, z: 0 }
@@ -85,6 +85,7 @@ export const START_POSITIONS = [
   matchTime: 300,
   flagReturnTime: 20,
   respawnTime: 5,
+  initialBlockCount: 32,
 
   economy: {
     initial: 200,
