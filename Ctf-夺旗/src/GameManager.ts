@@ -1,5 +1,5 @@
-import { Dimension, Entity, ItemStack, VanillaEntityIdentifier } from '@minecraft/server';
-import { MinecraftItemTypes } from '@minecraft/vanilla-data';
+import { Dimension, EffectType, EffectTypes, Entity, EntityComponentTypes, EntityHungerComponent, ItemStack, VanillaEntityIdentifier } from '@minecraft/server';
+import { MinecraftEffectTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
 import { MinigameRuntime } from '../../shared/minigame-core/runtime';
 import { config } from './config';
 import { CTFPlayer } from './CTFPlayer';
@@ -16,6 +16,7 @@ export class GameManager {
   private static instance: GameManager;
   private timeStamp = 0;
   private tickDuration = 0;
+  private waterTickCounter = new Map<string, number>();
   private gamestate: GameState;
   private roomId: number | undefined;
   private runtime: MinigameRuntime | undefined;
@@ -161,6 +162,9 @@ export class GameManager {
 
       // 轮询自动分配
       this.teamManager.autoAssignPlayer(ctfPlayer.uuid);
+
+      // 玩家饱和
+      mcPlayer.addEffect(MinecraftEffectTypes.Saturation, 99999, { showParticles: false });
     }
 
     // 5. 传送玩家到各队出生点
@@ -183,6 +187,7 @@ export class GameManager {
     this.gamestate = GameState.ENDING;
 
     try {
+      this.waterTickCounter.clear();
       this.flagManager.clear();
       this.teamManager.resetTeams();
       this.playerManager.clear();
@@ -204,6 +209,7 @@ export class GameManager {
     this.flagManager.updateAll();
     this.checkCaptures();
     this.checkScore();
+    this.processWaterDamage();
 
     this.timeStamp += 2;
     Timer.update(2);
@@ -218,6 +224,29 @@ export class GameManager {
     for (const entity of dim.getEntities()) {
       if (entity.getDynamicProperty('ctf:entity_need_remove') === true) {
         entity.remove();
+      }
+    }
+  }
+
+  private processWaterDamage(): void {
+    const players = this.runtime?.roomPlayers(this.roomId!) ?? [];
+  
+    for (const player of players) {
+      if (!player.isValid) continue;
+  
+      if (player.isInWater) {
+        const current = this.waterTickCounter.get(player.id) || 0;
+        const newCount = current + 2; // tick 每 2 刻执行一次，步长 2
+  
+        if (newCount >= 20) {
+          // 每秒造成 2 点窒息伤害
+          player.applyDamage(2);
+          this.waterTickCounter.set(player.id, 0);
+        } else {
+          this.waterTickCounter.set(player.id, newCount);
+        }
+      } else {
+        this.waterTickCounter.delete(player.id); // 离水清除计时
       }
     }
   }
