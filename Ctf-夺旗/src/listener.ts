@@ -1,4 +1,5 @@
 import { EntityHealCause, Player, world } from "@minecraft/server";
+import { config } from "./config";
 import { GameManager } from "./GameManager";
 import { GameState } from "./types";
 
@@ -114,5 +115,23 @@ export function initCTFListener(): void {
       event.cancel = true;
       player.sendMessage("§c你不能破坏该方块！");
     }
+  });
+
+  // 箭矢破坏方块
+  world.afterEvents.projectileHitBlock.subscribe((event) => {
+    if (gameManager.getGameState() !== GameState.RUNNING) return;
+
+    const projectile = event.projectile;
+    if (projectile.typeId !== 'minecraft:arrow') return;
+    const projectileComp = projectile.getComponent('projectile');
+    if (!projectileComp) return;
+    const owner = projectileComp.owner;
+    if (!(owner instanceof Player)) return;
+
+    const ctfPlayer = gameManager.getPlayerManager().getPlayer(owner.id);
+    if (!ctfPlayer) return;
+
+    const hitLoc = event.location;
+    gameManager.breakPlacedBlocksInRadius(hitLoc, config.arrowBreakRadius);
   });
 }

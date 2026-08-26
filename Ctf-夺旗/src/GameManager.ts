@@ -455,6 +455,38 @@ export class GameManager {
   }
 
   /**
+ * 破坏指定位置周围半径内所有由玩家放置的方块
+ * @param center 中心坐标
+ * @param radius 半径（使用切比雪夫距离便于遍历）
+ */
+public breakPlacedBlocksInRadius(center: Vector3, radius: number): void {
+  const dimension = this.getGameDimension();
+  if (!dimension) return;
+
+  const startX = Math.floor(center.x - radius);
+  const endX = Math.floor(center.x + radius);
+  const startY = Math.floor(center.y - radius);
+  const endY = Math.floor(center.y + radius);
+  const startZ = Math.floor(center.z - radius);
+  const endZ = Math.floor(center.z + radius);
+
+  for (let x = startX; x <= endX; x++) {
+    for (let y = startY; y <= endY; y++) {
+      for (let z = startZ; z <= endZ; z++) {
+        const key = `${x},${y},${z}`;
+        if (this.placedBlocks.has(key)) {
+          const block = dimension.getBlock({ x, y, z });
+          if (block) {
+            block.setType('minecraft:air');
+            this.placedBlocks.delete(key);
+          }
+        }
+      }
+    }
+  }
+}
+
+  /**
    * 在游戏维度中生成实体，并自动标记为“需要移除”
    * @param entityType 实体类型标识（如 'minecraft:armor_stand'）
    * @param location 生成位置

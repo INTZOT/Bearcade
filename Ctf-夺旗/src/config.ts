@@ -86,6 +86,7 @@ export const START_POSITIONS = [
   flagReturnTime: 20,
   respawnTime: 5,
   initialBlockCount: 32,
+  arrowBreakRadius: 1,
 
   economy: {
     initial: 200,
