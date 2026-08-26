@@ -1,4 +1,5 @@
 import { Vector3 } from './types';
+import { getColorCode } from './utils';
 
 /**
  * 队伍配置接口
@@ -54,6 +55,6 @@ export class Team {
 
   /** 格式化显示名称（带颜色代码） */
   getDisplayName(): string {
-    return `${this.color}${this.name}§r`;
+    return `${getColorCode(this.color)}${this.name}§r`;
   }
 }
