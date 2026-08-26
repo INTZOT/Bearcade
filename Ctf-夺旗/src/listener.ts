@@ -1,4 +1,4 @@
-import { Player, world } from "@minecraft/server";
+import { EntityHealCause, Player, world } from "@minecraft/server";
 import { GameManager } from "./GameManager";
 import { GameState } from "./types";
 
@@ -67,5 +67,18 @@ export function initCTFListener(): void {
     if (attackerTeam !== null && attackerTeam === hurtTeam) {
       event.cancel = true;
     }
+  });
+
+  // ---------- 阻止玩家自身恢复 ----------
+  world.beforeEvents.entityHeal.subscribe((event) => {
+    if (gameManager.getGameState() !== GameState.RUNNING) return;
+    if (!(event.healedEntity instanceof Player)) return;
+    gameManager.getPlayerManager().getAllPlayers().find(player => {
+      if (player.getPlayer()?.id === event.healedEntity.id) {
+        event.cancel = true;
+      }
+    });
+  }, {
+    allowedHealCauses: [EntityHealCause.SelfHeal],
   });
 }
