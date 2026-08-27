@@ -10,6 +10,8 @@ export class CTFPlayer {
   public state: PlayerState;
   public teamId: string | null;
   public economy: number;
+  public deathCount: number;
+  public killCount: number;
 
   constructor(player: Player) {
     this.uuid = player.id;
@@ -17,6 +19,8 @@ export class CTFPlayer {
     this.state = PlayerState.ALIVE;
     this.teamId = null;
     this.economy = 0;
+    this.deathCount = 0;
+    this.killCount = 0;
   }
 
   getPlayer(): Player | undefined {
@@ -55,9 +59,14 @@ export class CTFPlayer {
     return true;
   }
 
+  onKill(): void {
+    this.killCount++;
+  }
+
   // ===== 生命状态 =====
   onDeath(): void {
     this.state = PlayerState.DEAD;
+    this.deathCount++;
   }
 
   onRespawn(): void {

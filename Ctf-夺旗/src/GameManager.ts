@@ -277,7 +277,7 @@ export class GameManager {
   /**
    * 处理玩家死亡（切换旁观、传送、掉落旗帜、开始复活计时）
    */
-  handlePlayerDeath(player: Player): void {
+  handlePlayerDeath(player: Player, attacker: Player | undefined): void {
     system.run(() => {
       if (this.deathPlayers.has(player.id)) return; // 防止重复调用
 
@@ -286,6 +286,7 @@ export class GameManager {
 
       // 2. 玩家死亡事件
       this.playerManager.getOrCreatePlayer(player).onDeath();
+      if (attacker) this.playerManager.getOrCreatePlayer(attacker).onKill();
 
       // 3. 如果携带旗帜，则掉落
       const flags = this.flagManager.getAllFlags();
@@ -459,32 +460,32 @@ export class GameManager {
  * @param center 中心坐标
  * @param radius 半径（使用切比雪夫距离便于遍历）
  */
-public breakPlacedBlocksInRadius(center: Vector3, radius: number): void {
-  const dimension = this.getGameDimension();
-  if (!dimension) return;
+  public breakPlacedBlocksInRadius(center: Vector3, radius: number): void {
+    const dimension = this.getGameDimension();
+    if (!dimension) return;
 
-  const startX = Math.floor(center.x - radius);
-  const endX = Math.floor(center.x + radius);
-  const startY = Math.floor(center.y - radius);
-  const endY = Math.floor(center.y + radius);
-  const startZ = Math.floor(center.z - radius);
-  const endZ = Math.floor(center.z + radius);
+    const startX = Math.floor(center.x - radius);
+    const endX = Math.floor(center.x + radius);
+    const startY = Math.floor(center.y - radius);
+    const endY = Math.floor(center.y + radius);
+    const startZ = Math.floor(center.z - radius);
+    const endZ = Math.floor(center.z + radius);
 
-  for (let x = startX; x <= endX; x++) {
-    for (let y = startY; y <= endY; y++) {
-      for (let z = startZ; z <= endZ; z++) {
-        const key = `${x},${y},${z}`;
-        if (this.placedBlocks.has(key)) {
-          const block = dimension.getBlock({ x, y, z });
-          if (block) {
-            block.setType('minecraft:air');
-            this.placedBlocks.delete(key);
+    for (let x = startX; x <= endX; x++) {
+      for (let y = startY; y <= endY; y++) {
+        for (let z = startZ; z <= endZ; z++) {
+          const key = `${x},${y},${z}`;
+          if (this.placedBlocks.has(key)) {
+            const block = dimension.getBlock({ x, y, z });
+            if (block) {
+              block.setType('minecraft:air');
+              this.placedBlocks.delete(key);
+            }
           }
         }
       }
     }
   }
-}
 
   /**
    * 在游戏维度中生成实体，并自动标记为“需要移除”
