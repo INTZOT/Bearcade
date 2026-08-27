@@ -98,6 +98,14 @@ export function initCTFListener(): void {
     if (ctfPlayer) {
       gameManager.addPlacedBlock(event.block.location);
     }
+
+    if (event.block.typeId === 'minecraft:tnt') {
+      // 移除原方块
+      event.block.setType('minecraft:air');
+      // 安排爆炸
+      gameManager.scheduleTntExplosion(event.block.location, player);
+      gameManager.removePlacedBlock(event.block.location);
+    }
   });
 
   // 破坏方块前检查：仅允许破坏玩家放置过的方块

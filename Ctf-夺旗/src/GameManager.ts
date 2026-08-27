@@ -1,5 +1,5 @@
-import { Dimension, Entity, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
-import { MinecraftEffectTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
+import { Dimension, Entity, EntityDamageCause, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
+import { MinecraftEffectTypes, MinecraftEntityTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
 import { MinigameRuntime } from '../../shared/minigame-core/runtime';
 import { config, PREP_SPAWN } from './config';
 import { CTFPlayer } from './CTFPlayer';
@@ -12,6 +12,13 @@ import { Timer } from './Timer';
 import { FlagState, GameState, PlayerState, Vector3 } from './types';
 import { distance } from './utils';
 
+type TNTFuses = {
+  location: Vector3;
+  placerId: string;
+  remainingTicks: number;
+  entity: Entity;
+}[];
+
 export class GameManager {
   private static instance: GameManager;
   private timeStamp = 0;
@@ -20,6 +27,7 @@ export class GameManager {
   private deathPlayers: Map<string, number> = new Map();
   private readonly RESPAWN_DELAY_TICKS = config.respawnTime * 20;
   private placedBlocks: Set<string> = new Set();
+  private tntFuses: TNTFuses = [];
   private gamestate: GameState;
   private roomId: number | undefined;
   private runtime: MinigameRuntime | undefined;
@@ -217,6 +225,7 @@ export class GameManager {
     this.gamestate = GameState.ENDING;
 
     try {
+      this.clearTntFuses();
       this.clearPlacedBlocks();
       this.waterTickCounter.clear();
       this.flagManager.clear();
@@ -243,6 +252,7 @@ export class GameManager {
     this.processWaterDamage();
     this.handlePlayerRespawn();
     this.handleRegeneration();
+    this.updateTntFuses();
 
     this.timeStamp += 2;
     Timer.update(2);
@@ -305,6 +315,118 @@ export class GameManager {
       const newHealth = Math.min(maxHealth, currentHealth + config.regeneration.perSecond);
       healthComp.setCurrentValue(newHealth);
     }
+  }
+
+  /**
+   * 安排一个 TNT 爆炸（放置后调用）
+   * @param location 方块位置
+   * @param placer 放置者的 UUID
+   */
+  public scheduleTntExplosion(location: Vector3, placer: Player): void {
+    const entity = this.spawnEntity(MinecraftEntityTypes.ArmorStand, location);
+    entity.nameTag = 'TNT';
+    this.tntFuses.push({
+      location: { ...location },
+      placerId: placer.id,
+      remainingTicks: config.tnt.fuseTicks,
+      entity: entity
+    });
+    placer.playSound('minecraft:random.fuse');
+  }
+
+  /**
+   * 更新所有 TNT 引信，倒计时归零时执行爆炸
+   */
+  private updateTntFuses(): void {
+    const toRemove: number[] = [];
+    for (let i = 0; i < this.tntFuses.length; i++) {
+      const fuse = this.tntFuses[i];
+      fuse.remainingTicks -= 2; // 因为 tick 每 2 刻执行一次
+      if (fuse.remainingTicks <= 0) {
+        this.executeTntExplosion(fuse.location, fuse.placerId, fuse.entity);
+        toRemove.push(i);
+      }
+    }
+    // 从后往前移除已完成的
+    for (let i = toRemove.length - 1; i >= 0; i--) {
+      this.tntFuses[toRemove[i]].entity.remove();
+      this.tntFuses.splice(toRemove[i], 1);
+    }
+  }
+
+  /**
+   * 执行 TNT 爆炸效果
+   * @param center 爆炸中心
+   * @param placerId 放置者 ID（用于判定队友）
+   * @param entity 放置的 TNT 实体
+   */
+  private executeTntExplosion(center: Vector3, placerId: string, entity: Entity): void {
+    const dimension = this.getGameDimension();
+    if (!dimension) return;
+
+    // 如果实体可用，则使用实体的位置
+    if (entity.isValid) center = entity.location;
+
+    const radius = config.tnt.explosionRadius;
+    const damage = config.tnt.playerDamage;
+
+    // ---- 破坏玩家放置的方块（仅限 placedBlocks 中记录的） ----
+    const startX = Math.floor(center.x - radius);
+    const endX = Math.floor(center.x + radius);
+    const startY = Math.floor(center.y - radius);
+    const endY = Math.floor(center.y + radius);
+    const startZ = Math.floor(center.z - radius);
+    const endZ = Math.floor(center.z + radius);
+
+    for (let x = startX; x <= endX; x++) {
+      for (let y = startY; y <= endY; y++) {
+        for (let z = startZ; z <= endZ; z++) {
+          // 球形范围检查
+          const dx = x - center.x;
+          const dy = y - center.y;
+          const dz = z - center.z;
+          if (dx * dx + dy * dy + dz * dz > radius * radius) continue;
+
+          const key = `${x},${y},${z}`;
+          if (this.placedBlocks.has(key)) {
+            const block = dimension.getBlock({ x, y, z });
+            if (block) {
+              block.setType('minecraft:air');
+              this.placedBlocks.delete(key); // 移除记录
+            }
+          }
+        }
+      }
+    }
+
+    // ---- 对非队友玩家造成伤害 ----
+    const players = dimension.getPlayers({ location: center, maxDistance: radius });
+    for (const player of players) {
+      // 检查距离（过滤可能超出范围的边缘玩家）
+      if (distance(player.location, center) > radius) continue;
+
+      // 获取放置者的队伍 ID（若放置者已离开或无队伍，则默认攻击所有人）
+      const placerTeamId = this.teamManager.getTeamIdOfPlayer(placerId);
+      if (placerTeamId !== null && this.teamManager.isPlayerInTeam(player.id, placerTeamId)) {
+        continue; // 同队不伤害
+      }
+
+      player.applyDamage(damage, { cause: EntityDamageCause.entityExplosion });
+    }
+
+    // ---- 显示爆炸粒子效果 ----
+    dimension.spawnParticle('minecraft:explosion_particle', center);
+    dimension.playSound('random.explode', center);
+  }
+
+  /**
+   * 清理 TNT 引信
+   */
+  private clearTntFuses(): void {
+    for (const fuse of this.tntFuses) {
+      fuse.entity.remove();
+    }
+    this.tntFuses = [];
   }
 
   /**

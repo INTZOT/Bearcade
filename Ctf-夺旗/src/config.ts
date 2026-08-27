@@ -95,6 +95,15 @@ export const START_POSITIONS = [
     perSecond: 1,
   },
 
+  tnt: {
+    /** 引信持续时间（游戏刻，20刻=1秒），默认4秒 */
+    fuseTicks: 80,
+    /** 爆炸半径（单位：格） */
+    explosionRadius: 4,
+    /** 对非队友玩家造成的伤害值（半颗心为单位，8=4颗心） */
+    playerDamage: 8,
+  },
+
   economy: {
     initial: 200,
     killReward: 50,
