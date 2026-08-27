@@ -10,7 +10,7 @@ export const IPC_CHANNEL = "bearcade:ipc";
 export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 export const ROOM_COUNT = 2;
 export const MAX_PLAYERS = 12;
-export const MIN_PLAYERS = 1;
+export const MIN_PLAYERS = 2;
 // 派对模式可用性:去除最大人数上限后仍可正常运行才设为 true
 export const PARTY_AVAILABLE = false;
 
@@ -69,7 +69,6 @@ export const START_POSITIONS = [
   ] as const,
 
   initialArmor: {
-    chestplate: 'minecraft:diamond_chestplate',
     leggings: 'minecraft:diamond_leggings',
     boots: 'minecraft:diamond_boots'
   } as const,
@@ -83,7 +82,7 @@ export const START_POSITIONS = [
 
   maxScore: 3,
   matchTime: 300,
-  flagReturnTime: 20,
+  flagReturnTime: 15,
   respawnTime: 5,
   initialBlockCount: 32,
   arrowBreakRadius: 1,
@@ -106,9 +105,10 @@ export const START_POSITIONS = [
 
   economy: {
     initial: 200,
-    killReward: 50,
-    flagReward: 200,
-    winReward: 100
+    killReward: 15,
+    flagReward: 150,
+    winReward: 100,
+    tickReward: 1
   },
 
   arena: {
