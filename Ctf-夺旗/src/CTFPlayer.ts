@@ -12,6 +12,7 @@ export class CTFPlayer {
   public economy: number;
   public deathCount: number;
   public killCount: number;
+  public lastDamageTime: number;
 
   constructor(player: Player) {
     this.uuid = player.id;
@@ -21,6 +22,7 @@ export class CTFPlayer {
     this.economy = 0;
     this.deathCount = 0;
     this.killCount = 0;
+    this.lastDamageTime = 0;
   }
 
   getPlayer(): Player | undefined {

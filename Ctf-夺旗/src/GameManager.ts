@@ -242,6 +242,7 @@ export class GameManager {
     this.checkScore();
     this.processWaterDamage();
     this.handlePlayerRespawn();
+    this.handleRegeneration();
 
     this.timeStamp += 2;
     Timer.update(2);
@@ -273,6 +274,49 @@ export class GameManager {
     }
   }
 
+  private handleRegeneration(): void {
+    // 仅游戏进行中执行
+    if (this.gamestate !== GameState.RUNNING) return;
+
+    // 每秒（20刻）执行一次恢复
+    if (this.timeStamp % 20 !== 0) return;
+
+    const players = this.playerManager.getAllPlayers();
+    for (const ctfPlayer of players) {
+      // 仅存活玩家可恢复
+      if (ctfPlayer.state !== PlayerState.ALIVE) continue;
+
+      const mcPlayer = ctfPlayer.getPlayer();
+      if (!mcPlayer?.isValid) continue;
+
+      const healthComp = mcPlayer.getComponent('health');
+      if (!healthComp) continue;
+
+      const maxHealth = healthComp.effectiveMax;
+      const currentHealth = healthComp.currentValue;
+      if (currentHealth >= maxHealth) continue; // 满血不恢复
+
+      // 判断未受伤时长（刻）
+      const elapsedTicks = this.timeStamp - ctfPlayer.lastDamageTime;
+      const delayTicks = config.regeneration.delaySeconds * 20;
+      if (elapsedTicks <= delayTicks) continue;
+
+      // 恢复生命值（每秒恢复配置量）
+      const newHealth = Math.min(maxHealth, currentHealth + config.regeneration.perSecond);
+      healthComp.setCurrentValue(newHealth);
+    }
+  }
+
+  /**
+   * 当玩家受到伤害时调用，更新其最后受伤时间
+   * @param player 受伤的玩家
+   */
+  onPlayerDamaged(player: Player): void {
+    const ctfPlayer = this.playerManager.getPlayer(player.id);
+    if (ctfPlayer) {
+      ctfPlayer.lastDamageTime = this.timeStamp;
+    }
+  }
 
   /**
    * 处理玩家死亡（切换旁观、传送、掉落旗帜、开始复活计时）

@@ -88,6 +88,13 @@ export const START_POSITIONS = [
   initialBlockCount: 32,
   arrowBreakRadius: 1,
 
+  regeneration: {
+    /** 受伤后多少秒开始恢复 */
+    delaySeconds: 15,
+    /** 每秒恢复的生命值点数 */
+    perSecond: 1,
+  },
+
   economy: {
     initial: 200,
     killReward: 50,

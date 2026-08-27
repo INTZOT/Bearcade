@@ -73,7 +73,7 @@ export function initCTFListener(): void {
     if (newHealth <= 0) {
       // 取消原伤害，自定义死亡流程
       event.cancel = true;
-      gameManager.handlePlayerDeath(hurtEntity);
+      gameManager.handlePlayerDeath(hurtEntity, attackerPlayer);
     }
   });
 
@@ -133,5 +133,15 @@ export function initCTFListener(): void {
 
     const hitLoc = event.location;
     gameManager.breakPlacedBlocksInRadius(hitLoc, config.arrowBreakRadius);
+  });
+
+  world.afterEvents.entityHurt.subscribe((event) => {
+    const { hurtEntity } = event;
+    if (!(hurtEntity instanceof Player)) return;
+  
+    // 游戏运行中才记录
+    if (gameManager.getGameState() !== GameState.RUNNING) return;
+  
+    gameManager.onPlayerDamaged(hurtEntity);
   });
 }
