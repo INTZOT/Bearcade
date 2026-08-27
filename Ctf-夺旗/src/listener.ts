@@ -1,4 +1,5 @@
-import { EntityHealCause, Player, world } from "@minecraft/server";
+import { EntityHealCause, Player, system, world } from "@minecraft/server";
+import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
 import { config } from "./config";
 import { GameManager } from "./GameManager";
 import { GameState } from "./types";
@@ -146,10 +147,51 @@ export function initCTFListener(): void {
   world.afterEvents.entityHurt.subscribe((event) => {
     const { hurtEntity } = event;
     if (!(hurtEntity instanceof Player)) return;
-  
+
     // 游戏运行中才记录
     if (gameManager.getGameState() !== GameState.RUNNING) return;
-  
+
     gameManager.onPlayerDamaged(hurtEntity);
+  });
+
+  world.beforeEvents.itemUse.subscribe((event) => {
+    const player = event.source;
+    const item = event.itemStack;
+
+    // 仅游戏运行时生效
+    if (gameManager.getGameState() !== GameState.RUNNING) return;
+    // 只处理甜浆果
+    if (item.typeId !== 'minecraft:sweet_berries') return;
+
+    // 取消原本的食物使用
+    event.cancel = true;
+
+    system.run(() => {
+      // 从背包中移除一个浆果
+      const inventory = player.getComponent('inventory')?.container;
+      if (!inventory) {
+        player.sendMessage('§c无法获取背包');
+        return;
+      }
+
+      for (let i = 0; i < inventory.size; i++) {
+        const slotItem = inventory.getItem(i);
+        if (slotItem && slotItem.typeId === 'minecraft:sweet_berries') {
+          if (slotItem.amount > 1) {
+            slotItem.amount -= 1;
+            inventory.setItem(i, slotItem);
+          } else {
+            inventory.setItem(i, undefined);
+          }
+          break;
+        }
+      }
+
+      // 给予速度 I 效果，持续 60 秒（60 * 20 刻）
+      player.addEffect(MinecraftEffectTypes.Speed, 60 * 20, {
+        amplifier: 0,
+        showParticles: false
+      });
+    });
   });
 }
