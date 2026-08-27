@@ -115,21 +115,199 @@ export class GameManager {
     const itemShop = this.shopManager.createShop('item_shop');
     if (!itemShop) throw new Error('Failed to create item shop.');
     itemShop.setTitle('物品商店');
-    itemShop.setDescription('在这里可以购买物品');
-    itemShop.addItem('item_1', {
-      tag: 'item_1',
-      name: '物品1',
-      price: 51,
-      icon: 'textures/items/diamond_sword'
+    itemShop.setDescription('在这里可以购买装备或道具');
+
+    // 1. 方块（羊毛）x16
+    itemShop.addItem('block', {
+      tag: 'block',
+      name: '方块 x16',
+      price: 15,
+      icon: 'textures/items/wool'
     });
-    itemShop.setCallback('item_1', (player, _name) => {
+    itemShop.setCallback('block', (player, _name) => {
       const inventory = player.getComponent('inventory');
       if (!inventory?.container) {
-        console.warn('无法获取玩家背包');
+        player.sendMessage('§c无法获取背包');
         return false;
       }
-      const item = new ItemStack(MinecraftItemTypes.Diamond, 10);
-      inventory.container.addItem(item);
+      const team = this.teamManager.getTeamOfPlayer(player.id);
+      if (!team) {
+        player.sendMessage('§c你还没有队伍！');
+        return false;
+      }
+      const color = team.color; // 'blue' 或 'green'
+      const woolId = `minecraft:${color}_wool`;
+      const item = new ItemStack(woolId, 16);
+      const result = inventory.container.addItem(item);
+      if (result) {
+        player.sendMessage('§c背包空间不足！');
+        return false;
+      }
+      return true;
+    });
+
+    // 2. 箭 x16
+    itemShop.addItem('arrow', {
+      tag: 'arrow',
+      name: '箭 x16',
+      price: 25,
+      icon: 'textures/items/arrow'
+    });
+    itemShop.setCallback('arrow', (player, _name) => {
+      const inventory = player.getComponent('inventory');
+      if (!inventory?.container) return false;
+      const item = new ItemStack(MinecraftItemTypes.Arrow, 16);
+      const result = inventory.container.addItem(item);
+      if (result) {
+        player.sendMessage('§c背包空间不足！');
+        return false;
+      }
+      return true;
+    });
+
+    // 3. 速度浆果（甜浆果）
+    itemShop.addItem('berry', {
+      tag: 'berry',
+      name: '速度浆果',
+      price: 40,
+      icon: 'textures/items/sweet_berries'
+    });
+    itemShop.setCallback('berry', (player, _name) => {
+      const inventory = player.getComponent('inventory');
+      if (!inventory?.container) return false;
+      const item = new ItemStack(MinecraftItemTypes.SweetBerries, 1);
+      const result = inventory.container.addItem(item);
+      if (result) {
+        player.sendMessage('§c背包空间不足！');
+        return false;
+      }
+      return true;
+    });
+
+    // 4. TNT
+    itemShop.addItem('tnt', {
+      tag: 'tnt',
+      name: 'TNT',
+      price: 75,
+      icon: 'textures/items/tnt'
+    });
+    itemShop.setCallback('tnt', (player, _name) => {
+      const inventory = player.getComponent('inventory');
+      if (!inventory?.container) return false;
+      const item = new ItemStack(MinecraftItemTypes.Tnt, 1);
+      const result = inventory.container.addItem(item);
+      if (result) {
+        player.sendMessage('§c背包空间不足！');
+        return false;
+      }
+      return true;
+    });
+
+    // 5. 铁剑
+    itemShop.addItem('iron_sword', {
+      tag: 'iron_sword',
+      name: '铁剑',
+      price: 100,
+      icon: 'textures/items/iron_sword'
+    });
+    itemShop.setCallback('iron_sword', (player, _name) => {
+      const inventory = player.getComponent('inventory');
+      if (!inventory?.container) return false;
+
+      // 检查是否已有铁剑或钻石剑
+      let hasBetter = false;
+      let replaceSlot = -1;
+      for (let i = 0; i < inventory.container.size; i++) {
+        const item = inventory.container.getItem(i);
+        if (!item) continue;
+        const type = item.typeId;
+        if (type === 'minecraft:iron_sword' || type === 'minecraft:diamond_sword') {
+          hasBetter = true;
+          break;
+        }
+        if (type === 'minecraft:stone_sword') replaceSlot = i;
+      }
+      if (hasBetter) {
+        player.sendMessage('§c你已拥有更好的剑！');
+        return false;
+      }
+      if (replaceSlot !== -1) {
+        inventory.container.setItem(replaceSlot, new ItemStack(MinecraftItemTypes.IronSword, 1));
+      } else {
+        const result = inventory.container.addItem(new ItemStack(MinecraftItemTypes.IronSword, 1));
+        if (result) {
+          player.sendMessage('§c背包空间不足！');
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // 6. 钻石剑
+    itemShop.addItem('diamond_sword', {
+      tag: 'diamond_sword',
+      name: '钻石剑',
+      price: 200,
+      icon: 'textures/items/diamond_sword'
+    });
+    itemShop.setCallback('diamond_sword', (player, _name) => {
+      const inventory = player.getComponent('inventory');
+      if (!inventory?.container) return false;
+
+      // 检查是否已有钻石剑
+      let hasDiamond = false;
+      let replaceSlot = -1; // 石剑或铁剑的位置
+      for (let i = 0; i < inventory.container.size; i++) {
+        const item = inventory.container.getItem(i);
+        if (!item) continue;
+        const type = item.typeId;
+        if (type === 'minecraft:diamond_sword') {
+          hasDiamond = true;
+          break;
+        }
+        if (type === 'minecraft:stone_sword' || type === 'minecraft:iron_sword') {
+          replaceSlot = i;
+        }
+      }
+      if (hasDiamond) {
+        player.sendMessage('§c你已拥有钻石剑！');
+        return false;
+      }
+      if (replaceSlot !== -1) {
+        inventory.container.setItem(replaceSlot, new ItemStack(MinecraftItemTypes.DiamondSword, 1));
+      } else {
+        const result = inventory.container.addItem(new ItemStack(MinecraftItemTypes.DiamondSword, 1));
+        if (result) {
+          player.sendMessage('§c背包空间不足！');
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // 7. 铁套装（护腿+靴子）
+    itemShop.addItem('iron_armor', {
+      tag: 'iron_armor',
+      name: '铁制套装',
+      price: 100,
+      icon: 'textures/items/iron_leggings'
+    });
+    itemShop.setCallback('iron_armor', (player, _name) => {
+      const equippable = player.getComponent('equippable');
+      if (!equippable) {
+        player.sendMessage('§c无法装备盔甲');
+        return false;
+      }
+      // 检查是否已有铁护腿或铁靴子
+      const legs = equippable.getEquipment(EquipmentSlot.Legs);
+      const feet = equippable.getEquipment(EquipmentSlot.Feet);
+      if (legs?.typeId === 'minecraft:iron_leggings' && feet?.typeId === 'minecraft:iron_boots') {
+        player.sendMessage('§c你已拥有铁套装！');
+        return false;
+      }
+      // 设置（若已有其他材质则覆盖）
+      equippable.setEquipment(EquipmentSlot.Legs, new ItemStack(MinecraftItemTypes.IronLeggings, 1));
+      equippable.setEquipment(EquipmentSlot.Feet, new ItemStack(MinecraftItemTypes.IronBoots, 1));
       return true;
     });
 
@@ -177,7 +355,6 @@ export class GameManager {
       // 分配初始护甲
       const equippable = mcPlayer.getComponent('equippable');
       if (equippable) {
-        equippable.setEquipment(EquipmentSlot.Chest, new ItemStack(config.initialArmor.chestplate));
         equippable.setEquipment(EquipmentSlot.Legs, new ItemStack(config.initialArmor.leggings));
         equippable.setEquipment(EquipmentSlot.Feet, new ItemStack(config.initialArmor.boots));
       }
@@ -253,6 +430,8 @@ export class GameManager {
     this.handlePlayerRespawn();
     this.handleRegeneration();
     this.updateTntFuses();
+    this.naturalMoney();
+    this.checkWin();
 
     this.timeStamp += 2;
     Timer.update(2);
@@ -268,6 +447,20 @@ export class GameManager {
       if (entity.getDynamicProperty('ctf:entity_need_remove') === true) {
         entity.remove();
       }
+    }
+  }
+
+  private naturalMoney(): void {
+    if (this.timeStamp % 20 === 0) {
+      this.playerManager.addEconomyToAll(config.economy.tickReward);
+    }
+  }
+
+  private checkWin() :void { 
+    const team = this.teamManager.checkWinCondition(config.maxScore);
+    if (team) {
+      this.sendMessage(`${team.name} 获得胜利！`);
+      this.end();
     }
   }
 
@@ -452,13 +645,18 @@ export class GameManager {
 
       // 2. 玩家死亡事件
       this.playerManager.getOrCreatePlayer(player).onDeath();
-      if (attacker) this.playerManager.getOrCreatePlayer(attacker).onKill();
+      if (attacker) {
+        this.playerManager.getOrCreatePlayer(attacker).onKill();
+        this.playerManager.getOrCreatePlayer(attacker).addEconomy(config.economy.killReward);
+        this.sendMessage(`§a${attacker.nameTag} 击杀了 ${player.nameTag}`);
+      };
 
       // 3. 如果携带旗帜，则掉落
       const flags = this.flagManager.getAllFlags();
       for (const flag of flags) {
         if (flag.carrier && flag.carrier.uuid === player.id) {
           flag.drop(player.location);
+          this.sendMessage(`${this.teamManager.getTeam(flag.teamId)?.name} 的旗帜已掉落！`)
           break;
         }
       }
@@ -565,7 +763,7 @@ export class GameManager {
         // 尝试拾取（Flag.pickup 内部会处理状态变更与实体清理）
         const success = flag.pickup(ctfPlayer, true);
         if (success) {
-          mcPlayer.sendMessage(`§a你捡起了 ${flag.teamId} 的旗帜！`);
+          this.sendMessage(`${mcPlayer.nameTag} 拾取了 ${this.teamManager.getTeam(flag.teamId)?.name} 的旗帜！`)
           break; // 旗帜已被拾取，退出内层循环
         }
       }
@@ -599,11 +797,11 @@ export class GameManager {
       flag.returnHome(); // 敌方旗帜归还
       this.teamManager.addTeamScore(carrierTeamId, 1);
 
-      const reward = config.economy.winReward ?? 0;
+      const reward = config.economy.flagReward ?? 0;
       if (reward > 0) carrier.addEconomy(reward);
 
       if (mcPlayer) {
-        mcPlayer.sendMessage(`§a🎉 成功夺旗！ +1 分，奖励 ${reward} 金币`);
+        mcPlayer.sendMessage(`§a成功夺旗！ +1 分，奖励 ${reward} 金币`);
       }
     }
   }
@@ -671,6 +869,16 @@ export class GameManager {
     }
     entity.setDynamicProperty('ctf:entity_need_remove', true);
     return entity;
+  }
+
+  /**
+   * 发送消息给所有玩家
+   * @param message 要发送的消息
+   */
+  sendMessage(message: string): void {
+    this.playerManager.getAllPlayers().forEach(player => {
+      player.getPlayer()?.sendMessage(message);
+    });
   }
 
   addPlacedBlock(location: Vector3): void {
