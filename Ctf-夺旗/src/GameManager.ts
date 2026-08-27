@@ -331,7 +331,7 @@ export class GameManager {
       remainingTicks: config.tnt.fuseTicks,
       entity: entity
     });
-    placer.playSound('minecraft:random.fuse');
+    placer.playSound('random.fuse');
   }
 
   /**
