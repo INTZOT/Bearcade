@@ -87,7 +87,7 @@ export class Flag {
     if (this.state === FlagState.CARRIED && this.carrier) {
       this.position = this.carrier.getPlayer()?.location ?? this.position;
     }
-    if (this.flagEntity) {
+    if (this.flagEntity?.isValid) {
       this.position = this.flagEntity.location;
     }
   }
@@ -101,7 +101,7 @@ export class Flag {
    * 生成旗帜实体
    */
   private spawnFlagEntity(): void {
-    if (this.flagEntity) return;
+    if (this.flagEntity?.isValid) return;
     this.flagEntity = GameManager.getInstance().spawnEntity(MinecraftEntityTypes.ArmorStand, this.position);
     this.flagEntity.nameTag = `${this.teamId}的旗帜`;
   }
