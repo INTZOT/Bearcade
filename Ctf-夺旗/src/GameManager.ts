@@ -689,7 +689,7 @@ export class GameManager {
 
     // 传送并切换模式
     player.teleport(spawnPoint);
-    player.setGameMode(GameMode.Adventure);
+    player.setGameMode(GameMode.Survival);
 
     // 重置生命和饥饿
     const healthComp = player.getComponent('health');
