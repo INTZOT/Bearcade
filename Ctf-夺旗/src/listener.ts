@@ -142,6 +142,7 @@ export function initCTFListener(): void {
 
     const hitLoc = event.location;
     gameManager.breakPlacedBlocksInRadius(hitLoc, config.arrowBreakRadius);
+    system.run(() => { event.projectile.remove() });
   });
 
   world.afterEvents.entityHurt.subscribe((event) => {
