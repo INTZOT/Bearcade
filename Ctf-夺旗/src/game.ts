@@ -27,7 +27,7 @@ export function makeCTFHooks(
 
         GlobalDataCache.getInstance().onPlayerJoin(player);
       });
-      runtime.announce(roomId, "§a对局开始!在这里实现你的玩法");
+      runtime.announce(roomId, "§a对局开始!");
 
       gameManager.start(runtime, roomId);
 

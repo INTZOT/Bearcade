@@ -461,6 +461,12 @@ export class GameManager {
     if (team) {
       this.sendMessage(`${team.name} 获得胜利！`);
       this.end();
+      return;
+    }
+    if (this.timeStamp >= config.matchTime) {
+      this.sendMessage(`游戏结束，平局！`);
+      this.end();
+      return;
     }
   }
 

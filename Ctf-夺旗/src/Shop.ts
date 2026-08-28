@@ -115,7 +115,7 @@ export class Shop {
         player.sendMessage(`§a你成功购买了 ${selected.name}`);
       }
     }
-    if (selected.callback) {
+    else if (selected.callback) {
       selected.callback(player, selected);
     }
 
