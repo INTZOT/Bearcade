@@ -1,63 +1,142 @@
-# Bearcade 小游戏模板
+## 🎮 夺旗 (Capture The Flag) - Bearcade 小游戏包
 
-这是一个可复制的小游戏包模板,已包含与 Core 对接的全部基础设施:
+基于 [Bearcade](https://github.com/bearcade) 框架的多人夺旗小游戏，适用于 Minecraft Bedrock Edition（Script API）。
 
-- 房间/模板维度注册(startup 阶段);
-- 模板结构捕获 → 复制到各房间 → 常加载(worldLoad 后);
-- `game.register` / `room.status` 上报与 5 秒心跳;
-- 对局状态机(空闲 → 倒计时 → 运行 → 结算 → 重置);
-- 房间保护、结束回大厅、强制中断命令;
-- 开发命令进入模板维度制作场地。
+---
 
-房间管理通用逻辑(维度注册、模板复制、状态机、上报、命令等)统一封装在仓库 `shared/minigame-core`,由构建工具内联进本包——**不要在本包内复制第二份**;修改共享代码后重新 `npm run build` 即可让所有小游戏包同步生效。
+### 📁 项目结构
 
-模板横向超过 64 时无需额外处理:共享运行时按 `tileSize`(默认 64)自动分块捕获与放置。
+```
+src/
+├── main.ts                 # 入口
+├── config.ts               # 全部游戏配置
+├── game.ts                 # 实现 MinigameHooks
+├── GameManager.ts          # 核心控制器（管理游戏状态、功能实现，逻辑主循环）
+├── CTFPlayer.ts            # 玩家数据类（经济、击杀/死亡、队伍缓存）
+├── PlayerManager.ts        # CTFPlayer 生命周期管理
+├── Team.ts                 # 队伍纯数据实体（分数、出生点）
+├── TeamManager.ts          # 队伍管理：玩家归属、得分、事件总线
+├── TeamEvents.ts           # 队伍事件定义与事件总线实现
+├── Flag.ts                 # 旗帜实体（状态、携带者、掉落回城）
+├── FlagManager.ts          # 旗帜集合管理
+├── Shop.ts                 # 商店类（ActionForm 交互、购买逻辑）
+├── ShopManager.ts          # 商店集合与实体查找
+├── ScoreboardTemplate.ts   # 计分板模板（多列渲染）
+├── ScoreboardManager.ts    # 玩家计分板显示管理
+├── Timer.ts                # 计时器（游戏刻驱动）
+├── Counter.ts              # 通用计数器（暂未使用）
+├── types.ts                # 共享类型定义
+├── utils.ts                # 工具函数
+├── GlobalDataCache.ts      # 全局玩家缓存（暂无实际用途）
+├── listener.ts             # 世界事件监听
+└── README.md               # 文档
+```
 
-> 进入模板维度/应用模板/强制中止命令由 **Core 统一提供**:`/bearcade:tmp tp <gamename>`、`/bearcade:tmp ap <gamename>`、`/bearcade:quit`(在对应房间维度执行)。小游戏包无需自己注册命令,共享运行时已内置对应 IPC 响应。
+---
 
-> 派对模式:在 `src/config.ts` 中设置 `PARTY_AVAILABLE`(去除最大人数上限后仍可正常运行才设为 true),Core 的 `/bearcade:party` 会依据该属性决定是否允许管理员带队全员加入。
+### ⚙️ 配置说明
 
-> 运行时配置:实现 `MinigameHooks.openConfig` 钩子即可接入 `/bearcade:config <gamename>`(可复用 `shared/minigame-core` 的 configStore/configUi)。
+```ts
+export const config = {
+  // ---- 队伍配置 ----
+  teams: [
+    {
+      id: 'blue',
+      name: '蓝队',
+      color: 'blue',           // 对应羊毛颜色
+      hex: '#5555FF',
+      spawnPoint: { x: 5, y: 65, z: 0 },
+      flagHomePosition: { x: 6, y: 65, z: 0 }
+    },
+    {
+      id: 'green',
+      name: '绿队',
+      color: 'green',
+      hex: '#55FF55',
+      spawnPoint: { x: -5, y: 65, z: 0 },
+      flagHomePosition: { x: -6, y: 65, z: 0 }
+    }
+  ] as const,
 
-开发流程:先 `/bearcade:tmp tp ctf` 进入模板维度建场地;模板范围可用 `/bearcade:tmp sz ctf` 表单配置起始点/终点;场地改好后 `/bearcade:tmp ap ctf` 一键应用到全部房间。
+  // ---- 初始装备 ----
+  initialArmor: {
+    leggings: 'minecraft:diamond_leggings',
+    boots: 'minecraft:diamond_boots'
+  } as const,
+  initialInventory: [
+    { item: 'minecraft:diamond_sword', count: 1 },
+    { item: 'minecraft:bow', count: 1 },
+    { item: 'minecraft:arrow', count: 16 }
+  ],
+  initialBlockCount: 32,       // 初始羊毛方块数量
 
-## 行为包定义文件(实体/物品/方块等)
+  // ---- 胜利条件与时间 ----
+  maxScore: 3,                 // 获胜所需分数
+  matchTime: 300,              // 对局时长（秒）
+  flagReturnTime: 15,          // 旗帜掉落后自动回城时间（秒）
+  respawnTime: 5,              // 玩家复活等待时间（秒）
+  arrowBreakRadius: 1,         // 箭矢破坏玩家放置方块的半径
 
-需要自定义实体、物品、方块、合成配方、刷怪规则、战利品表、函数、语言文本等定义时,直接放在包目录下与 `src/` 平级的对应文件夹(`entities/`、`items/`、`blocks/`、`recipes/`、`spawn_rules/`、`loot_tables/`、`tags/`、`trading/`、`dialogue/`、`structures/`、`functions/`、`texts/`),**无需任何额外配置**——`npm run package` 与 `npm run deploy` 会自动把这些目录随包复制(目录清单见仓库 `scripts/extras.mjs`)。参考示例:BridgeWar 的自定义实体 `BridgeWar-急速战桥/entities/bearcade_loadout_dummy.json`。
+  // ---- 生命恢复 ----
+  regeneration: {
+    delaySeconds: 15,          // 受伤后延迟多少秒开始恢复
+    perSecond: 1,              // 每秒恢复的生命值
+  },
 
-> 配对资源包已内嵌在 `resource-pack/`(JSON UI HUD、贴图、模型等),不要另建第二个顶层目录;`npm run package`/`npm run deploy` 会自动拆成 `MyGame-我的游戏-资源包`。
+  // ---- TNT 爆炸参数 ----
+  tnt: {
+    fuseTicks: 80,             // 引信时长（刻，20刻=1秒）
+    explosionRadius: 4,        // 爆炸半径（格）
+    playerDamage: 8,           // 对非队友玩家造成的伤害（半心单位，8=4颗心）
+  },
 
-> `docs/` 目录下的是 ScriptAPI 类型定义快照(`@minecraft/*` 的 `.d.ts`),是给脚本开发用的类型声明,与行为包 JSON 定义文件是两回事,不要混放。
+  // ---- 经济系统 ----
+  economy: {
+    initial: 200,              // 初始金币
+    killReward: 15,            // 击杀奖励
+    flagReward: 150,           // 成功夺旗奖励
+    winReward: 100,            // 胜利队伍额外奖励（未使用）
+    tickReward: 1              // 每秒自动获得的金币（被动收入）
+  },
 
-## 使用步骤
+  // ---- 商店实体位置（盔甲架） ----
+  itemShop: {
+    shop1: { x: -1, y: 65, z: 0 },
+    shop2: { x:  1, y: 65, z: 0 }
+  },
 
-### 自动创建
-执行`npm run create`按照提示填写即可
+  // ---- 旗帜判定半径 ----
+  arena: {
+    captureRadius: 1           // 拾取/归还旗帜的判定距离（格）
+  }
+};
+```
 
-### 手动创建
-1. 复制 `Ctf-夺旗` 目录,重命名(如 `MyGame-我的游戏`);
-2. 全局替换 `ctf` 为你的游戏 ID(小写字母/数字/下划线,如 `ctf`);
-3. 修改 [src/config.ts](src/config.ts):`DISPLAY_NAME`、`ROOM_COUNT`、`MAX_PLAYERS`,并重新生成 `PACK_ID` 与 manifest UUID;
-4. 在 `config/packs.json` 注册你的包(参考 template + template_hud 两条:行为包 `dir` 为游戏目录,资源包 `dir` 为 `<游戏目录>/resource-pack`),`npm run build` 生成 manifest;
-5. 部署后进游戏 `/reload`,执行 `/bearcade:tmp tp ctf` 进入模板维度建场地;
-6. 填写 config 里的坐标(模板范围、复制原点、准备房间、常加载区域);
-7. 在 [src/game.ts](src/game.ts) 的 `TODO` 处实现你的玩法;
-8. `npm run typecheck && npm run build && npm run package`,分发时连同 Core 包与 `development.md` 一起给出。
+> **修改提示**：商店商品（价格、图标、回调）在 `GameManager.initialize()` 中硬编码，如需调整请直接编辑该方法内的 `itemShop.addItem()` 和 `setCallback()` 部分。
 
-## 协议速查
+---
 
-- 通道:`bearcade:ipc`,信封 `{ op, packId, payload }`;
-- `game.register`:游戏 ID、显示名、房间数、最大人数、准备房坐标;
-- `room.status`:全量房间快照 + 5 秒心跳,状态仅 `initializing` / `idle` / `running`;
-- 维度命名:`bearcade:<gamename>_n` 与 `bearcade:<gamename>_template`;
-- Core 只读取 `prepSpawn` 做入房传送,场地坐标全部由小游戏包配置。
+### 开发与部署
 
-## 常见坑
+```bash
+npm install          # 安装依赖
+npm run typecheck    # 类型检查
+npm run build        # 编译 TypeScript → dist
+npm run package      # 打包为 .mcpack（输出至 dist/packages）
+npm run deploy       # 自动部署至 Minecraft 开发目录（需配置路径）
+```
 
-- 自定义命令回调运行在 restricted execution 模式,原生调用(传送/表单)必须经 `system.run` 延迟;
-- `Dimension.id` 返回完整命名空间 ID(主世界为 `minecraft:overworld`);
-- 结构引擎上限 64×384×64,纵向取满为 y -64~319;
-- 每包常加载 chunk 有上限,常加载区域只覆盖实际内容;
-- DDUI 按钮文本不解析 `§` 颜色码,label 可以。
+**测试流程**：
+1. 进入游戏，执行 `/reload` 加载包。
+2. 使用 `/bearcade:tmp tp ctf` 进入模板维度搭建场地。
+3. 调整 `config.ts` 中的坐标（`TEMPLATE_FROM`、`TEMPLATE_TO`、`ROOM_COPY_ORIGIN` 等）。
+4. 应用模板：`/bearcade:tmp ap ctf`。
+5. 通过 Core UI 或命令创建房间并加入。
 
-详细规范见仓库根目录 `development.md`。
+---
+
+### 📌 注意事项
+- 队友伤害（含箭矢、TNT）被完全禁止。
+- 玩家只能破坏自己放置的方块。
+- 旗帜实体为盔甲架，拾取后自动隐藏；商店实体同为盔甲架，左右键点击均可打开。
+- 所有自定义实体（旗帜、商店、TNT 引信）在游戏结束时自动清理。
