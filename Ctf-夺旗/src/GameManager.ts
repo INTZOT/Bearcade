@@ -338,8 +338,9 @@ export class GameManager {
     // 3. 创建商店实体
     const itemShop = this.shopManager.getShop('item_shop');
     if (itemShop) {
-      itemShop.spawnShopEntity(config.arena.redShop);
-      itemShop.spawnShopEntity(config.arena.blueShop);
+      Object.values(config.itemShop).forEach((shop: Vector3) => {
+        itemShop.spawnShopEntity(shop);
+      });
     }
 
     // 4. 注册玩家 → 分配队伍 → 给予经济 → 显示计分板

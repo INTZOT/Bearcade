@@ -48,7 +48,7 @@ export const START_POSITIONS = [
 /**
  * CTF-夺旗之战 配置文件
  */
- export const config = {
+export const config = {
   teams: [
     {
       id: 'blue',
@@ -111,9 +111,12 @@ export const START_POSITIONS = [
     tickReward: 1
   },
 
+  itemShop: {
+    shop1: { x: -1, y: 65, z: 0 },
+    shop2: { x: 1, y: 65, z: 0 }
+  },
+
   arena: {
-    redShop: { x: -1, y: 65, z: 0 },
-    blueShop: { x: 1, y: 65, z: 0 },
     captureRadius: 1
   }
 };
