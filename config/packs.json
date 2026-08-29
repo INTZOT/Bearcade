@@ -714,6 +714,33 @@
       "type": "behavior"
     },
     {
+      "id": "ctf",
+      "dir": "Ctf-夺旗",
+      "name": "Bearcade 夺旗",
+      "description": "Bearcade 夺旗小游戏包(夺旗占点计分、商店、TNT/箭矢,玩法已实现)",
+      "headerUuid": "b7bf4418-3194-41a9-b4af-89219c8e247a",
+      "moduleUuid": "83b16297-6389-4f18-9a42-98a5230fd437",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
       "id": "frozenfloor_hud",
       "type": "resource",
       "dir": "FrozenFloor-冰冻地板/resource-pack",
@@ -721,6 +748,22 @@
       "description": "Bearcade FrozenFloor HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
       "headerUuid": "da9cfa1a-20b5-4ae9-ae4d-a6e5e4f6a53b",
       "moduleUuid": "fb0efdfd-247c-45b1-8be9-e787169dda6f",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "ctf_hud",
+      "type": "resource",
+      "dir": "Ctf-夺旗/resource-pack",
+      "name": "Bearcade 夺旗 HUD",
+      "description": "Bearcade 夺旗 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "2b268701-3b94-443e-80a2-687dbf156ae7",
+      "moduleUuid": "f395d425-7a18-48c3-9179-4b541cc0074f",
       "minEngineVersion": [
         1,
         26,
