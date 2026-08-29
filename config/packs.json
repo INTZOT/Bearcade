@@ -728,6 +728,49 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "newyearpig",
+      "dir": "NewYearPig-杀年猪",
+      "name": "Bearcade NewYearPig",
+      "description": "Bearcade 杀年猪小游戏包(45×45 草场限时杀动物得分,含钻石剑与特殊生物事件)",
+      "headerUuid": "3d4dbe7a-189c-432d-bebb-747d99163ede",
+      "moduleUuid": "721e75d6-6da3-4cb1-81a1-d7504a936c27",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "newyearpig_hud",
+      "type": "resource",
+      "dir": "NewYearPig-杀年猪/resource-pack",
+      "name": "Bearcade NewYearPig HUD",
+      "description": "Bearcade NewYearPig HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "1e17ec5a-c004-474d-b6cc-a48c7e766e76",
+      "moduleUuid": "ac9512fd-fbc3-489e-9b5a-a434984685bb",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }
