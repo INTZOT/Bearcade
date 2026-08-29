@@ -31,6 +31,7 @@
     "Knockback-击退战/src/**/*.ts",
     "LabEscape-实验室逃脱/src/**/*.ts",
     "Mahjong-麻将/src/**/*.ts",
+    "NewYearPig-杀年猪/src/**/*.ts",
     "PigCatcher-猪猪争夺战/src/**/*.ts",
     "SND5-剑与消亡V/src/**/*.ts",
     "Template-小游戏模板/src/**/*.ts",
