@@ -800,6 +800,33 @@
       "type": "behavior"
     },
     {
+      "id": "studio",
+      "dir": "Studio-工作室",
+      "name": "Bearcade Studio",
+      "description": "Bearcade 工作室小游戏包(合成制作交付类,玩法已实现)",
+      "headerUuid": "b9d20ffb-810a-4bfb-ac25-38c7447562f7",
+      "moduleUuid": "286b2afa-24b6-4d84-b281-089958e07cfa",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
       "id": "newyearpig_hud",
       "type": "resource",
       "dir": "NewYearPig-杀年猪/resource-pack",
@@ -807,6 +834,22 @@
       "description": "Bearcade NewYearPig HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
       "headerUuid": "1e17ec5a-c004-474d-b6cc-a48c7e766e76",
       "moduleUuid": "ac9512fd-fbc3-489e-9b5a-a434984685bb",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
+      "id": "studio_hud",
+      "type": "resource",
+      "dir": "Studio-工作室/resource-pack",
+      "name": "Bearcade Studio HUD",
+      "description": "Bearcade Studio HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "caaf99d3-515a-445b-a013-305f2c3d5f4a",
+      "moduleUuid": "093a4a6a-c3f9-46a4-9c8b-673c44547b04",
       "minEngineVersion": [
         1,
         26,
