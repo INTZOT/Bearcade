@@ -15,6 +15,11 @@ mkdirSync(dist, { recursive: true });
 rmSync(staging, { recursive: true, force: true });
 mkdirSync(staging, { recursive: true });
 
+const copyOptions = {
+  recursive: true,
+  filter: (source) => !source.endsWith(".js.map"),
+};
+
 for (const pack of config.packs) {
   const src = path.join(root, pack.dir);
   const dest = path.join(staging, pack.id);
@@ -24,23 +29,21 @@ for (const pack of config.packs) {
     for (const extra of RESOURCE_DIRS) {
       const extraPath = path.join(src, extra);
       if (existsSync(extraPath)) {
-        cpSync(extraPath, path.join(dest, extra), { recursive: true });
+        cpSync(extraPath, path.join(dest, extra), copyOptions);
       }
     }
     for (const file of RESOURCE_ROOT_FILES) {
       const filePath = path.join(src, file);
-      if (existsSync(filePath)) {
+      if (existsSync(filePath) && !filePath.endsWith(".js.map")) {
         cpSync(filePath, path.join(dest, file));
       }
     }
   } else {
-    cpSync(path.join(src, "scripts"), path.join(dest, "scripts"), {
-      recursive: true,
-    });
+    cpSync(path.join(src, "scripts"), path.join(dest, "scripts"), copyOptions);
     for (const extra of EXTRA_DIRS) {
       const extraPath = path.join(src, extra);
       if (existsSync(extraPath)) {
-        cpSync(extraPath, path.join(dest, extra), { recursive: true });
+        cpSync(extraPath, path.join(dest, extra), copyOptions);
       }
     }
   }
