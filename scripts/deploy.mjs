@@ -3,6 +3,10 @@ import path from "node:path";
 import { EXTRA_DIRS, RESOURCE_DIRS, RESOURCE_ROOT_FILES } from "./extras.mjs";
 
 const root = process.cwd();
+const envFile = path.join(root, ".env");
+if (existsSync(envFile)) {
+  process.loadEnvFile(envFile);
+}
 const config = JSON.parse(
   readFileSync(path.join(root, "config", "packs.json"), "utf8"),
 );
@@ -18,6 +22,9 @@ let behaviorRoot;
 if (process.env.MC_DEV_PACKS) {
   behaviorRoot = path.resolve(process.env.MC_DEV_PACKS);
 } else if (process.platform === "win32") {
+  if (!existsSync(DEFAULT_TARGET)) {
+    throw new Error(`默认开发行为包目录不存在,请检查路径: ${DEFAULT_TARGET}或设置 MC_DEV_PACKS 后重试`);
+  }
   behaviorRoot = path.resolve(DEFAULT_TARGET);
 } else {
   throw new Error(
