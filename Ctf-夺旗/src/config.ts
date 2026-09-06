@@ -111,15 +111,15 @@ export const config = {
     tickReward: 1
   },
 
-  itemShop: {
-    shop1: { x: -1, y: 65, z: 0 },
-    shop2: { x: 1, y: 65, z: 0 }
-  },
+  itemShop: [
+    { x: -1, y: 65, z: 0 },
+    { x: 1, y: 65, z: 0 }
+  ],
 
-  buffShop: {
-    shop1: { x: -2, y: 65, z: 0 },
-    shop2: { x: 2, y: 65, z: 0 }
-  },
+  buffShop: [
+    { x: -2, y: 65, z: 0 },
+    { x: 2, y: 65, z: 0 }
+  ],
 
   arena: {
     captureRadius: 1

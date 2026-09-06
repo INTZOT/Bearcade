@@ -368,13 +368,13 @@ export class GameManager {
     // 3. 创建商店实体
     const itemShop = this.shopManager.getShop('item_shop');
     if (itemShop) {
-      Object.values(config.itemShop).forEach((shop: Vector3) => {
+      config.itemShop.forEach((shop: Vector3) => {
         itemShop.spawnShopEntity(shop);
       });
     }
     const buffShop = this.shopManager.getShop('buff_shop');
     if (buffShop) {
-      Object.values(config.buffShop).forEach((shop: Vector3) => {
+      config.buffShop.forEach((shop: Vector3) => {
         buffShop.spawnShopEntity(shop);
       });
     }
