@@ -116,6 +116,11 @@ export const config = {
     shop2: { x: 1, y: 65, z: 0 }
   },
 
+  buffShop: {
+    shop1: { x: -2, y: 65, z: 0 },
+    shop2: { x: 2, y: 65, z: 0 }
+  },
+
   arena: {
     captureRadius: 1
   }

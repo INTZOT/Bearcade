@@ -112,6 +112,36 @@ export class GameManager {
       }
     })
 
+    const buffShop = this.shopManager.createShop('buff_shop');
+    if (!buffShop) throw new Error('Failed to create buff shop.');
+    buffShop.setTitle('增益商店');
+    buffShop.setDescription('在这里购买增益');
+    buffShop.addItem('arrow_upgrade', {
+      tag: 'arrow_upgrade',
+      name: '§l§a箭升级',
+      price: 125,
+    });
+    buffShop.addItem('block_upgrade', {
+      tag: 'block_upgrade',
+      name: '§l§a方块升级',
+      price: 200,
+    });
+    buffShop.addItem('damage_absorption', {
+      tag: 'damage_absorption',
+      name: '§l§a伤害吸收',
+      price: 250,
+    });
+    buffShop.addItem('quick_respawn', {
+      tag: 'quick_respawn',
+      name: '§l§a快速重生',
+      price: 350,
+    });
+    buffShop.addItem('flag_curse', {
+      tag: 'flag_curse',
+      name: '§l§a旗帜诅咒',
+      price: 200,
+    });
+
     const itemShop = this.shopManager.createShop('item_shop');
     if (!itemShop) throw new Error('Failed to create item shop.');
     itemShop.setTitle('物品商店');
@@ -342,6 +372,12 @@ export class GameManager {
         itemShop.spawnShopEntity(shop);
       });
     }
+    const buffShop = this.shopManager.getShop('buff_shop');
+    if (buffShop) {
+      Object.values(config.buffShop).forEach((shop: Vector3) => {
+        buffShop.spawnShopEntity(shop);
+      });
+    }
 
     // 4. 注册玩家 → 分配队伍 → 给予经济 → 显示计分板
     const players = this.runtime.roomPlayers(this.roomId);
@@ -457,7 +493,7 @@ export class GameManager {
     }
   }
 
-  private checkWin() :void { 
+  private checkWin(): void {
     const team = this.teamManager.checkWinCondition(config.maxScore);
     if (team) {
       this.sendMessage(`${team.name} 获得胜利！`);
