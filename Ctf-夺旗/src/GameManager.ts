@@ -433,12 +433,12 @@ export class GameManager {
   }
 
   end(): void {
-    if (this.gamestate !== GameState.RUNNING) {
-      throw new Error('非法的游戏状态：' + this.gamestate);
-    }
+    if (this.gamestate !== GameState.RUNNING) return;
+    
     this.gamestate = GameState.ENDING;
 
     try {
+      this.timeStamp = 0;
       this.clearTntFuses();
       this.clearPlacedBlocks();
       this.waterTickCounter.clear();
@@ -500,7 +500,7 @@ export class GameManager {
       this.end();
       return;
     }
-    if (this.timeStamp >= config.matchTime) {
+    if (this.timeStamp / 20  >= config.matchTime) {
       this.sendMessage(`游戏结束，平局！`);
       this.end();
       return;
