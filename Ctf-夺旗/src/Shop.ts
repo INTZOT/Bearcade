@@ -84,7 +84,7 @@ export class Shop {
   async show(player: Player): Promise<void> {
     const form = new ActionFormData();
     form.title(this.title);
-    if(this.description) form.body(this.description);
+    if (this.description) form.body(this.description);
 
     const itemList = Array.from(this.items.values());
     for (const item of itemList) {
@@ -104,19 +104,26 @@ export class Shop {
     if (!selected) return;
 
     const callback = this.callbacks.get(selected.tag);
+    const targetpPlayer = GameManager.getInstance().getPlayerManager().getOrCreatePlayer(player);
+    if (targetpPlayer.getEconomy() < selected.price) {
+      player.sendMessage(`§c你没有足够的金币来购买 ${selected.name}`);
+      return;
+    }
+
     if (callback) {
-      const targetpPlayer = GameManager.getInstance().getPlayerManager().getOrCreatePlayer(player);
-      if (targetpPlayer.getEconomy() < selected.price) {
-        player.sendMessage(`§c你没有足够的金币来购买 ${selected.name}`);
-        return;
-      }
-      if(callback(player, selected.name)) {
+      if (callback(player, selected.name)) {
         targetpPlayer.reduceEconomy(selected.price);
         player.sendMessage(`§a你成功购买了 ${selected.name}`);
       }
     }
     else if (selected.callback) {
       selected.callback(player, selected);
+    }
+    else if (selected.itemStack) {
+      player.getComponent("inventory")?.container.addItem(selected.itemStack);
+    } else {
+      player.sendMessage(`§c购买失败，商品 ${selected.name} 没有设置回调函数或物品`);
+      return;
     }
 
     // 购买完成后再次弹出商店表单
