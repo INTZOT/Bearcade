@@ -818,7 +818,7 @@ export class GameManager {
       if (reward > 0) carrier.addEconomy(reward);
 
       if (mcPlayer) {
-        mcPlayer.sendMessage(`§a成功夺旗！ +1 分，奖励 ${reward} 金币`);
+        mcPlayer.sendMessage(`§a成功夺旗！ +1 分！`);
       }
     }
   }

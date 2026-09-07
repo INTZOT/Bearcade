@@ -42,6 +42,7 @@ export class CTFPlayer {
   addEconomy(amount: number): void {
     if (amount <= 0) return;
     this.economy += amount;
+    this.getPlayer()?.onScreenDisplay.setActionBar(`§e经济§r +${amount}`);
   }
 
   getEconomy(): number {
