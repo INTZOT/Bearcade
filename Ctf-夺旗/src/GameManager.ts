@@ -94,16 +94,19 @@ export class GameManager {
 
     const mainScoreboard = this.scoreboardManager.createTemplate('ctf_main');
     mainScoreboard.addColumn('header', '§l§e夺旗', {});
-    mainScoreboard.addColumn('team_name', '§f队伍: {team}', {
+    mainScoreboard.addColumn('team_name', '§f你的队伍: {team}', {
       team: (player) => {
         const team = this.teamManager.getTeamOfPlayer(player.id);
-        return team?.name ?? '§7无';
+        if (!team) return '§7无';
+        const name = `${getColorCode(team.color)}${team.name}§r`;
+        return name;
       }
     });
-    mainScoreboard.addColumn('team_score', '§f得分: {score}', {
-      score: (player) => {
-        const team = this.teamManager.getTeamOfPlayer(player.id);
-        return team?.score.toString() ?? '无数据';
+    mainScoreboard.addColumn('team_score', '§f得分情况: \n{score}', {
+      score: () => {
+        return this.teamManager.getAllTeams()
+          .map(team => `${getColorCode(team.color)}${team.name}§r: ${team.score}`)
+          .join('\n');
       }
     });
     mainScoreboard.addColumn('player_money', '§f经济: {money}', {
