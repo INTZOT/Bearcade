@@ -10,7 +10,7 @@ import { ShopManager } from './ShopManager';
 import { TeamManager } from './TeamManager';
 import { Timer } from './Timer';
 import { FlagState, GameState, PlayerState, Vector3 } from './types';
-import { distance } from './utils';
+import { distance, getColorCode } from './utils';
 
 type TNTFuses = {
   location: Vector3;
@@ -64,12 +64,27 @@ export class GameManager {
       console.warn(`玩家 ${playerId} 加入队伍 ${teamId}`);
       const player = this.playerManager.getPlayer(playerId);
       if (player) player.teamId = teamId;
+
+      // 更新玩家名称标签颜色
+      const mcPlayer = player?.getPlayer();
+      if (mcPlayer) {
+        const team = this.teamManager.getTeam(teamId);
+        if (team) {
+          mcPlayer.nameTag = `${getColorCode(team.color)}${mcPlayer.name}§r`;
+        }
+      }
     });
 
     this.teamManager.on('playerLeft', ({ playerId }) => {
       console.warn(`玩家 ${playerId} 离开队伍`);
       const player = this.playerManager.getPlayer(playerId);
       if (player) player.teamId = null;
+
+      // 重置玩家名称标签颜色
+      const mcPlayer = player?.getPlayer();
+      if (mcPlayer) {
+          mcPlayer.nameTag = mcPlayer.name;
+      }
     });
   }
 
