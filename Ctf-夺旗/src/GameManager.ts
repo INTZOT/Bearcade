@@ -1,4 +1,4 @@
-import { Dimension, Entity, EntityDamageCause, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
+import { Dimension, Entity, EntityComponentTypes, EntityDamageCause, EntityHealthComponent, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
 import { MinecraftEffectTypes, MinecraftEntityTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
 import { MinigameRuntime } from '../../shared/minigame-core/runtime';
 import { config, PREP_SPAWN } from './config';
@@ -661,6 +661,10 @@ export class GameManager {
       if (attacker) {
         this.playerManager.getOrCreatePlayer(attacker).onKill();
         this.playerManager.getOrCreatePlayer(attacker).addEconomy(config.economy.killReward);
+        
+        const attackerHealth = attacker.getComponent(EntityComponentTypes.Health) as EntityHealthComponent;
+        attackerHealth?.setCurrentValue(attackerHealth.currentValue + config.killRestoration);
+
         this.sendMessage(`§a${attacker.nameTag} 击杀了 ${player.nameTag}`);
       };
 

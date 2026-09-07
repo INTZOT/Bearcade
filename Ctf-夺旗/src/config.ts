@@ -86,6 +86,7 @@ export const config = {
   respawnTime: 5,
   initialBlockCount: 32,
   arrowBreakRadius: 1,
+  killRestoration: 6,
 
   regeneration: {
     /** 受伤后多少秒开始恢复 */
