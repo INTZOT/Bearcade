@@ -10,7 +10,7 @@ export interface ShopItem {
   price: number;
   icon?: string;           // 贴图路径
   itemStack?: ItemStack;   // 购买后给予的物品
-  callback?: (player: Player, item: ShopItem) => void;
+  callback?: (player: Player, item: ShopItem) => boolean;
 }
 
 export class Shop {
@@ -114,13 +114,19 @@ export class Shop {
       if (callback(player, selected.name)) {
         targetpPlayer.reduceEconomy(selected.price);
         player.sendMessage(`§a你成功购买了 ${selected.name}`);
-      }
+      } else return;
     }
     else if (selected.callback) {
-      selected.callback(player, selected);
+      const result = selected.callback(player, selected);
+      if (result) {
+        targetpPlayer.reduceEconomy(selected.price);
+        player.sendMessage(`§a你成功购买了 ${selected.name}`);
+      } else return;
     }
     else if (selected.itemStack) {
       player.getComponent("inventory")?.container.addItem(selected.itemStack);
+      targetpPlayer.reduceEconomy(selected.price);
+      player.sendMessage(`§a你成功购买了 ${selected.name}`);
     } else {
       player.sendMessage(`§c购买失败，商品 ${selected.name} 没有设置回调函数或物品`);
       return;
