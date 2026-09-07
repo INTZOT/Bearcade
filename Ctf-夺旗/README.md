@@ -76,6 +76,7 @@ export const config = {
   flagReturnTime: 15,          // 旗帜掉落后自动回城时间（秒）
   respawnTime: 5,              // 玩家复活等待时间（秒）
   arrowBreakRadius: 1,         // 箭矢破坏玩家放置方块的半径
+  killRestoration: 6,          // 击杀敌人后恢复的血量 
 
   // ---- 生命恢复 ----
   regeneration: {
@@ -100,10 +101,15 @@ export const config = {
   },
 
   // ---- 商店实体位置（盔甲架） ----
-  itemShop: {
-    shop1: { x: -1, y: 65, z: 0 },
-    shop2: { x:  1, y: 65, z: 0 }
-  },
+  itemShop:[
+    { x: -1, y: 65, z: 0 },
+    { x: 1, y: 65, z: 0 }
+  ],
+
+  buffShop: [
+    { x: -2, y: 65, z: 0 },
+    { x: 2, y: 65, z: 0 }
+  ]},
 
   // ---- 旗帜判定半径 ----
   arena: {
