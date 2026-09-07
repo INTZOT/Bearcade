@@ -181,18 +181,8 @@ export class GameManager {
       tag: 'arrow',
       name: '箭 x16',
       price: 25,
-      icon: 'textures/items/arrow'
-    });
-    itemShop.setCallback('arrow', (player, _name) => {
-      const inventory = player.getComponent('inventory');
-      if (!inventory?.container) return false;
-      const item = new ItemStack(MinecraftItemTypes.Arrow, 16);
-      const result = inventory.container.addItem(item);
-      if (result) {
-        player.sendMessage('§c背包空间不足！');
-        return false;
-      }
-      return true;
+      icon: 'textures/items/arrow',
+      itemStack: new ItemStack(MinecraftItemTypes.Arrow, 16)
     });
 
     // 3. 速度浆果（甜浆果）
@@ -200,18 +190,8 @@ export class GameManager {
       tag: 'berry',
       name: '速度浆果',
       price: 40,
-      icon: 'textures/items/sweet_berries'
-    });
-    itemShop.setCallback('berry', (player, _name) => {
-      const inventory = player.getComponent('inventory');
-      if (!inventory?.container) return false;
-      const item = new ItemStack(MinecraftItemTypes.SweetBerries, 1);
-      const result = inventory.container.addItem(item);
-      if (result) {
-        player.sendMessage('§c背包空间不足！');
-        return false;
-      }
-      return true;
+      icon: 'textures/items/sweet_berries',
+      itemStack: new ItemStack(MinecraftItemTypes.SweetBerries, 1)
     });
 
     // 4. TNT
@@ -219,18 +199,8 @@ export class GameManager {
       tag: 'tnt',
       name: 'TNT',
       price: 75,
-      icon: 'textures/items/tnt'
-    });
-    itemShop.setCallback('tnt', (player, _name) => {
-      const inventory = player.getComponent('inventory');
-      if (!inventory?.container) return false;
-      const item = new ItemStack(MinecraftItemTypes.Tnt, 1);
-      const result = inventory.container.addItem(item);
-      if (result) {
-        player.sendMessage('§c背包空间不足！');
-        return false;
-      }
-      return true;
+      icon: 'textures/items/tnt',
+      itemStack: new ItemStack(MinecraftItemTypes.Tnt, 1)
     });
 
     // 5. 铁剑
