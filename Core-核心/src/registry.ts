@@ -1,4 +1,4 @@
-import { world } from "@minecraft/server";
+import { system, world } from "@minecraft/server";
 import {
   REGISTRY_KEY,
   type GameEntry,
@@ -8,8 +8,13 @@ import {
   type Vec3,
 } from "./types";
 
-const ROOM_STALE_MS = 15_000;
-const GAME_STALE_MS = 30_000;
+/** 房间数据过期:15 秒(20 tick/秒)未收到上报 */
+const ROOM_STALE_TICKS = 15 * 20;
+/** 游戏级活性:30 秒无任何上报则从菜单隐藏 */
+const GAME_STALE_TICKS = 30 * 20;
+/** 注册表上限:防御异常包注册超大房间数/人数导致 Map 膨胀甚至卡死 */
+const MAX_ROOMS_PER_GAME = 64;
+const MAX_PLAYERS_PER_ROOM = 64;
 
 function isVec3(value: unknown): value is Vec3 {
   if (typeof value !== "object" || value === null) return false;
@@ -55,9 +60,11 @@ export class GameRegistry {
           typeof entry.roomCount !== "number" ||
           !Number.isInteger(entry.roomCount) ||
           entry.roomCount < 1 ||
+          entry.roomCount > MAX_ROOMS_PER_GAME ||
           typeof entry.maxPlayers !== "number" ||
           !Number.isInteger(entry.maxPlayers) ||
           entry.maxPlayers < 1 ||
+          entry.maxPlayers > MAX_PLAYERS_PER_ROOM ||
           (entry.minPlayers !== undefined &&
             (typeof entry.minPlayers !== "number" ||
               !Number.isInteger(entry.minPlayers) ||
@@ -156,9 +163,11 @@ export class GameRegistry {
       typeof payload.roomCount !== "number" ||
       !Number.isInteger(payload.roomCount) ||
       payload.roomCount < 1 ||
+      payload.roomCount > MAX_ROOMS_PER_GAME ||
       typeof payload.maxPlayers !== "number" ||
       !Number.isInteger(payload.maxPlayers) ||
       payload.maxPlayers < 1 ||
+      payload.maxPlayers > MAX_PLAYERS_PER_ROOM ||
       (payload.minPlayers !== undefined &&
         (!Number.isInteger(payload.minPlayers) || payload.minPlayers < 1)) ||
       (payload.partyAvailable !== undefined &&
@@ -171,6 +180,14 @@ export class GameRegistry {
     ) {
       return false;
     }
+    const existing = this.games.get(payload.game);
+    if (existing && this.isSameRegistration(existing, packId, payload)) {
+      // 重复注册(如 Core 启动后主动请求重注册):保留已有房间状态,只刷新激活标记,
+      // 避免把已经就绪/对局中的房间打回"初始化中"。
+      existing.active = true;
+      existing.lastActivity = system.currentTick;
+      return true;
+    }
     this.createEntry(
       payload.game,
       payload.displayName,
@@ -181,13 +198,32 @@ export class GameRegistry {
       payload.partyAvailable === true,
       payload.prepSpawn,
       true,
-      Date.now(),
+      system.currentTick,
     );
     this.persist();
     console.warn(
       `[Bearcade Core] 游戏注册:${payload.displayName}(${payload.game}),${payload.roomCount} 个房间`,
     );
     return true;
+  }
+
+  /** 注册信息是否与已有条目完全一致(用于重复注册的幂等短路) */
+  private isSameRegistration(
+    entry: GameEntry,
+    packId: string,
+    payload: RegisterPayload,
+  ): boolean {
+    return (
+      entry.packId === packId &&
+      entry.displayName === payload.displayName &&
+      entry.roomCount === payload.roomCount &&
+      entry.maxPlayers === payload.maxPlayers &&
+      entry.minPlayers === (payload.minPlayers ?? 2) &&
+      entry.partyAvailable === (payload.partyAvailable === true) &&
+      entry.prepSpawn.x === payload.prepSpawn.x &&
+      entry.prepSpawn.y === payload.prepSpawn.y &&
+      entry.prepSpawn.z === payload.prepSpawn.z
+    );
   }
 
   updateRooms(game: string, packId: string, rooms: RoomReport[]): boolean {
@@ -213,7 +249,7 @@ export class GameRegistry {
       }
     }
 
-    const now = Date.now();
+    const now = system.currentTick;
     entry.active = true;
     entry.lastActivity = now;
     for (const report of rooms) {
@@ -232,13 +268,13 @@ export class GameRegistry {
     for (const entry of this.games.values()) {
       let latest = entry.lastActivity;
       for (const room of entry.rooms.values()) {
-        if (now - room.lastSeen > ROOM_STALE_MS) {
+        if (now - room.lastSeen > ROOM_STALE_TICKS) {
           room.stale = true;
         }
         if (room.lastSeen > latest) latest = room.lastSeen;
       }
       // 游戏级活性:注册后超过 30 秒没有任何状态上报,视为包已卸载/停止,从菜单隐藏
-      if (entry.active && now - latest > GAME_STALE_MS) {
+      if (entry.active && now - latest > GAME_STALE_TICKS) {
         entry.active = false;
         console.warn(
           `[Bearcade Core] 游戏已停止上报,暂时隐藏:${entry.displayName}(${entry.game})`,

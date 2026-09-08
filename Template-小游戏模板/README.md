@@ -23,7 +23,7 @@
 
 ## 行为包定义文件(实体/物品/方块等)
 
-需要自定义实体、物品、方块、合成配方、刷怪规则、战利品表、函数、语言文本等定义时,直接放在包目录下与 `src/` 平级的对应文件夹(`entities/`、`items/`、`blocks/`、`recipes/`、`spawn_rules/`、`loot_tables/`、`tags/`、`trading/`、`dialogue/`、`structures/`、`functions/`、`texts/`),**无需任何额外配置**——`npm run package` 与 `npm run deploy` 会自动把这些目录随包复制(目录清单见仓库 `scripts/extras.mjs`)。参考示例:BridgeWar 的自定义实体 `BridgeWar-急速战桥/entities/bearcade_loadout_dummy.json`。
+需要自定义实体、物品、方块、合成配方、刷怪规则、战利品表、函数、语言文本等定义时,直接放在包目录下与 `src/` 平级的对应文件夹(`entities/`、`items/`、`blocks/`、`recipes/`、`spawn_rules/`、`loot_tables/`、`tags/`、`trading/`、`dialogue/`、`structures/`、`functions/`、`texts/`),**无需任何额外配置**——`npm run package` 与 `npm run deploy` 会自动把这些目录随包复制(目录清单见仓库 `scripts/extras.mjs`)。参考示例:BridgeWar 的自定义实体 `BridgeWar-急速战桥/entities/bridgewar_loadout_dummy.json`。
 
 > 配对资源包已内嵌在 `resource-pack/`(JSON UI HUD、贴图、模型等),不要另建第二个顶层目录;`npm run package`/`npm run deploy` 会自动拆成 `MyGame-我的游戏-资源包`。
 

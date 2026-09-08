@@ -123,8 +123,14 @@ export function savePlayerInventoryToPool(
       ok = false;
       continue;
     }
-    for (let slot = 0; slot < container.size; slot++) {
+    // 池容器(54 格)比玩家背包(36 格)大:必须按两者较小值遍历,
+    // 否则 source.getItem(slot>=36) 抛越界错误,整个保存中断且其他房间写不进去。
+    const copyCount = Math.min(source.size, container.size);
+    for (let slot = 0; slot < copyCount; slot++) {
       container.setItem(slot, source.getItem(slot) ?? undefined);
+    }
+    for (let slot = copyCount; slot < container.size; slot++) {
+      container.setItem(slot, undefined);
     }
   }
   return ok;

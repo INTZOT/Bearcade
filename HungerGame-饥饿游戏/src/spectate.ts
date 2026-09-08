@@ -48,7 +48,23 @@ export function startSpectating(
   } catch {
     // 忽略
   }
-  runtime.teleportPlayer(roomId, spectator, spectateSpot);
+  // 重生点 = 观战台:玩家在死亡界面点击"重生"后直接回到观战位,
+  // 而不是被送到世界出生点(主世界)触发 Core 的离房清理。
+  try {
+    spectator.setSpawnPoint({
+      dimension: runtime.roomDim(roomId),
+      x: spectateSpot.x + 0.5,
+      y: spectateSpot.y + 0.5,
+      z: spectateSpot.z + 0.5,
+    });
+  } catch {
+    // 忽略
+  }
+  try {
+    runtime.teleportPlayer(roomId, spectator, spectateSpot);
+  } catch (error) {
+    console.warn("[Bearcade hungergame] 观战传送失败", error);
+  }
   giveSpectateItem(spectator);
   if (target) {
     attachSpectateCamera(spectator, target);

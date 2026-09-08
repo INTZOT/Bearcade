@@ -59,7 +59,7 @@ Bearcade 派对小游戏包:**6~10 人夜间行动 + 白天发言投票的推理
 旧版围桌场地已随包提供为结构文件(`structures/changdi.mcstructure`,35×18×35,原点 `-14,-61,-18`):
 
 1. `/bearcade:tmp tp werewolf` 进入模板维度 `bearcade:werewolf_template`;
-2. 执行 `/structure load changdi -14 -61 -18`(若提示找不到,试 `/structure load mystructure:changdi -14 -61 -18`);
+2. 执行 `/structure load changdi -14 -61 -18`;
 3. 核对 `src/config.ts` 的模板范围(已按旧场地预填:TEMPLATE_FROM `(-14,-61,-18)` → TEMPLATE_TO `(20,319,16)`),如需微调可用 `/bearcade:tmp sz werewolf` 表单配置;
 4. `/bearcade:tmp ap werewolf` 一键应用到全部 4 个房间;
 5. 全部房间变为「空闲」后即可从大厅钟菜单进入。

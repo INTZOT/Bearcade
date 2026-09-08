@@ -1,7 +1,7 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { makeNewYearPigHooks, initNewYearPig } from "./game";
-import { loadNewYearPigConfig } from "./newyearpig-config";
+import { getNewYearPigConfig, loadNewYearPigConfig } from "./newyearpig-config";
 import { registerNewYearPigBuildCommand } from "./map";
 import {
   DISPLAY_NAME,
@@ -22,8 +22,6 @@ import {
   TICKING_FROM,
   TICKING_TO,
 } from "./config";
-
-loadNewYearPigConfig();
 
 let runtime: MinigameRuntime;
 runtime = new MinigameRuntime(
@@ -58,6 +56,11 @@ system.beforeEvents.startup.subscribe((event) => {
 });
 
 world.afterEvents.worldLoad.subscribe(() => {
+  // 配置读取依赖世界已加载(动态属性),必须在 worldLoad 内进行;
+  // 并把持久化的准备点写回运行时,否则 /bearcade:config 改过的 prepSpawn
+  // 在服务器重启后失效(Core 仍按代码常量传送)。
+  loadNewYearPigConfig();
+  runtime.config.prepSpawn = getNewYearPigConfig().prepSpawn;
   runtime.initWorld();
   runtime.initEvents();
   initNewYearPig(() => runtime);

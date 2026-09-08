@@ -3086,8 +3086,8 @@ export function initMahjong(getRuntime: () => MinigameRuntime): void {
     const { player, block, itemStack, isFirstEvent } = event;
     if (!player || !block || !isFirstEvent) return;
     if (!block.typeId.startsWith("mahjong:")) return;
-    console.warn(
-      `[Bearcade Mahjong] interact ${block.typeId} item=${itemStack?.typeId ?? "空手"} sneak=${player.isSneaking}`,
+    getRuntime().dbg(
+      `interact ${block.typeId} item=${itemStack?.typeId ?? "空手"} sneak=${player.isSneaking}`,
     );
 
     const runtime = getRuntime();
@@ -3246,7 +3246,7 @@ export function initMahjong(getRuntime: () => MinigameRuntime): void {
     if (itemStack && BRICK_POSE[itemStack.typeId] !== undefined) {
       event.cancel = true;
       const pose = BRICK_POSE[itemStack.typeId];
-      console.warn(`[Bearcade Mahjong] 砖改姿态 ${block.typeId} -> ${pose}`);
+      getRuntime().dbg(`砖改姿态 ${block.typeId} -> ${pose}`);
       system.run(() => {
         try {
           const b = dim.getBlock(loc);
@@ -3269,7 +3269,7 @@ export function initMahjong(getRuntime: () => MinigameRuntime): void {
     if (itemStack?.typeId === "minecraft:stick") {
       event.cancel = true;
       const DIR_ORDER = ["north", "east", "south", "west"];
-      console.warn(`[Bearcade Mahjong] 木棍改朝向 ${block.typeId}`);
+      getRuntime().dbg(`木棍改朝向 ${block.typeId}`);
       system.run(() => {
         try {
           const b = dim.getBlock(loc);
@@ -3311,7 +3311,7 @@ export function initMahjong(getRuntime: () => MinigameRuntime): void {
 
     if (!itemStack && player.isSneaking) {
       event.cancel = true;
-      console.warn(`[Bearcade Mahjong] 潜行翻面 ${block.typeId}`);
+      getRuntime().dbg(`潜行翻面 ${block.typeId}`);
       system.run(() => {
         try {
           const b = dim.getBlock(loc);

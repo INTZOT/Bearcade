@@ -734,7 +734,7 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
         state.overview.has(player.id) &&
         player.getAimAssist().settings === undefined
       ) {
-        console.warn("[Bearcade Go] [diag] itemUse stone in overview (fallback)");
+        runtime.dbg("itemUse stone in overview (fallback)");
         tryPlaceAtPlayer(runtime, roomId, state, player);
       }
     }
@@ -748,7 +748,7 @@ export function initGo(getRuntime: () => MinigameRuntime): void {
     const state = games.get(roomId);
     if (!state || runtime.getPhase(roomId) !== "running") return;
     if (!state.overview.has(event.source.id)) return;
-    console.warn("[Bearcade Go] [diag] itemStartUseOn stone in overview");
+    runtime.dbg("itemStartUseOn stone in overview");
     tryPlaceAtPlayer(runtime, roomId, state, event.source);
   });
 }

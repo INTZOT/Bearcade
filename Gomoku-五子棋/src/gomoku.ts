@@ -725,7 +725,7 @@ export function initGomoku(getRuntime: () => MinigameRuntime): void {
     }
     if (isStone(event.itemStack.typeId)) {
       if (state.overview.has(player.id)) {
-        console.warn("[Bearcade Gomoku] [diag] itemUse stone in overview");
+        runtime.dbg("itemUse stone in overview");
         tryPlaceAtPlayer(runtime, roomId, state, player);
       }
       return;
@@ -740,7 +740,7 @@ export function initGomoku(getRuntime: () => MinigameRuntime): void {
     const state = games.get(roomId);
     if (!state || runtime.getPhase(roomId) !== "running") return;
     if (!state.overview.has(event.source.id)) return;
-    console.warn("[Bearcade Gomoku] [diag] itemStartUseOn stone in overview");
+    runtime.dbg("itemStartUseOn stone in overview");
     tryPlaceAtPlayer(runtime, roomId, state, event.source);
   });
 

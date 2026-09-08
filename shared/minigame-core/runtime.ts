@@ -119,6 +119,13 @@ export class MinigameRuntime {
       return;
     }
 
+    // Core 在 worldLoad 后主动请求一次重注册:兜底"game.register 早于 Core 订阅而丢失"
+    // 的极端情况(此时游戏包不会出现在大厅菜单,直到世界重载)。
+    if (envelope.op === "game.register_request") {
+      this.sendGameRegister();
+      return;
+    }
+
     if (payload.game !== this.config.gameId) return;
 
     switch (envelope.op) {
@@ -817,20 +824,6 @@ export class MinigameRuntime {
   }
 
   /**
-   * 手动开局:在 manualStart 模式下由玩法调用,
-   * 将空闲房间切入倒计时(pending),随后由共享运行时按人数/派对/调试规则倒计时。
-   */
-  beginPending(roomId: number): boolean {
-    const state = this.getState(roomId);
-    if (state.phase !== "idle") return false;
-    const players = this.roomPlayers(roomId);
-    if (players.length < (this.config.minPlayers ?? 2)) return false;
-    this.startPending(roomId);
-    this.sendRoomStatus();
-    return true;
-  }
-
-  /**
    * 房主强制立即开始:跳过倒计时,直接进入 running 并触发 onGameStart。
    * 房间处于 idle 且人数足够时也会直接开始。
    */
@@ -932,7 +925,7 @@ export class MinigameRuntime {
         const state = this.getState(roomId);
         const count = this.roomPlayers(roomId).length;
         const min = this.config.minPlayers ?? 2;
-        if (!this.config.manualStart && state.phase === "idle" && count >= min) {
+        if (state.phase === "idle" && count >= min) {
           this.startPending(roomId);
         } else if (state.phase === "pending" && count < min) {
           state.phase = "idle";

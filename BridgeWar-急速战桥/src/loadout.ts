@@ -9,7 +9,7 @@ import {
 import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
 import { TEMPLATE_DIMENSION_ID } from "./config";
 
-const DUMMY_TYPE = "bearcade:loadout_dummy";
+const DUMMY_TYPE = "bearcade:bridgewar_loadout_dummy";
 const INVENTORY_SLOTS = 36;
 const SLOT_HELMET = 36;
 const SLOT_CHEST = 37;

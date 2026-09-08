@@ -288,6 +288,37 @@ export function initLabEscapeEvents(getRuntime: () => MinigameRuntime): void {
       }
     }, 10);
   });
+
+  // 死亡后在柱子顶重生:玩家在死亡界面点击"重生"时由原版把玩家送到重生点
+  // (已在 onGameStart 设为本柱子顶部),这里兜底校正到实测柱顶并补发工具。
+  world.afterEvents.playerSpawn.subscribe((event) => {
+    if (event.initialSpawn) return;
+    const player = event.player;
+    const runtime = getRuntime();
+    const roomId = runtime.roomIdFromDimension(player.dimension.id);
+    if (roomId === undefined) return;
+    const state = roomStates.get(roomId);
+    if (!state || !state.playerColumns.has(player.id)) return;
+    if (state.finished.has(player.id)) return;
+    if (runtime.getPhase(roomId) !== "running") return;
+    const cfg = getLabEscapeConfig();
+    const index = state.playerColumns.get(player.id);
+    if (index === undefined) return;
+    try {
+      const dim = runtime.roomDim(roomId);
+      const pos = columnPosition(index, state.columnCount, cfg);
+      const topY = getColumnTopY(dim, index, state.columnCount, cfg);
+      player.teleport(
+        { x: pos.x + 0.5, y: topY + 1.5, z: pos.z + 0.5 },
+        { dimension: dim },
+      );
+      player.setGameMode(GameMode.Survival);
+      giveTools(player);
+      player.sendMessage("§e你已恢复到当前柱子顶部,继续挖掘!");
+    } catch (error) {
+      console.warn("[LabEscape] 死亡恢复失败", error);
+    }
+  });
 }
 
 export function makeLabEscapeHooks(
@@ -357,6 +388,7 @@ export function makeLabEscapeHooks(
         console.warn("[LabEscape] 柱位校验异常", error);
       }
 
+      const roomDim = runtime.roomDim(roomId);
       activePlayers.forEach((player, index) => {
         const columnIndex = index % columnCount;
         state.playerColumns.set(player.id, columnIndex);
@@ -367,6 +399,18 @@ export function makeLabEscapeHooks(
           y: cfg.groundY + cfg.columnHeight,
           z: pos.z,
         });
+        // 重生点 = 自己的柱子顶:死亡后原版会把玩家送到世界出生点(主世界),
+        // 触发 Core 的离房清理并被送回大厅,与 README"死亡会恢复到柱子顶部继续"矛盾。
+        try {
+          player.setSpawnPoint({
+            dimension: roomDim,
+            x: pos.x + 0.5,
+            y: cfg.groundY + cfg.columnHeight + 0.5,
+            z: pos.z + 0.5,
+          });
+        } catch {
+          // 忽略:设置失败时 playerSpawn 兜底仍会尝试恢复
+        }
         player.setGameMode(GameMode.Survival);
         giveTools(player);
       });

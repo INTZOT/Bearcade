@@ -100,6 +100,7 @@ function spawnCircle(
   const players = alivePlayers(runtime, roomId, state);
   const n = players.length;
   const radius = n > MAX_PLAYERS ? cfg.spawnRadiusParty : cfg.spawnRadius;
+  const roomDim = runtime.roomDim(roomId);
   players.forEach((player, i) => {
     const angle = (2 * Math.PI * i) / n;
     runtime.teleportPlayer(roomId, player, {
@@ -107,6 +108,19 @@ function spawnCircle(
       y: cfg.spawnCenter.y,
       z: cfg.spawnCenter.z + radius * Math.sin(angle),
     });
+    // 淘汰后玩家在死亡界面点击"重生":把重生点设到观战台,
+    // 否则原版会把玩家送到世界出生点(主世界)并被 Core 判为离房送回大厅,
+    // 观战流程(README 承诺的 follow_orbit)永远不会发生。
+    try {
+      player.setSpawnPoint({
+        dimension: roomDim,
+        x: cfg.spectateSpot.x + 0.5,
+        y: cfg.spectateSpot.y + 0.5,
+        z: cfg.spectateSpot.z + 0.5,
+      });
+    } catch {
+      // 忽略:设置失败时 playerSpawn 兜底仍会尝试恢复观战
+    }
     freezePlayer(player, true);
   });
 }
@@ -432,6 +446,29 @@ export function initHungerGame(getRuntime: () => MinigameRuntime): void {
     }
     eliminatePlayer(runtime, roomId, state, dead, killerName);
     checkEnd(runtime, roomId, state);
+  });
+
+  // 淘汰玩家在死亡界面点击"重生"后回到观战台并恢复观战状态
+  // (重生点已在 spawnCircle / startSpectating 设到观战台;此处兜底恢复相机与望远镜)
+  world.afterEvents.playerSpawn.subscribe((event) => {
+    if (event.initialSpawn) return;
+    const player = event.player;
+    const roomId = runtime.roomIdFromDimension(player.dimension.id);
+    if (roomId === undefined) return;
+    const state = games.get(roomId);
+    if (!state || !state.spectators.has(player.id)) return;
+    if (runtime.getPhase(roomId) !== "running") return;
+    const targetId = state.spectators.get(player.id);
+    const target = targetId
+      ? runtime.roomPlayers(roomId).find((p) => p.id === targetId)
+      : undefined;
+    startSpectating(
+      runtime,
+      roomId,
+      player,
+      target,
+      getHungerGameConfig().spectateSpot,
+    );
   });
 
   // 物资箱热刷新(打开瞬间填充;阶段1禁止开箱)
