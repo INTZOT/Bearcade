@@ -98,15 +98,13 @@ export class GameManager {
     mainScoreboard.addColumn('team_name', '§f你的队伍: {team}', {
       team: (player) => {
         const team = this.teamManager.getTeamOfPlayer(player.id);
-        if (!team) return '§7无';
-        const name = `${getColorCode(team.color)}${team.name}§r`;
-        return name;
+        return team ? team.getDisplayName() : '§7无';
       }
     });
     mainScoreboard.addColumn('team_score', '§f得分情况: \n{score}', {
       score: () => {
         return this.teamManager.getAllTeams()
-          .map(team => `${getColorCode(team.color)}${team.name}§r: ${team.score}`)
+          .map(team => `${team.getDisplayName()}: ${team.score}`)
           .join('\n');
       }
     });
@@ -344,7 +342,7 @@ export class GameManager {
         : undefined;
       const logo = getFlagUnicode(team?.color ?? 'white');
 
-      return { team: team ? team.name : '未知', logo: logo };
+      return { team: team ? team.getDisplayName() : '未知', logo: logo };
     });
 
     floatingTextManager.create('flag_recovery', {
@@ -533,7 +531,7 @@ export class GameManager {
   private checkWin(): void {
     const team = this.teamManager.checkWinCondition(config.maxScore);
     if (team) {
-      this.sendMessage(`${team.name} 获得胜利！`);
+      this.sendMessage(`${team.getDisplayName()} 获得胜利！`);
       this.end();
       return;
     }
@@ -796,7 +794,7 @@ export class GameManager {
       for (const flag of flags) {
         if (flag.carrier && flag.carrier.uuid === player.id) {
           flag.drop(player.location);
-          this.sendMessage(`${this.teamManager.getTeam(flag.teamId)?.name} 的旗帜已掉落！`)
+          this.sendMessage(`${this.teamManager.getTeam(flag.teamId)?.getDisplayName() ?? '未知'} 的旗帜已掉落！`)
           break;
         }
       }
