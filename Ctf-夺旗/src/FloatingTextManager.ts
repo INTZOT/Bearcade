@@ -297,6 +297,21 @@ class FloatingTextManager {
     }
 
     /**
+     * 获取指定 id 当前绑定到的所有实体（供外部对比实际显示与期望显示）
+     * @param id 文本标识符
+     * @returns 实体数组
+     */
+    public getBoundEntities(id: string): Entity[] {
+        const result: Entity[] = [];
+        for (const instance of this.instances.values()) {
+            if (instance.id === id && instance.entity) {
+                result.push(instance.entity);
+            }
+        }
+        return result;
+    }
+
+    /**
      * 获取指定 id 的第一个 TextPrimitive 原始实例（谨慎使用，直接操作可能破坏管理状态）
      * @param id 文本标识符
      * @returns TextPrimitive 实例或 undefined
