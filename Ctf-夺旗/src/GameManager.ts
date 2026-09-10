@@ -360,6 +360,19 @@ export class GameManager {
       return { time: Math.ceil((flag?.dropTimer ?? 0) / 20), logo };
     });
 
+    floatingTextManager.create('flag_home', {
+      text: '{logo}{team}的旗帜',
+      offset: { x: 0, y: 3, z: 0 }
+    }, (entity) => {
+      if (!entity) return { team: '§f未知', logo: getFlagUnicode('white') };
+      const flag = this.flagManager.getAllFlags().find(
+        (f) => f.state === FlagState.HOME && f.flagEntity?.id === entity.id
+      );
+      const team = flag ? this.teamManager.getTeam(flag.teamId) : undefined;
+      const logo = getFlagUnicode(team?.color ?? 'white');
+      return { team: team ? team.getDisplayName() : '§f未知', logo };
+    });
+
     this.initialized = true;
     this.gamestate = GameState.WAITING;
   }
@@ -567,6 +580,22 @@ export class GameManager {
     for (const entity of floatingTextManager.getBoundEntities('flag_recovery')) {
       if (!droppedEntities.has(entity.id)) {
         floatingTextManager.remove('flag_recovery', entity);
+      }
+    }
+
+    // 3. 在家旗帜头顶的归属信息：仅 HOME 状态时显示
+    const homeEntities = new Set<string>();
+    for (const flag of flags) {
+      if (flag.state !== FlagState.HOME) continue;
+      if (!flag.flagEntity?.isValid) continue;
+      homeEntities.add(flag.flagEntity.id);
+      floatingTextManager.bindToEntity('flag_home', flag.flagEntity);
+      floatingTextManager.show('flag_home', flag.flagEntity);
+    }
+    // 旗帜被夺取或掉落（实体被移除/替换）时移除残留实例
+    for (const entity of floatingTextManager.getBoundEntities('flag_home')) {
+      if (!homeEntities.has(entity.id)) {
+        floatingTextManager.remove('flag_home', entity);
       }
     }
   }
