@@ -10,7 +10,8 @@ import { ShopManager } from './ShopManager';
 import { TeamManager } from './TeamManager';
 import { Timer } from './Timer';
 import { FlagState, GameState, PlayerState, Vector3 } from './types';
-import { distance, getColorCode } from './utils';
+import { distance, getColorCode, getFlagUnicode } from './utils';
+import { floatingTextManager } from './FloatingTextManager';
 
 type TNTFuses = {
   location: Vector3;
@@ -83,7 +84,7 @@ export class GameManager {
       // 重置玩家名称标签颜色
       const mcPlayer = player?.getPlayer();
       if (mcPlayer) {
-          mcPlayer.nameTag = mcPlayer.name;
+        mcPlayer.nameTag = mcPlayer.name;
       }
     });
   }
@@ -329,6 +330,36 @@ export class GameManager {
       return true;
     });
 
+    floatingTextManager.create('flag_carrier', {
+      text: '{logo}已夺取{team}的旗帜！',
+      offset: { x: 0, y: 2.6, z: 0 }
+    }, (entity) => {
+      if (!entity) return { team: '未知', logo: '§l§e无' };
+
+      const carriedFlag = this.flagManager.getAllFlags().find(
+        (flag) => flag.state === FlagState.CARRIED && flag.carrier?.uuid === entity.id
+      );
+      const team = carriedFlag
+        ? this.teamManager.getTeam(carriedFlag.teamId)
+        : undefined;
+      const logo = getFlagUnicode(team?.color ?? 'white');
+
+      return { team: team ? team.name : '未知', logo: logo };
+    });
+
+    floatingTextManager.create('flag_recovery', {
+      text: '{logo}§e{time}秒后回城',
+      offset: { x: 0, y: 3, z: 0 }
+    }, (entity) => {
+      if (!entity) return { time: 0, logo: '§l§e无' };
+      const flag = this.flagManager.getAllFlags().find(
+        (f) => f.state === FlagState.DROPPED && f.flagEntity?.id === entity.id
+      );
+      const team = flag ? this.teamManager.getTeam(flag.teamId) : undefined;
+      const logo = getFlagUnicode(team?.color ?? 'white');
+      return { time: Math.ceil((flag?.dropTimer ?? 0) / 20), logo };
+    });
+
     this.initialized = true;
     this.gamestate = GameState.WAITING;
   }
@@ -344,6 +375,7 @@ export class GameManager {
 
     // 1. 初始化队伍
     this.teamManager.initialize(config.teams);
+    floatingTextManager.initialize(runtime.roomDim(roomId));
 
     // 2. 创建旗帜
     for (const teamCfg of config.teams) {
@@ -422,7 +454,7 @@ export class GameManager {
 
   end(): void {
     if (this.gamestate !== GameState.RUNNING) return;
-    
+
     this.gamestate = GameState.ENDING;
 
     try {
@@ -434,6 +466,7 @@ export class GameManager {
       this.teamManager.resetTeams();
       this.playerManager.clear();
       this.shopManager.removeShopEntity();
+      floatingTextManager.removeAll();
       this.runtime?.endGame(this.roomId!, '游戏结束');
     } catch (error) {
       console.error('游戏结束时发生错误：', error);
@@ -446,16 +479,19 @@ export class GameManager {
     const start = Date.now();
 
     if (this.gamestate !== GameState.RUNNING) return;
+    // TODO 处理玩家离线
 
     this.scoreboardManager?.updateAll();
     this.flagManager.updateAll();
     this.checkCaptures();
     this.checkScore();
+    this.handleTextDesplay();
     this.processWaterDamage();
     this.handlePlayerRespawn();
     this.handleRegeneration();
     this.updateTntFuses();
     this.naturalMoney();
+    floatingTextManager.updateTextForAll();
     this.checkWin();
 
     this.timeStamp += 2;
@@ -488,10 +524,50 @@ export class GameManager {
       this.end();
       return;
     }
-    if (this.timeStamp / 20  >= config.matchTime) {
+    if (this.timeStamp / 20 >= config.matchTime) {
       this.sendMessage(`游戏结束，平局！`);
       this.end();
       return;
+    }
+  }
+  
+  /**
+   * 悬浮字显示逻辑
+   */
+  handleTextDesplay(): void {
+    const flags = this.flagManager.getAllFlags();
+
+    // 1. 夺旗者头顶信息：仅旗帜处于被携带状态时显示
+    const carriers = new Set<string>();
+    for (const flag of flags) {
+      if (flag.state !== FlagState.CARRIED || !flag.carrier) continue;
+      const mcPlayer = flag.carrier.getPlayer();
+      if (!mcPlayer?.isValid) continue;
+      carriers.add(mcPlayer.id);
+      floatingTextManager.bindToEntity('flag_carrier', mcPlayer);
+      floatingTextManager.show('flag_carrier', mcPlayer);
+    }
+    // 已不再携带旗帜（得分、死亡掉落、离线等）的实例移除显示
+    for (const entity of floatingTextManager.getBoundEntities('flag_carrier')) {
+      if (!carriers.has(entity.id)) {
+        floatingTextManager.remove('flag_carrier', entity);
+      }
+    }
+
+    // 2. 掉落旗帜头顶的回城倒计时：仅掉落状态时显示
+    const droppedEntities = new Set<string>();
+    for (const flag of flags) {
+      if (flag.state !== FlagState.DROPPED) continue;
+      if (!flag.flagEntity?.isValid) continue;
+      droppedEntities.add(flag.flagEntity.id);
+      floatingTextManager.bindToEntity('flag_recovery', flag.flagEntity);
+      floatingTextManager.show('flag_recovery', flag.flagEntity);
+    }
+    // 旗帜被拾取或已回城（实体被移除/替换）时移除残留实例
+    for (const entity of floatingTextManager.getBoundEntities('flag_recovery')) {
+      if (!droppedEntities.has(entity.id)) {
+        floatingTextManager.remove('flag_recovery', entity);
+      }
     }
   }
 
@@ -679,7 +755,7 @@ export class GameManager {
       if (attacker) {
         this.playerManager.getOrCreatePlayer(attacker).onKill();
         this.playerManager.getOrCreatePlayer(attacker).addEconomy(config.economy.killReward);
-        
+
         const attackerHealth = attacker.getComponent(EntityComponentTypes.Health) as EntityHealthComponent;
         attackerHealth?.setCurrentValue(attackerHealth.currentValue + config.killRestoration);
 
@@ -795,7 +871,7 @@ export class GameManager {
         }
         if (alreadyCarrying) continue;
 
-        // 尝试拾取（Flag.pickup 内部会处理状态变更与实体清理）
+        // 尝试拾取（Flag.pickup 内部会处理状态变更与实体清理，悬浮字由 handleTextDesplay 统一显示）
         const success = flag.pickup(ctfPlayer, true);
         if (success) {
           this.sendMessage(`${mcPlayer.nameTag} 拾取了 ${this.teamManager.getTeam(flag.teamId)?.name} 的旗帜！`)
