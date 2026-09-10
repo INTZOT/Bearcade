@@ -371,6 +371,15 @@ export class GameManager {
       return { team: team ? team.getDisplayName() : '§f未知', logo };
     });
 
+    floatingTextManager.create('tnt_fuse', {
+      text: '§c{time}秒后爆炸',
+      offset: { x: 0, y: 2, z: 0 }
+    }, (entity) => {
+      if (!entity) return { time: 0 };
+      const fuse = this.tntFuses.find((f) => f.entity.id === entity.id);
+      return { time: Math.ceil(Math.max(fuse?.remainingTicks ?? 0, 0) / 20) };
+    });
+
     this.initialized = true;
     this.gamestate = GameState.WAITING;
   }
@@ -594,6 +603,21 @@ export class GameManager {
     for (const entity of floatingTextManager.getBoundEntities('flag_home')) {
       if (!homeEntities.has(entity.id)) {
         floatingTextManager.remove('flag_home', entity);
+      }
+    }
+
+    // 4. TNT 头顶的爆炸倒计时：所有引信倒计时中的 TNT 实体
+    const tntEntities = new Set<string>();
+    for (const fuse of this.tntFuses) {
+      if (!fuse.entity.isValid) continue;
+      tntEntities.add(fuse.entity.id);
+      floatingTextManager.bindToEntity('tnt_fuse', fuse.entity);
+      floatingTextManager.show('tnt_fuse', fuse.entity);
+    }
+    // TNT 已爆炸或被清理时移除残留实例
+    for (const entity of floatingTextManager.getBoundEntities('tnt_fuse')) {
+      if (!tntEntities.has(entity.id)) {
+        floatingTextManager.remove('tnt_fuse', entity);
       }
     }
   }
