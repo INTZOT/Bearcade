@@ -1,5 +1,4 @@
 import { Entity, VanillaEntityIdentifier } from '@minecraft/server';
-import { MinecraftEntityTypes } from '@minecraft/vanilla-data';
 import { config } from './config';
 import { CTFPlayer } from './CTFPlayer';
 import { GameManager } from './GameManager';

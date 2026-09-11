@@ -1,6 +1,5 @@
 import { Player, ItemStack, Entity, VanillaEntityIdentifier } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
-import { MinecraftEntityTypes } from "@minecraft/vanilla-data";
 import { GameManager } from "./GameManager";
 import { CTFEnityTypes, Vector3 } from "./types";
 
