@@ -1,9 +1,9 @@
-import { Entity } from '@minecraft/server';
+import { Entity, VanillaEntityIdentifier } from '@minecraft/server';
 import { MinecraftEntityTypes } from '@minecraft/vanilla-data';
 import { config } from './config';
 import { CTFPlayer } from './CTFPlayer';
 import { GameManager } from './GameManager';
-import { Vector3, FlagState } from './types';
+import { Vector3, FlagState, CTFEnityTypes } from './types';
 import { generateUUID } from './utils';
 
 /**
@@ -102,7 +102,7 @@ export class Flag {
    */
   private spawnFlagEntity(): void {
     if (this.flagEntity?.isValid) return;
-    this.flagEntity = GameManager.getInstance().spawnEntity(MinecraftEntityTypes.ArmorStand, this.position);
+    this.flagEntity = GameManager.getInstance().spawnEntity(CTFEnityTypes.Flag as VanillaEntityIdentifier, this.position);
     this.flagEntity.nameTag = `${this.teamId}的旗帜`;
   }
 }

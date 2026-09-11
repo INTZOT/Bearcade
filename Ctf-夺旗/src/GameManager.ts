@@ -1,5 +1,5 @@
 import { Dimension, Entity, EntityComponentTypes, EntityDamageCause, EntityHealthComponent, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
-import { MinecraftEffectTypes, MinecraftEntityTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
+import { MinecraftEffectTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
 import { MinigameRuntime } from '../../shared/minigame-core/runtime';
 import { config, PREP_SPAWN } from './config';
 import { CTFPlayer } from './CTFPlayer';
@@ -9,7 +9,7 @@ import { ScoreboardManager } from './ScoreboardManager';
 import { ShopManager } from './ShopManager';
 import { TeamManager } from './TeamManager';
 import { Timer } from './Timer';
-import { FlagState, GameState, PlayerState, Vector3 } from './types';
+import { CTFEnityTypes, FlagState, GameState, PlayerState, Vector3 } from './types';
 import { distance, getColorCode, getFlagUnicode } from './utils';
 import { floatingTextManager } from './FloatingTextManager';
 
@@ -674,7 +674,7 @@ export class GameManager {
    * @param placer 放置者的 UUID
    */
   public scheduleTntExplosion(location: Vector3, placer: Player): void {
-    const entity = this.spawnEntity(MinecraftEntityTypes.ArmorStand, location);
+    const entity = this.spawnEntity(CTFEnityTypes.TNT as VanillaEntityIdentifier, location);
     entity.nameTag = 'TNT';
     this.tntFuses.push({
       location: { ...location },

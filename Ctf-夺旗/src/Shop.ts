@@ -1,8 +1,8 @@
-import { Player, ItemStack, Entity } from "@minecraft/server";
+import { Player, ItemStack, Entity, VanillaEntityIdentifier } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 import { MinecraftEntityTypes } from "@minecraft/vanilla-data";
 import { GameManager } from "./GameManager";
-import { Vector3 } from "./types";
+import { CTFEnityTypes, Vector3 } from "./types";
 
 export interface ShopItem {
   tag: string;
@@ -49,7 +49,8 @@ export class Shop {
 
   spawnShopEntity(location: Vector3): void {
     const gameManager = GameManager.getInstance();
-    const entity = gameManager.spawnEntity(MinecraftEntityTypes.ArmorStand, location);
+    const entity = gameManager.spawnEntity(CTFEnityTypes.Shop as VanillaEntityIdentifier, location);
+    entity.nameTag = this.title;
     this.shopEntity.set(entity.id, entity);
   }
 

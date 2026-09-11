@@ -1,0 +1,18 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bearcade:ctf_shop",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/bearcade_ctf_shop" },
+      "geometry": { "default": "geometry.bearcade_ctf_shop" },
+      "animations": {
+        "look_at_target": "animation.common.look_at_target"
+      },
+      "scripts": {
+        "animate": ["look_at_target"]
+      },
+      "render_controllers": ["controller.render.default"]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bearcade:ctf_tnt",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/bearcade_ctf_tnt" },
+      "geometry": { "default": "geometry.bearcade_ctf_tnt" },
+      "render_controllers": ["controller.render.default"]
+    }
+  }
+}
