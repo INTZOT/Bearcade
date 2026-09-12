@@ -1,5 +1,6 @@
 import { system, ScriptEventSource } from "@minecraft/server";
 import {
+  CORE_PACK_ID,
   IPC_CHANNEL,
   type IpcEnvelope,
   type RegisterPayload,
@@ -58,6 +59,7 @@ export function initIpc(registry: GameRegistry): void {
       case "game.quit":
       case "game.config":
       case "game.debug":
+      case "game.register_request":
       case "party.mode":
         break;
       default:
@@ -65,6 +67,27 @@ export function initIpc(registry: GameRegistry): void {
         break;
     }
   });
+}
+
+/**
+ * worldLoad 后主动广播一次"重注册请求":兜底游戏包的 game.register 早于 Core 订阅
+ * 而丢失的极端情况(此时该游戏本次会话不会出现在菜单,直到世界重载)。
+ * 共享运行时收到该请求会重发 game.register;Core 侧 upsertGame 幂等,
+ * 重复注册不会重置已有房间状态。
+ */
+export function requestGameRegistration(): void {
+  try {
+    system.sendScriptEvent(
+      IPC_CHANNEL,
+      JSON.stringify({
+        op: "game.register_request",
+        packId: CORE_PACK_ID,
+        payload: {},
+      }),
+    );
+  } catch (error) {
+    console.warn("[Bearcade Core] 请求游戏重注册失败", error);
+  }
 }
 
 function handleRegister(

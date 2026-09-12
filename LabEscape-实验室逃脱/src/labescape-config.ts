@@ -15,6 +15,10 @@ import {
   type LabEscapeConfig,
 } from "./config";
 
+/** 几何参数修改后必须重建模板地图并重新应用,否则对局坐标与地图错位 */
+const GEOMETRY_CHANGED_HINT =
+  "§e注意:地图几何参数已修改,请重新生成模板地图(/labescape:build <数量>)并应用(/bearcade:tmp ap labescape),否则对局坐标与地图可能不一致";
+
 let cfg: LabEscapeConfig = { ...LABESCAPE_CONFIG_DEFAULTS };
 
 export function getLabEscapeConfig(): LabEscapeConfig {
@@ -98,6 +102,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.groundY = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: -60, max: 300, hint: "地面表面 Y;地面方块在 Y-1", back: backTo(player, runtime) },
         ),
@@ -112,6 +117,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.columnHeight = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 5, max: 100, hint: "柱子方块数量", back: backTo(player, runtime) },
         ),
@@ -126,6 +132,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.glassBottomOpenHeight = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 1, max: 10, hint: "玻璃从地面往上第几格开始围起", back: backTo(player, runtime) },
         ),
@@ -140,6 +147,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.centerPitRadius = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 1, max: 20, hint: "中央圆形坑半径", back: backTo(player, runtime) },
         ),
@@ -154,6 +162,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.centerPitDepth = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 1, max: 64, hint: "坑向下挖多少格", back: backTo(player, runtime) },
         ),
@@ -168,6 +177,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.centerEnterDepth = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 1, max: 64, hint: "玩家低于地面该深度即判定完成", back: backTo(player, runtime) },
         ),
@@ -182,6 +192,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.minRingRadius = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 8, max: 60, hint: "自动计算圆环半径时的下限", back: backTo(player, runtime) },
         ),
@@ -196,6 +207,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.columnSpacing = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 3, max: 10, hint: "相邻柱子中心沿圆弧的间隔", back: backTo(player, runtime) },
         ),
@@ -210,6 +222,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.ringRadiusOverride = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 0, max: 60, hint: "0 表示按柱子数量自动计算", back: backTo(player, runtime) },
         ),
@@ -252,6 +265,7 @@ export function openLabEscapeConfig(
           (value) => {
             cfg.maxPartyColumns = value;
             persist();
+            player.sendMessage(GEOMETRY_CHANGED_HINT);
           },
           { min: 2, max: 40, hint: "/labescape:build 允许生成的最大柱子数量", back: backTo(player, runtime) },
         ),

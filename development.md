@@ -28,6 +28,16 @@
 | `SND5-剑与消亡V/` | 小游戏包 | 剑与消亡V,骨架阶段,玩法待定 |
 | `Werewolf-天黑请闭眼/` | 小游戏包 | 天黑请闭眼,玩法已实现(6~10 人昼夜行动/投票/遗言,4 房/10 人/6 人开局,待载入附带场地结构) |
 | `pillars-幸运之柱/` | 小游戏包 | 幸运之柱,双环基岩柱大乱斗,玩法已实现(4 房/2~20 人,随机物品/最后存活/击杀结算) |
+| `Go-围棋/` | 小游戏包 | 围棋,19×19 棋盘、提子/劫/计时/计目,8 个房间 |
+| `CChess-中国象棋/` | 小游戏包 | 中国象棋,完整规则(将军/困毙/绝杀/记谱/求和/认输),8 个房间 |
+| `HungerGame-饥饿游戏/` | 小游戏包 | 饥饿游戏,FFA 六阶段大逃杀,2 个房间(512² 死场景,`tileWindowed` + `resetRoomsOnLoad:false`) |
+| `Knockback-击退战/` | 小游戏包 | 击退战,中央高台得分 + 强/中/弱击退木棍,4 个房间 |
+| `LabEscape-实验室逃脱/` | 小游戏包 | 实验室逃脱,圆环挖柱竞速,4 个房间 |
+| `Mahjong-麻将/` | 小游戏包 | 麻将,牡丹江麻将已实现(吃碰杠听胡、宝牌/换宝、计分、流局/下一局、离线托管) |
+| `FrozenFloor-冰冻地板/` | 小游戏包 | 冰冻地板,环形蓝冰场雪球互怼 + 地板每 30 秒融化收缩,4 个房间(`/bearcade:ffbuild` 建图) |
+| `Ctf-夺旗/` | 小游戏包 | 夺旗,红蓝两队夺旗 + 经济与商店 + TNT/搭桥,2 个房间(场地坐标仍为模板占位值,待建) |
+| `NewYearPig-杀年猪/` | 小游戏包 | 杀年猪,45×45 地皮限时刷动物击杀得分,4 个房间(`/bearcade:newyearpig_buildmap` 建地皮) |
+| `Studio-工作室/` | 小游戏包 | 工作室,7 回合合成交付 + 货架原材料 + 前三名得分,2 个房间(`/studio:build` 建图) |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 | `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,屏幕右侧垂直居中的每玩家独立记分板 |
 
@@ -39,7 +49,7 @@
 
   | 目录 | 内容 | 说明 |
   | --- | --- | --- |
-  | `entities/` | 自定义实体定义 | 示例:BridgeWar 的 `entities/bearcade_loadout_dummy.json`(装备仓库实体) |
+  | `entities/` | 自定义实体定义 | 示例:BridgeWar 的 `entities/bridgewar_loadout_dummy.json`(装备仓库实体) |
   | `items/` | 自定义物品 | — |
   | `blocks/` | 自定义方块 | — |
   | `Cameras/` | 相机预设 | 注意目录名必须大写 `Cameras`/`Presets`;示例:Collapse 的 `Cameras/Presets/spectate.json` |
@@ -161,6 +171,16 @@ bearcade:gomoku_template
 | SND5 | 2 | `bearcade:snd5_1` ~ `bearcade:snd5_2` |
 | Werewolf | 4 | `bearcade:werewolf_1` ~ `bearcade:werewolf_4` |
 | Pillars | 4 | `bearcade:pillars_1` ~ `bearcade:pillars_4` |
+| Go | 8 | `bearcade:go_1` ~ `bearcade:go_8` |
+| Mahjong | 8 | `bearcade:mahjong_1` ~ `bearcade:mahjong_8` |
+| CChess | 8 | `bearcade:cchess_1` ~ `bearcade:cchess_8` |
+| HungerGame | 2 | `bearcade:hungergame_1` ~ `bearcade:hungergame_2` |
+| Knockback | 4 | `bearcade:knockback_1` ~ `bearcade:knockback_4` |
+| LabEscape | 4 | `bearcade:labescape_1` ~ `bearcade:labescape_4` |
+| FrozenFloor | 4 | `bearcade:frozenfloor_1` ~ `bearcade:frozenfloor_4` |
+| Ctf | 2 | `bearcade:ctf_1` ~ `bearcade:ctf_2` |
+| NewYearPig | 4 | `bearcade:newyearpig_1` ~ `bearcade:newyearpig_4` |
+| Studio | 2 | `bearcade:studio_1` ~ `bearcade:studio_2` |
 | Template | 2 | `bearcade:mygame_1` ~ `bearcade:mygame_2` |
 
 ### 3.4 向 Core 上报状态
@@ -269,7 +289,7 @@ Core 提供自定义命令 `/bearcade:lobby`:任意维度下传送回大厅(主�
 
 Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC 打开对应游戏的配置界面。
 
-- 配置界面**只负责游戏运行时配置**,不包含最小人数/最大人数/房间数(这些由包内 `config.ts` 决定);
+- 配置界面**只负责游戏运行时配置**,不包含最小人数/房间数(这些由包内 `config.ts` 决定);最大人数一般不开放配置,例外是**实验室逃脱**(普通/派对最大人数)与**工作室**(普通模式最大人数),改动即时生效并重新上报 Core;
 - 每个游戏的可配置项由开发者自行控制,通过 `MinigameHooks.openConfig` 实现(未实现时提示"该游戏未提供配置界面");
 - 配置保存到动态属性 `bearcade:config_<gameid>`,持久化优先于代码默认值;界面提供"恢复默认";
 - 修改 `prepSpawn` 后会自动重新向 Core 注册,入房落点即时生效;
@@ -279,7 +299,19 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
   - 急速战桥:准备房间坐标、地图边界、红/蓝队出生点、红/蓝队核心区、获胜所需分数。
   - 急速战桥装备:红/蓝方装备配置(通过模板维度内自定义实体保存玩家全套物品,开局/复活自动覆盖)。
   - 猪猪争夺战:准备房间坐标、地图边界、猪刷新点、初始猪数/刷新数量/刷新间隔、游戏时长、核心区吸引半径/强度、四队出生点与核心区、四队装备配置;
-  - 豆腐渣地板:准备房间坐标、场地中心、顶层地板 Y、场地大小、PVP 开启延迟、塌陷阶段时长、虚空淘汰高度、观战玩家位置。
+  - 豆腐渣地板:准备房间坐标、场地中心、顶层地板 Y、场地大小、PVP 开启延迟、塌陷阶段时长、虚空淘汰高度、观战玩家位置;
+  - 天黑请闭眼:准备房间坐标、狙击手/守卫/杀手/警察行动时间、白天讨论投票时间;
+  - 幸运之柱:游戏时长、发物品间隔、内/外环柱子数与半径、柱子高度、地面 Y、搭建高度上下限;
+  - 击退战:准备房间坐标、场地中心、普通/1.5 倍得分区半径、外围半径、高台/地面 Y、游戏时长、木棍刷新间隔、中/强力木棍数量;
+  - 实验室逃脱:准备房间坐标、普通/派对最大人数、地图几何(地面 Y/柱高/塌陷区)、游戏时长、第一名后倒计时、派对最大柱子数;
+  - 围棋:准备房间坐标、棋盘位置、黑/白方开局坐标、黑贴目、每方局时、俯瞰高度;
+  - 中国象棋:准备房间坐标、棋盘位置、红/黑方开局坐标、俯瞰高度、每方局时;
+  - 饥饿游戏:准备房间坐标、各阶段时长、出生等分圆/死斗场、扣血保底、观战台位置、四级物资池管理;
+  - 麻将:准备房间坐标、场地 Y 与 X/Z 范围、骰子按钮位置、四个座位坐标、牌垛/手牌/副露/牌河的距离与每行数量;
+  - 冰冻地板:准备房间坐标、场地中心、蓝冰环顶部 Y、内/外圈半径、融化间隔/动画时长/次数、每轮收缩与扩张格数、虚空淘汰高度、雪球击退强度与每格雪球数量、观战位置、装饰开关;
+  - 杀年猪:准备房间坐标、地图原点/边长、一局时长、开局动物数/生成间隔/每批数量/人数加成/场上上限、-50% 动物概率、受惊逃跑秒数与冲量、动物分值、生成权重、特殊事件;
+  - 工作室:准备房间坐标、普通模式最大人数、总回合数、单回合超时、第一名后等待、前三名得分、地面 Y、默认场地尺寸、题库管理、原材料列表;
+  - 未接入配置界面:**夺旗**、**剑与消亡V**(执行 `/bearcade:config` 会提示"该游戏未提供配置界面")。
 - **对局中禁止修改**:存在运行中/倒计时对局时,配置界面拒绝打开(共享运行时 `hasActiveGame` 守卫)。
 
 调试命令:`/bearcade:debug <gamename|all> enable|disable`(管理员)经 `game.debug` IPC 显式开启/关闭该游戏的调试日志;`all` 时 Core 会批量下发到全部已注册游戏(共享运行时统一管理;旧 `/bearcade:gnb_debug` 已移除)。
@@ -308,9 +340,9 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
 - **不使用全局 Sidebar**:`DisplaySlotId.Sidebar` 全服唯一,多房间/多游戏会互相覆盖。所有小游戏不再调用 `setObjectiveAtDisplaySlot`,也不在 reset 时 `clearObjectiveAtDisplaySlot`。
 - **数据源仍是 scoreboard objective**:每房间独立 objective(如 `bearcade:gnb_score_1`),真实玩家用玩家身份写分,队伍分用假玩家名(如 `bw_r1`)。写分统一走 `shared/minigame-core/scoreboardHud.ts` 的 `setObjectiveScore`,内部缓存 `ScoreboardIdentity`,避免 `setScore(字符串)` 反复创建假玩家身份。
 - **显示通道是 `player.setTitle` + rawtext score**:`hudMessage([...scoreToken(name, objectiveId)...])` 把分数 token 注入每位玩家自己的 title;title 是每玩家实例,天然按房间隔离。
-- **JSON UI 负责排版**:每个 `<游戏>/resource-pack/ui/hud_screen.json` 是**完整原版 hud_screen 副本**,仅修改 `hud_title_text` 控件(实测同名控件小文件会按属性合并并报 `Unknown property`);标题绑定仍为 `#hud_title_text_string`,资源包目录与行为包目录一一对应。
+- **JSON UI 负责排版**:接入该方案的 `<游戏>/resource-pack/ui/hud_screen.json` 是**完整原版 hud_screen 副本**,仅修改 `hud_title_text` 控件(实测同名控件小文件会按属性合并并报 `Unknown property`);标题绑定仍为 `#hud_title_text_string`,资源包目录与行为包目录一一对应。当前接入:BridgeWar、Collapse、Ctf、FrozenFloor、Gomoku、GuessNBuild、HungerGame、LabEscape、Mahjong、NewYearPig、PigCatcher、SND5、Studio、Template;Go/CChess/Werewolf 用 actionbar 呈现信息,pillars 无配对资源包,Knockback 无记分板 HUD(只用 title 做倒计时,故**不放** `hud_screen.json`,否则倒计时 title 会被重排版成记分板)。
 - **集成约定**:`config/packs.json` 中每个资源包条目 `type: "resource"`,其 `dir` 指向 `<游戏>/resource-pack`(`gomoku_hud` ↔ `Gomoku-五子棋/resource-pack` 等);`build.mjs` 只为行为包跑 esbuild;`package.mjs` 把 `ui/` 打入独立 `<gameid>_hud.mcpack` 并并入 `bearcade.mcaddon`;`deploy.mjs` 把行为包部署到 `development_behavior_packs`,配对资源包还原为 `<游戏>-资源包` 后部署到相邻的 `development_resource_packs`(可用 `MC_DEV_RESOURCE_PACKS` 覆盖);指定任一行为包 ID 会自动带上配对 `_hud` 资源包。
-- 所有小游戏结束时在 `onBeforeReset` 调用 `clearHudTitle`;Core 玩家回大厅时也兜底清 title/actionbar/camera。
+- 接入记分板 HUD 的小游戏在结束时于 `onBeforeReset` 调用 `clearHudTitle`;Core 玩家回大厅时也兜底清 title/actionbar/camera。
 
 ## 5. 通信协议规范
 
@@ -393,7 +425,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 操作码 | 触发命令 | 载荷 |
 | --- | --- | --- |
 | `game.tp` | `/bearcade:tmp tp <gamename>` | `{ game, playerId }` 传送到模板维度 |
-| `game.apply` | `/bearcade:tmp ap <gamename>` | `{ game }` 应用模板到全部房间 |
+| `game.apply` | `/bearcade:tmp ap <gamename>` | `{ game, playerId }` 应用模板到全部房间(执行者用于回执提示) |
 | `game.sz` | `/bearcade:tmp sz <gamename>` | `{ game, playerId }` 打开模板范围配置表单 |
 | `game.quit` | `/bearcade:quit`(在房间维度执行) | `{ game, dimensionId }` 强制中止指定维度对局 |
 | `party.mode` | `/bearcade:party`(Core 广播) | `{ enabled }` 通知游戏包派对模式开关(游戏包侧按 §4.5 调整倒计时) |
@@ -558,3 +590,15 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-08-16 | Werewolf 修复:只禁移动不禁镜头/点击(可面向摄影机);相机机位左收 1 格;遗言表单被聊天框顶掉后可用「写遗言」物品重开;修复结束 resetting 时 session 提前删除导致上局浮空字残留;白天投票改表单(票数浮空字显示投票者);身份牌下移到 y+1.5 |
 | 2026-08-16 | Werewolf 夜间行动(狙击手/守卫/杀手/警察)改表单;所有存活玩家背包被触发物品占满(非行动者点击提示);夜间选择标记按角色可见(狙击手/守卫仅自己,杀手/警察含队友) |
 | 2026-08-16 | Werewolf 新增调试指令 `/bearcade:ww5`(5 人可开局,5 人配置少 1 平民,持久化);开局身份用 Title+Subtitle 告知目标与队友 |
+| 2026-08-22 | 全面审计与修复:共享层 `announce` 逐玩家容错(结算不再因单玩家断线卡死)、`finishReset` 统一清 actionbar;HungerGame 修复 restricted 上下文填箱失败/断线幽灵导致对局永不结束/物资箱状态跨局泄漏(中心箱等级改为按维度隔离并新增 `resetChestState`);Pillars 与 LabEscape 移除全局 `minPlayers=1` 污染(改 `endGameWhenBelowMin:false` + 玩法自收尾);CChess 求和等待 30 秒自动失效(防对方 AFK 整局停摆);BridgeWar 红蓝出生点移出己方核心区(x=∓12,防"回出生点"逻辑反复触发);`watch` 跳过不存在的 `ui/` 目录并对监听中断容错;README/development.md/packs.json 同步补齐 围棋/中国象棋/饥饿游戏/击退战/实验室逃脱 五包(目录表、房间数表、配置项、状态描述) |
+| 2026-08-22 | 大面积修复与清理(第二轮):CChess 走子/认输/求和三入口校验本局玩家;Gomoku 俯瞰落子延迟 system.run(不再 restricted 读原生);Knockback 按实际人数动态等分圆出生点;Werewolf 表单提交校验阶段+幕数(openedPhase/openedRound 防跨轮)、最大幕数 MAX_NIGHTS=8 平局兜底、全员离场中止不判阵营;LabEscape canBreak 只能挖自己柱子;Pillars 配置对局中禁改(hasActiveGame 守卫)、onBeforeReset 清物品/恢复模式、时间到按击杀排序、边界收紧到草地面半径(消除虚空带)、柱位不足警告、canPlace/canBreak 用开局配置快照;Toolkit /cis 附魔解析支持 minecraft:sharpness 5、公告维度不可用时兜底主世界;CChess 求和旧表单迟到响应加固(offerDeadline) |
+| 2026-08-22 | 低危清理批(第三轮):移除共享层死字段 startPositions(全 14 包)、objectiveKey、CChess AIM_ASSIST_*/CHESS_PIECE_IDS、Knockback STICK_*/START_POSITIONS、HungerGame POOL_SLOTS;configStore 加载时按默认值类型修复持久化数据(损坏字段回退/未知字段丢弃);endGame 立即上报 initializing(消除 3~5s 可加入窗口);applyTemplateToAllRooms 入队后二次校验(TOCTOU)并抽取 resetRoomsCore 防队列嵌套;新增 shared text.ts stripSectionCodes,12 个游戏包的玩家名拼接全部转义 § 格式码;修复 Go 终局确认 TDZ(引用未初始化的 player);development.md §4.6 修订最大人数例外说明 |
+| 2026-08-22 | 第四轮收尾:Werewolf 表单守卫补幕数比对(跨整轮防脏写入);Pillars 开局柱位与地图实测校验(基岩缺失拒绝开局并提示 /tmp ap);LabEscape 几何参数修改后提示重建模板地图、开局柱位实测校验;LabEscape 新增配对 HUD 资源包(labescape_hud,JSON UI 记分板);补删 Knockback/LabEscape 遗留死 START_POSITIONS;Werewolf README 补充最大幕数/全员离场说明 |
+| 2026-08-23 | 新增 Mahjong-麻将(牡丹江麻将:112 张牌、吃碰杠听胡、宝牌/换宝、计分、流局/下一局、离线托管、副露实体摆放;8 个房间) |
+| 2026-08-24 | 新增 FrozenFloor-冰冻地板(环形蓝冰场无限雪球、地板每 30 秒融化收缩、虚空淘汰与观战、最后存活者获胜;`/bearcade:ffbuild` 在模板维度建图) |
+| 2026-08-25~28 | 新增 Ctf-夺旗(红蓝两队夺旗、旗帜实体与掉落回城、经济与物品商店、TNT 放置爆炸、箭矢破坏方块、生命恢复与队友伤害拦截、计分板 HUD;场地坐标仍为模板占位值) |
+| 2026-08-29 | 新增 NewYearPig-杀年猪(45×45 地皮限时刷鸡/猪/羊、分值/生成权重/受惊逃跑可配、特殊事件与 -50% 动物;`/bearcade:newyearpig_buildmap` 建地皮)与 Studio-工作室(7 回合合成交付、货架原材料、工作台/熔炉即时烧炼、前三名得分、题库管理;`/studio:build` 建图) |
+| 2026-09-01 | Werewolf-天黑请闭眼 最终调整合入(表单守卫、浮空字与相机清理、README/工作记录补充) |
+| 2026-09-08 | 审查修复批次一:HungerGame 淘汰玩家死亡后回观战台并恢复 follow_orbit(设重生点 + playerSpawn 兜底)、物资池保存按容器较小值遍历(修复 54/36 越界抛错)、LabEscape 死亡恢复到柱顶(设重生点 + playerSpawn 兜底)、NewYearPig 配置移入 worldLoad 并回写 prepSpawn(修复重启后准备点失效) |
+| 2026-09-08 | 低危清理批次:BridgeWar 装备实体 id 规范为 `bearcade:bridgewar_loadout_dummy`(文件与文档同步)、删除 Werewolf 重复结构文件与 Knockback 未使用的 HUD 资源包 ui/、移除共享层未使用的 `beginPending`/`manualStart`、Core 注册表限制 roomCount/maxPlayers ≤64、新增 `game.register_request` 重注册兜底并让 `upsertGame` 幂等、过期判定由 `Date.now()` 改为 `system.currentTick`、Mahjong/Gomoku/Go 调试日志统一走 `runtime.dbg`、删除 Ctf 死代码(Timer/GlobalDataCache) |
+| 2026-09-08 | 文档同步:README 与本文档补齐 FrozenFloor/Ctf/NewYearPig/Studio 四包(当前状态、模块表、包目录表、房间数表)、§4.6 补四包配置项并修正"最大人数唯一例外"与配置接入数量、§5.4 修正 `game.apply` 载荷、§4.8 明确 JSON UI 记分板接入范围;修正 CChess/pillars/FrozenFloor/HungerGame/Mahjong 包内 README 与代码不符之处 |

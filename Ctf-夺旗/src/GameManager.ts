@@ -8,10 +8,8 @@ import { PlayerManager } from './PlayerManager';
 import { ScoreboardManager } from './ScoreboardManager';
 import { ShopManager } from './ShopManager';
 import { TeamManager } from './TeamManager';
-import { Timer } from './Timer';
-import { CTFEnityTypes, FlagState, GameState, PlayerState, Vector3 } from './types';
-import { distance, getColorCode, getFlagUnicode } from './utils';
-import { floatingTextManager } from './FloatingTextManager';
+import { FlagState, GameState, PlayerState, Vector3 } from './types';
+import { distance } from './utils';
 
 type TNTFuses = {
   location: Vector3;
@@ -564,7 +562,6 @@ export class GameManager {
     this.checkWin();
 
     this.timeStamp += 2;
-    Timer.update(2);
 
     this.tickDuration = Date.now() - start;
   }

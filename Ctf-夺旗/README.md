@@ -23,11 +23,9 @@ src/
 ├── ShopManager.ts          # 商店集合与实体查找
 ├── ScoreboardTemplate.ts   # 计分板模板（多列渲染）
 ├── ScoreboardManager.ts    # 玩家计分板显示管理
-├── Timer.ts                # 计时器（游戏刻驱动）
 ├── Counter.ts              # 通用计数器（暂未使用）
 ├── types.ts                # 共享类型定义
 ├── utils.ts                # 工具函数
-├── GlobalDataCache.ts      # 全局玩家缓存（暂无实际用途）
 ├── listener.ts             # 世界事件监听
 └── README.md               # 文档
 ```

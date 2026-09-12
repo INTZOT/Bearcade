@@ -20,6 +20,7 @@ import {
   type Player,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { clearHudTitle } from "../../shared/minigame-core/scoreboardHud";
 import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
@@ -226,12 +227,14 @@ function getStickSpawnPoints(): { x: number; y: number; z: number }[] {
   return points;
 }
 
-function getStartPositions(): { x: number; y: number; z: number }[] {
+/** 按实际人数生成等分圆出生点(派对模式忽略人数上限时也不会重叠) */
+function getStartPositions(count: number): { x: number; y: number; z: number }[] {
   const cfg = getKnockbackConfig();
   const radius = Math.max(cfg.outerRadius - 4, cfg.centerRadius + 2);
   const y = cfg.outerFloorY + 1;
-  return Array.from({ length: 8 }, (_, i) => {
-    const angle = (i / 8) * Math.PI * 2;
+  const n = Math.max(count, 1);
+  return Array.from({ length: n }, (_, i) => {
+    const angle = (i / n) * Math.PI * 2;
     return {
       x: cfg.arenaCenter.x + Math.round(Math.cos(angle) * radius),
       y,
@@ -629,7 +632,7 @@ function startRoom(
   };
   roomStates.set(roomId, state);
 
-  const startPositions = getStartPositions();
+  const startPositions = getStartPositions(players.length);
   players.forEach((player, index) => {
     giveStartStick(player);
     runtime.teleportPlayer(
@@ -699,7 +702,7 @@ function announceResults(roomId: number, runtime: MinigameRuntime): void {
   const players = runtime.roomPlayers(roomId);
   const entries = players
     .map((player) => ({
-      name: player.name,
+      name: stripSectionCodes(player.name),
       score: state.scores.get(player.id) ?? 0,
     }))
     .sort((a, b) => b.score - a.score);

@@ -96,9 +96,6 @@ export const SLOT_DRAW = 6;
 // 本版本自定义相机预设完全不加载,用内置 follow_orbit(默认半径 10,比原版第三人称略远)
 export const OVERHEAD_PRESET = "minecraft:follow_orbit";
 export const OVERVIEW_TAG = "bearcade_cchess_overview";
-export const AIM_ASSIST_PRESET = "bearcade:cchess_overview";
-export const AIM_ASSIST_CATEGORY = "bearcade:cchess_board";
-export const CHESS_PIECE_IDS = Object.values(PIECES);
 
 // ===== 运行时可配置项 =====
 export interface CChessConfig {

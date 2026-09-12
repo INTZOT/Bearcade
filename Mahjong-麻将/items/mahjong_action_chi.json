@@ -1,0 +1,14 @@
+{
+  "format_version": "1.21.60",
+  "minecraft:item": {
+    "description": {
+      "identifier": "mahjong:mahjong_action_chi",
+      "menu_category": {
+        "category": "equipment"
+      }
+    },
+    "components": {
+      "minecraft:icon": "chi"
+    }
+  }
+}

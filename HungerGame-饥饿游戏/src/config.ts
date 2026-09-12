@@ -35,7 +35,6 @@ export const CHEST_ITEM_MAX = 8;
 // ===== 物资池实体 =====
 export const POOL_ENTITY = "bearcade:hg_loot_pool"; // 隐形 inventory 容器实体(每房间每等级 1 个)
 export const POOL_LEVELS = 4;
-export const POOL_SLOTS = 27;
 export const POOL_ENTITY_Y = -60; // 房间维度地下(常加载区覆盖 xz)
 
 // ===== 观战 =====

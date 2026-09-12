@@ -52,10 +52,6 @@ export const TICKING_TO = { x: 12, y: 65, z: 12 };
 export const STRUCTURE_ID = "bearcade:collapse_room";
 export const TEMPLATE_SPAWN = { x: 0, y: 100, z: 0 };
 // 开局站位占位(实际按场地中心环形散开,见 game.ts)
-export const START_POSITIONS = [
-  { x: 0, y: 66, z: 0 },
-  { x: 0, y: 66, z: 2 },
-];
 
 // ===== 运行时可配置项(供 /bearcade:config 修改,持久化优先) =====
 export interface CollapseConfig {

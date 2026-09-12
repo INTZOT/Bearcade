@@ -1,7 +1,9 @@
 // ============================================================
-// 小游戏模板配置
-// 复制本包后,请全局替换 "ctf" 为你的游戏 ID(小写字母/数字/下划线),
-// 并修改 DISPLAY_NAME / ROOM_COUNT / MAX_PLAYERS / PACK_ID。
+// 夺旗(Ctf)配置
+// 玩法:红蓝两队夺旗对抗(旗帜掉落回城、经济与物品商店、TNT 与搭桥)。
+// 房间管理复用 shared/minigame-core,玩法实现在 src/game.ts。
+// 注意:下方"场地坐标"仍为模板占位值,需在模板维度建好场地后填写,
+//      或用 /bearcade:tmp sz ctf 表单配置,再 /bearcade:tmp ap ctf 应用。
 // ============================================================
 export const GAME_ID = "ctf";
 export const DISPLAY_NAME = "夺旗";

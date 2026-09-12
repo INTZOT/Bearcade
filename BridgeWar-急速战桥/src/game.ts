@@ -5,6 +5,7 @@ import {
   type Player,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import {
   clearHudTitle,
@@ -54,7 +55,7 @@ function teamColor(team: Team): string {
 /** 玩家名字染色:头顶名牌(nameTag)与聊天名字(chatNamePrefix/Suffix) */
 function setTeamName(player: Player, team?: Team): void {
   if (team) {
-    player.nameTag = `${teamColor(team)}${player.name}§r`;
+    player.nameTag = `${teamColor(team)}${stripSectionCodes(player.name)}§r`;
     player.chatNamePrefix = teamColor(team);
     player.chatNameSuffix = "§r";
   } else {
@@ -75,9 +76,9 @@ function playerName(
   roomId: number,
   playerId: string,
 ): string {
-  return (
+  return stripSectionCodes(
     runtime.roomPlayers(roomId).find((p) => p.id === playerId)?.name ??
-    playerId
+      playerId,
   );
 }
 
@@ -208,6 +209,14 @@ async function startRound(
   roomId: number,
   session: Session,
 ): Promise<void> {
+  // 阶段守卫:quit/强制中止后 phase 已离开 running(玩家已送回大厅),
+  // 已排队的回合开始必须跳过,否则会出现"空房回合开始"与重置竞态
+  if (
+    runtime.getPhase(roomId) !== "running" ||
+    sessions.get(roomId) !== session
+  ) {
+    return;
+  }
   try {
     clearFieldEntities(runtime, roomId);
     await runtime.resetRoom(roomId);

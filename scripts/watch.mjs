@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readFile, watch } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
@@ -9,13 +10,15 @@ const packsConfig = JSON.parse(
 
 // 监听目标从 config/packs.json 派生,新增游戏包无需手工维护本文件;
 // devkit 的过滤后 config 只含 core/template,监听也自动只覆盖存在的目录。
+// 部分资源包没有 ui/ 目录(如占位资源包),不存在则跳过,
+// 否则 fs.watch 迭代时抛 ENOENT 导致整个 watch 进程崩溃。
 const targets = [
   "config",
   "shared",
   ...packsConfig.packs.map((pack) =>
     pack.type === "resource" ? `${pack.dir}/ui` : `${pack.dir}/src`,
   ),
-];
+].filter((target) => existsSync(target));
 
 function runBuild() {
   return new Promise((resolve, reject) => {
@@ -62,7 +65,13 @@ const watchers = await Promise.all(
 );
 for (const watcher of watchers) {
   (async () => {
-    for await (const _ of watcher) {
+    try {
+      for await (const _ of watcher) {
+        requestRebuild();
+      }
+    } catch (error) {
+      // 监听目录在运行中被删除等异常只记录,不拖垮整个 watch 进程
+      console.error("watch:文件监听中断:", error);
       requestRebuild();
     }
   })();

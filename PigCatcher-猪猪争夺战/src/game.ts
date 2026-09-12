@@ -6,6 +6,7 @@ import {
   type Player,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import {
   clearHudTitle,
@@ -52,7 +53,7 @@ function teamOf(session: Session, playerId: string): Team | undefined {
 
 function setTeamName(player: Player, team?: Team): void {
   if (team) {
-    player.nameTag = `${TEAM_COLORS[team]}${player.name}§r`;
+    player.nameTag = `${TEAM_COLORS[team]}${stripSectionCodes(player.name)}§r`;
     player.chatNamePrefix = TEAM_COLORS[team];
     player.chatNameSuffix = "§r";
   } else {
@@ -67,9 +68,9 @@ function playerName(
   roomId: number,
   playerId: string,
 ): string {
-  return (
+  return stripSectionCodes(
     runtime.roomPlayers(roomId).find((p) => p.id === playerId)?.name ??
-    playerId
+      playerId,
   );
 }
 

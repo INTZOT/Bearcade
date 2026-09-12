@@ -64,7 +64,3 @@ export const TICKING_TO = { x: ARENA_MARGIN, y: 65, z: ARENA_MARGIN };
 export const STRUCTURE_ID = "bearcade:pillars_room";
 export const TEMPLATE_SPAWN = { x: 0, y: 30, z: 0 };
 // 开局站位占位;实际由 game.ts 按配置生成柱顶坐标并分配
-export const START_POSITIONS = [
-  { x: 0, y: 36, z: -1 },
-  { x: 0, y: 36, z: 1 },
-];

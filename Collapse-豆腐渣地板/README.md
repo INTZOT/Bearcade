@@ -29,7 +29,7 @@ Bearcade 派对小游戏包:踩过的地板会塌陷,别停下!最后存活者�
 
 房间数 2,支持 2~16 人,派对模式可用(`PARTY_AVAILABLE=true`)。
 
-> **观战依赖(部署必读)**:follow_orbit 观战需要世界开启实验开关 **"Creator Cameras: New Third Person Presets"**(世界级、开启后不可逆,建图时就开)与世界作弊(`/camera` 命令需要);自定义相机预设 `bearcade:spectate_orbit` 定义在包内 `Cameras/Presets/spectate.json`(半径 6,改参数需与 `src/game.ts` 的 `ORBIT_RADIUS` 等常量同步,并完整重启游戏生效)。
+> **观战依赖(部署必读)**:follow_orbit 观战需要世界开启实验开关 **"Creator Cameras: New Third Person Presets"**(世界级、开启后不可逆,建图时就开)与世界作弊(`/camera` 命令需要);观战使用内置 `minecraft:follow_orbit`(环绕半径/几何由引擎决定),切换目标时的运镜起点由 `src/game.ts` 的 `ORBIT_RADIUS` 等常量控制。
 
 ## 场地制作(首次运行前必做)
 

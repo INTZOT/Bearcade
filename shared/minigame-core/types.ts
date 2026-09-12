@@ -35,7 +35,6 @@ export interface MinigameConfig {
   tickingTo: Vec3;
   structureId: string;
   templateSpawn: Vec3;
-  startPositions: Vec3[];
   /** 结构分块尺寸(默认 64):模板横向超过该值会自动切成多块捕获/放置 */
   tileSize?: number;
   /**
@@ -49,6 +48,12 @@ export interface MinigameConfig {
    * 避免每次重启重复 64 单元窗口化应用的性能开销;首次部署需手动 /tmp ap 应用一次。
    */
   resetRoomsOnLoad?: boolean;
+  /**
+   * 对局结束时是否从模板重建场地(默认 true)。死场景大图设为 false:
+   * 结束时不重放场地(场地静态、无玩家改造),由玩法 onBeforeReset 清理实体/箱子内容,
+   * 场地仅由 /tmp ap 显式重建——避免超大模板每局捕获/放置的开销。
+   */
+  resetArenaOnGameEnd?: boolean;
   lobbyDimensionId?: string;
   ipcChannel?: string;
   startDelayTicks?: number;

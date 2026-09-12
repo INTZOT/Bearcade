@@ -17,6 +17,7 @@ import {
 } from "@minecraft/server";
 import { MessageFormData } from "@minecraft/server-ui";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { getCChessConfig, openCChessConfig } from "./cchess-config";
 import {
@@ -49,6 +50,8 @@ interface CChessState {
   clocks: Record<Color, number>;
   /** 求和提议方(等待对方确认) */
   drawProposer?: Color;
+  /** 求和提议到期 tick(对方 30 秒不响应自动失效,防整局停摆) */
+  drawDeadline?: number;
 }
 
 const games = new Map<number, CChessState>();
@@ -541,6 +544,11 @@ function handleInteract(
   player: Player,
   cell: { row: number; col: number },
 ): void {
+  // 局外玩家(晚到/观战/第三者)不得作为任一方操作
+  if (state.players.red !== player.id && state.players.black !== player.id) {
+    player.sendMessage("§c你不是本局对局玩家");
+    return;
+  }
   const piece = state.board[cell.row][cell.col];
   const color = state.players.red === player.id ? "red" : "black";
   if (state.turn !== color) {
@@ -730,6 +738,10 @@ function handleResign(
   state: CChessState,
   player: Player,
 ): void {
+  if (state.players.red !== player.id && state.players.black !== player.id) {
+    player.sendMessage("§c你不是本局对局玩家,不能认输");
+    return;
+  }
   const color = state.players.red === player.id ? "red" : "black";
   runtime.announce(roomId, `§c${color === "red" ? "红方" : "黑方"}认输!`);
   runtime.endGame(
@@ -745,12 +757,15 @@ function handleDrawOffer(
   state: CChessState,
   player: Player,
 ): void {
+  if (state.players.red !== player.id && state.players.black !== player.id) {
+    player.sendMessage("§c你不是本局对局玩家,不能求和");
+    return;
+  }
   const color = state.players.red === player.id ? "red" : "black";
   if (state.drawProposer) {
     player.sendMessage("§c已有求和提议在等待确认");
     return;
   }
-  state.drawProposer = color;
   const opponent = runtime
     .roomPlayers(roomId)
     .find(
@@ -758,11 +773,12 @@ function handleDrawOffer(
         p !== undefined &&
         p.id === state.players[color === "red" ? "black" : "red"],
     );
+  if (!opponent) return;
+  state.drawProposer = color;
+  state.drawDeadline = system.currentTick + 30 * 20;
+  // 记录本次提议的唯一标识(到期 tick):旧表单迟到响应不得作用于新的同色提议
+  const offerDeadline = state.drawDeadline;
   runtime.announce(roomId, `§e${color === "red" ? "红方" : "黑方"}提出求和`);
-  if (!opponent) {
-    state.drawProposer = undefined;
-    return;
-  }
   const form = new MessageFormData()
     .title("求和")
     .body(`${color === "red" ? "红方" : "黑方"}提出和棋,是否同意?`)
@@ -772,6 +788,14 @@ function handleDrawOffer(
     .show(opponent)
     .then((response) => {
       if (games.get(roomId) !== state) return;
+      // 该提议可能已超时自动失效,或被同色方再次提出(旧表单迟到响应不得接受)
+      if (
+        state.drawProposer !== color ||
+        state.drawDeadline !== offerDeadline
+      ) {
+        return;
+      }
+      state.drawDeadline = undefined;
       if (response.selection === 0) {
         runtime.endGame(roomId, "和棋", "§e双方同意和棋");
       } else {
@@ -780,7 +804,14 @@ function handleDrawOffer(
       }
     })
     .catch(() => {
-      if (games.get(roomId) === state) state.drawProposer = undefined;
+      if (
+        games.get(roomId) === state &&
+        state.drawProposer === color &&
+        state.drawDeadline === offerDeadline
+      ) {
+        state.drawProposer = undefined;
+        state.drawDeadline = undefined;
+      }
     });
 }
 
@@ -818,7 +849,7 @@ export function makeCchessHooks(
       }
       runtime.announce(
         roomId,
-        `§a对局开始!红方:${red.name} / 黑方:${black.name},红先;走到目标格后右键木棍=选中/走子`,
+        `§a对局开始!红方:${stripSectionCodes(red.name)} / 黑方:${stripSectionCodes(black.name)},红先;走到目标格后右键木棍=选中/走子`,
       );
       giveTurn(runtime, roomId, state);
     },
@@ -856,8 +887,23 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     for (const [roomId, state] of [...games.entries()]) {
       try {
         if (runtime.getPhase(roomId) !== "running") continue;
-        if (state.drawProposer) continue;
-        state.clocks[state.turn] -= 10;
+        if (state.drawProposer) {
+          // 求和等待有期限:对方 30 秒不响应自动失效,防止"求和挂起 + 对方 AFK 不离场"整局停摆
+          if (
+            state.drawDeadline !== undefined &&
+            system.currentTick >= state.drawDeadline
+          ) {
+            state.drawProposer = undefined;
+            state.drawDeadline = undefined;
+            runtime.announce(
+              roomId,
+              "§e对方长时间未响应,求和提议自动失效,对局继续",
+            );
+          }
+          continue;
+        }
+        // 轮询间隔 20 tick(1 秒),每次扣 20(与 clocks 的 tick 单位一致)
+        state.clocks[state.turn] -= 20;
         if (state.clocks[state.turn] <= 0) {
           runtime.announce(
             roomId,
@@ -931,7 +977,7 @@ export function initCChess(getRuntime: () => MinigameRuntime): void {
     }
     if (state.players[state.turn] === event.player.id) {
       const color = state.turn;
-      runtime.announce(roomId, `§c${event.player.name} 离开,视为认输!`);
+      runtime.announce(roomId, `§c${stripSectionCodes(event.player.name)} 离开,视为认输!`);
       runtime.endGame(
         roomId,
         "认输",

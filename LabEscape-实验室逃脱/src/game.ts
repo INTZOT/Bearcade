@@ -13,6 +13,7 @@ import {
   type PlayerPlaceBlockBeforeEvent,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import {
   clearHudTitle,
@@ -38,7 +39,6 @@ interface LabEscapeRoomState {
   timeLeft: number;
   intervalId?: number;
   ended: boolean;
-  originalMinPlayers: number;
 }
 
 const roomStates = new Map<number, LabEscapeRoomState>();
@@ -59,7 +59,6 @@ function getState(roomId: number): LabEscapeRoomState {
       firstFinished: false,
       timeLeft: 0,
       ended: false,
-      originalMinPlayers: 2,
     };
     roomStates.set(roomId, state);
   }
@@ -167,7 +166,7 @@ function updateHud(
 function announceRankings(roomId: number, state: LabEscapeRoomState): void {
   const runtime = runtimeGetter();
   const players = runtime.roomPlayers(roomId);
-  const nameById = new Map(players.map((p) => [p.id, p.name]));
+  const nameById = new Map(players.map((p) => [p.id, stripSectionCodes(p.name)]));
   const lines = ["§6=== 实验室逃脱 结算 ==="];
   if (state.finishOrder.length === 0) {
     lines.push("§c本局没有玩家完赛");
@@ -221,11 +220,11 @@ function tickRoom(roomId: number): void {
     if (!state.firstFinished) {
       state.firstFinished = true;
       state.timeLeft = cfg.finalDurationSeconds;
-      // 已有玩家完赛后,允许已完赛玩家 /lobby 离开,剩余玩家仍可继续完成 15 秒冲刺
-      runtime.config.minPlayers = 1;
+      // 已有玩家完赛后,允许已完赛玩家 /lobby 离开,剩余玩家仍可继续完成 15 秒冲刺;
+      // 运行时已设 endGameWhenBelowMin:false,这里不得改写全局 minPlayers(多房间共用)
       runtime.announce(
         roomId,
-        `§e${player.name} 第一个抵达中央塌陷区!剩余 ${cfg.finalDurationSeconds} 秒供其他玩家完赛`,
+        `§e${stripSectionCodes(player.name)} 第一个抵达中央塌陷区!剩余 ${cfg.finalDurationSeconds} 秒供其他玩家完赛`,
       );
       player.setGameMode(GameMode.Spectator);
       player.sendMessage("§a你已完赛!当前第 1 名,可旁观。");
@@ -289,6 +288,37 @@ export function initLabEscapeEvents(getRuntime: () => MinigameRuntime): void {
       }
     }, 10);
   });
+
+  // 死亡后在柱子顶重生:玩家在死亡界面点击"重生"时由原版把玩家送到重生点
+  // (已在 onGameStart 设为本柱子顶部),这里兜底校正到实测柱顶并补发工具。
+  world.afterEvents.playerSpawn.subscribe((event) => {
+    if (event.initialSpawn) return;
+    const player = event.player;
+    const runtime = getRuntime();
+    const roomId = runtime.roomIdFromDimension(player.dimension.id);
+    if (roomId === undefined) return;
+    const state = roomStates.get(roomId);
+    if (!state || !state.playerColumns.has(player.id)) return;
+    if (state.finished.has(player.id)) return;
+    if (runtime.getPhase(roomId) !== "running") return;
+    const cfg = getLabEscapeConfig();
+    const index = state.playerColumns.get(player.id);
+    if (index === undefined) return;
+    try {
+      const dim = runtime.roomDim(roomId);
+      const pos = columnPosition(index, state.columnCount, cfg);
+      const topY = getColumnTopY(dim, index, state.columnCount, cfg);
+      player.teleport(
+        { x: pos.x + 0.5, y: topY + 1.5, z: pos.z + 0.5 },
+        { dimension: dim },
+      );
+      player.setGameMode(GameMode.Survival);
+      giveTools(player);
+      player.sendMessage("§e你已恢复到当前柱子顶部,继续挖掘!");
+    } catch (error) {
+      console.warn("[LabEscape] 死亡恢复失败", error);
+    }
+  });
 }
 
 export function makeLabEscapeHooks(
@@ -314,7 +344,6 @@ export function makeLabEscapeHooks(
       state.firstFinished = false;
       state.timeLeft = cfg.gameDurationSeconds;
       state.ended = false;
-      state.originalMinPlayers = runtime.config.minPlayers ?? 2;
       if (state.intervalId !== undefined) {
         system.clearRun(state.intervalId);
         state.intervalId = undefined;
@@ -337,6 +366,29 @@ export function makeLabEscapeHooks(
         );
       }
 
+      // 柱位与地图实测校验:改几何配置/重建地图失败后旧柱位可能缺失,拒绝开局并提示重建
+      try {
+        const dim = runtime.roomDim(roomId);
+        const sampleY = cfg.groundY + cfg.columnHeight - 1;
+        let missing = 0;
+        for (let i = 0; i < columnCount; i++) {
+          const pos = columnPosition(i, columnCount, cfg);
+          const block = dim.getBlock({ x: pos.x, y: sampleY, z: pos.z });
+          if (!block || block.isAir) missing++;
+        }
+        if (missing > 0) {
+          runtime.announce(
+            roomId,
+            `§c柱位校验失败(${missing}/${columnCount} 根缺失):请重新生成模板地图(/labescape:build <数量>)并应用(/bearcade:tmp ap labescape)后再开局`,
+          );
+          runtime.endGame(roomId, "柱位校验失败", "§c柱位与地图不一致,对局已结束");
+          return;
+        }
+      } catch (error) {
+        console.warn("[LabEscape] 柱位校验异常", error);
+      }
+
+      const roomDim = runtime.roomDim(roomId);
       activePlayers.forEach((player, index) => {
         const columnIndex = index % columnCount;
         state.playerColumns.set(player.id, columnIndex);
@@ -347,6 +399,18 @@ export function makeLabEscapeHooks(
           y: cfg.groundY + cfg.columnHeight,
           z: pos.z,
         });
+        // 重生点 = 自己的柱子顶:死亡后原版会把玩家送到世界出生点(主世界),
+        // 触发 Core 的离房清理并被送回大厅,与 README"死亡会恢复到柱子顶部继续"矛盾。
+        try {
+          player.setSpawnPoint({
+            dimension: roomDim,
+            x: pos.x + 0.5,
+            y: cfg.groundY + cfg.columnHeight + 0.5,
+            z: pos.z + 0.5,
+          });
+        } catch {
+          // 忽略:设置失败时 playerSpawn 兜底仍会尝试恢复
+        }
         player.setGameMode(GameMode.Survival);
         giveTools(player);
       });
@@ -370,9 +434,6 @@ export function makeLabEscapeHooks(
       if (state?.intervalId !== undefined) {
         system.clearRun(state.intervalId);
       }
-      if (state) {
-        runtime.config.minPlayers = state.originalMinPlayers;
-      }
       roomStates.delete(roomId);
       for (const player of runtime.roomPlayers(roomId)) {
         clearHudTitle(player);
@@ -389,13 +450,12 @@ export function makeLabEscapeHooks(
         return false;
       }
       if (!isColumnMaterial(block.typeId)) return false;
-      // 允许挖掘地图上任意一根柱子的沙子/原木/石头(不限定为玩家自己的柱子),
-      // 方便测试且符合“只能挖这三种方块、不能挖玻璃/地面”的规则。
-      for (let i = 0; i < state.columnCount; i++) {
-        const pos = columnPosition(i, state.columnCount, cfg);
-        if (block.x === pos.x && block.z === pos.z) return true;
-      }
-      return false;
+      // 只能挖掘玩家自己那根柱子的沙子/原木/石头(与 README 规则一致,
+      // 防止跨柱破坏他人进度);未分配柱子的玩家(观众)一律禁止
+      const myColumn = state.playerColumns.get(event.player.id);
+      if (myColumn === undefined) return false;
+      const pos = columnPosition(myColumn, state.columnCount, cfg);
+      return block.x === pos.x && block.z === pos.z;
     },
     canPlace(_event: PlayerPlaceBlockBeforeEvent): boolean {
       return false;

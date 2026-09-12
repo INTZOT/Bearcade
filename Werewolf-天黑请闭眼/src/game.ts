@@ -24,6 +24,7 @@ import {
   type Vector3,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { CustomForm, ObservableNumber } from "@minecraft/server-ui";
 import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
@@ -127,6 +128,8 @@ export function isFivePlayerDebug(): boolean {
 }
 
 const PHASE_ORDER: Phase[] = ["sniper", "guard", "killer", "police", "day"];
+/** 最大幕数:达到上限仍分不出胜负则判平局(防弃权/平票无限循环占用房间) */
+const MAX_NIGHTS = 8;
 
 const PHASE_NAMES: Record<Phase, string> = {
   sniper: "狙击手",
@@ -339,6 +342,45 @@ function createNumberShape(
   }
 }
 
+/** 玩家退出后:把他的头顶号码转成座位上的静态号码牌,仍对剩余玩家可见 */
+function convertNumberShapeToStatic(
+  runtime: MinigameRuntime,
+  roomId: number,
+  session: Session,
+  member: Member,
+): void {
+  // 移除跟随玩家的动态号码
+  removeNumberShape(session, member.playerId);
+  const remaining = runtime
+    .roomPlayers(roomId)
+    .filter((p) => p.id !== member.playerId);
+  if (remaining.length === 0) return;
+  try {
+    const shape = new TextPrimitive(
+      {
+        x: member.seat.x + 0.5,
+        y: member.seat.y + NUMBER_SHAPE_Y,
+        z: member.seat.z + 0.5,
+      },
+      `${member.number}号`,
+    );
+    shape.scale = 1;
+    shape.color = seatRgba(member.color);
+    shape.backgroundColorOverride = {
+      red: 0,
+      green: 0,
+      blue: 0,
+      alpha: 0.45,
+    };
+    shape.depthTest = false;
+    shape.visibleTo = remaining;
+    world.primitiveShapesManager.addText(shape, runtime.roomDim(roomId));
+    session.numberShapes.set(member.playerId, shape);
+  } catch (error) {
+    console.warn("[Bearcade werewolf] 离场号码牌创建失败", error);
+  }
+}
+
 // ================= 聊天气泡(参考 chatbubble.js) =================
 
 interface BubbleEntry {
@@ -478,6 +520,80 @@ function spawnIdentityMarker(
   } catch (error) {
     console.warn("[Bearcade werewolf] 身份浮空字创建失败", error);
   }
+}
+
+/** 清除某玩家的临时通知浮空字(退出/重开时用) */
+function clearTemporaryTextsForPlayer(playerId: string): void {
+  const shapes = tempTexts.get(playerId);
+  if (!shapes) return;
+  for (const shape of shapes) {
+    try {
+      shape.remove();
+    } catch {
+      // 忽略
+    }
+  }
+  tempTexts.delete(playerId);
+}
+
+/** 玩家临时通知浮空字:在 (-2,-55,0) 生成只对该玩家可见的文字,几秒后消失 */
+const tempTexts = new Map<string, TextPrimitive[]>();
+
+function showTemporaryTextForPlayer(
+  runtime: MinigameRuntime,
+  roomId: number,
+  player: Player,
+  lines: string[],
+  durationTicks: number,
+): void {
+  const old = tempTexts.get(player.id);
+  if (old) {
+    for (const shape of old) {
+      try {
+        shape.remove();
+      } catch {
+        // 忽略
+      }
+    }
+    tempTexts.delete(player.id);
+  }
+  const shapes: TextPrimitive[] = [];
+  lines.forEach((line, i) => {
+    try {
+      const shape = new TextPrimitive(
+        { x: -2, y: -55 + (lines.length - 1 - i) * 0.4, z: 0 },
+        line,
+      );
+      shape.scale = 1.5;
+      shape.color = { red: 1, green: 1, blue: 1, alpha: 1 };
+      shape.backgroundColorOverride = {
+        red: 0,
+        green: 0,
+        blue: 0,
+        alpha: 0.45,
+      };
+      shape.depthTest = false;
+      shape.visibleTo = [player];
+      world.primitiveShapesManager.addText(shape, runtime.roomDim(roomId));
+      shapes.push(shape);
+    } catch (error) {
+      console.warn("[Bearcade werewolf] 临时通知浮空字创建失败", error);
+    }
+  });
+  if (shapes.length === 0) return;
+  tempTexts.set(player.id, shapes);
+  system.runTimeout(() => {
+    for (const shape of shapes) {
+      try {
+        shape.remove();
+      } catch {
+        // 忽略
+      }
+    }
+    if (tempTexts.get(player.id) === shapes) {
+      tempTexts.delete(player.id);
+    }
+  }, durationTicks);
 }
 
 /** 清除本房间场地内的静态悬浮字(遗言/身份/票数/行动标记残留),保留玩家头顶/聊天气泡 */
@@ -659,8 +775,15 @@ function fillActionItems(player: Player): void {
   }
 }
 
-function clearPhaseItems(runtime: MinigameRuntime, roomId: number): void {
+function clearPhaseItems(
+  runtime: MinigameRuntime,
+  roomId: number,
+  session: Session,
+): void {
   for (const player of runtime.roomPlayers(roomId)) {
+    const member = session.members.get(player.id);
+    // 出局玩家保留「写遗言」物品,不被阶段清背包清掉
+    if (member && !member.alive) continue;
     try {
       clearAllPlayerItems(player);
     } catch {
@@ -691,6 +814,10 @@ function openVoteForm(
 ): void {
   const player = playerInRoom(runtime, roomId, member.playerId);
   if (!player || !member.alive || session.finished) return;
+  // 记录表单打开时的阶段与轮次:提交时若阶段或幕数已切换(阶段切换清空了 selections),
+  // 旧表单的迟到响应必须丢弃,防止把上一阶段的选择写入新阶段(含跨整轮的白天-1 表单在白天-2 提交)
+  const openedPhase = session.phase;
+  const openedRound = session.night;
   const candidates = aliveMembers(session)
     .filter((m) => m.playerId !== member.playerId)
     .sort((a, b) => a.number - b.number);
@@ -718,6 +845,13 @@ function openVoteForm(
   form.spacer();
   form.button("确认投票", () => {
     form.close();
+    if (
+      session.finished ||
+      session.phase !== openedPhase ||
+      session.night !== openedRound
+    ) {
+      return;
+    }
     const opt = options[selected.getData()];
     const oldSeat = session.selections.get(member.playerId);
     if (!opt || opt.value === 0) {
@@ -757,6 +891,9 @@ function openActionForm(
     openVoteForm(runtime, roomId, session, member);
     return;
   }
+  // 记录表单打开时的阶段与轮次:提交时若阶段/幕数已切换,旧表单的迟到响应一律丢弃
+  const openedPhase = session.phase;
+  const openedRound = session.night;
   const role = phaseRole(session.phase);
   if (!role || member.role !== role) {
     player.sendMessage("§7现在不是你的行动阶段");
@@ -794,6 +931,13 @@ function openActionForm(
   form.spacer();
   form.button("确认行动", () => {
     form.close();
+    if (
+      session.finished ||
+      session.phase !== openedPhase ||
+      session.night !== openedRound
+    ) {
+      return;
+    }
     const opt = options[selected.getData()];
     if (!opt || opt.value === 0) {
       if (session.selections.delete(member.playerId)) {
@@ -815,6 +959,8 @@ function openActionForm(
 }
 
 function titleForPlayer(
+  runtime: MinigameRuntime,
+  roomId: number,
   player: Player,
   member: Member | undefined,
   session: Session,
@@ -822,40 +968,29 @@ function titleForPlayer(
   isActor: boolean,
 ): void {
   if (!member || !member.alive) {
-    player.onScreenDisplay.setTitle("§7§l你已出局", {
-      subtitle: "§7§l请安静观看本局游戏",
-      fadeInDuration: 3,
-      stayDuration: 40,
-      fadeOutDuration: 3,
-    });
+    showTemporaryTextForPlayer(runtime, roomId, player, [
+      "§7§l你已出局",
+      "§7§l请安静观看本局游戏",
+    ], 40);
     return;
   }
   if (session.phase === "day") {
-    player.onScreenDisplay.setTitle("§a§l进入白天", {
-      subtitle: `§f§l讨论并投票 · ${seconds} 秒 · 点击「打开投票」`,
-      fadeInDuration: 3,
-      stayDuration: 60,
-      fadeOutDuration: 3,
-    });
+    showTemporaryTextForPlayer(runtime, roomId, player, [
+      "§a§l进入白天",
+      `§f§l讨论并投票 · ${seconds} 秒 · 点击「打开投票」`,
+    ], 60);
     return;
   }
   if (isActor) {
-    player.onScreenDisplay.setTitle(
+    showTemporaryTextForPlayer(runtime, roomId, player, [
       `${ROLE_COLORS[member.role]}§l${ROLE_NAMES[member.role]} §f§l请行动`,
-      {
-        subtitle: `§f§l${seconds} 秒 · 使用手中物品选择目标`,
-        fadeInDuration: 3,
-        stayDuration: 60,
-        fadeOutDuration: 3,
-      },
-    );
+      `§f§l${seconds} 秒 · 使用手中物品选择目标`,
+    ], 60);
   } else {
-    player.onScreenDisplay.setTitle("§0§l天黑请闭眼", {
-      subtitle: `§f§l等待${PHASE_NAMES[session.phase]}行动 · ${seconds} 秒`,
-      fadeInDuration: 3,
-      stayDuration: 60,
-      fadeOutDuration: 3,
-    });
+    showTemporaryTextForPlayer(runtime, roomId, player, [
+      "§0§l天黑请闭眼",
+      `§f§l等待${PHASE_NAMES[session.phase]}行动 · ${seconds} 秒`,
+    ], 60);
   }
 }
 
@@ -887,7 +1022,7 @@ function announcePhaseStart(
       session.phase === "day"
         ? (member?.alive ?? false)
         : (member?.alive ?? false) && member?.role === role2;
-    titleForPlayer(player, member, session, seconds, isActor);
+    titleForPlayer(runtime, roomId, player, member, session, seconds, isActor);
     if (member?.alive && session.phase !== "day" && isActor) {
       player.sendMessage(
         `${ROLE_COLORS[member.role]}轮到你行动了§r(剩余 §6${seconds} 秒§r):使用手中投票物品选择目标,「取消选择」可取消。`,
@@ -955,7 +1090,9 @@ function updateActionbars(
     const member = session.members.get(player.id);
     if (!member) continue;
     if (!member.alive) {
-      player.onScreenDisplay.setActionBar("§7你已出局,等待游戏结束");
+      player.onScreenDisplay.setActionBar(
+        `§7你已出局 · ${PHASE_NAMES[session.phase]} · 剩余 ${remain} 秒`,
+      );
       continue;
     }
     const isActor =
@@ -991,7 +1128,11 @@ function checkWin(
 
   let message = "";
   let reason = "";
-  if (killers === 0) {
+  if (aliveMembers(session).length === 0) {
+    // 全员离场/全员阵亡:没有可对阵的双方,不按阵营判定胜负,直接中止对局
+    reason = "全员离场";
+    message = "§e所有玩家均已离场,对局结束";
+  } else if (killers === 0) {
     reason = "杀手全部出局";
     message = "§b警察阵营胜利!所有杀手已出局。";
   } else if (civilians === 0 || police === 0) {
@@ -1138,12 +1279,23 @@ function eliminateLeaver(
         InputPermissionCategory.Camera,
         true,
       );
+      leaving.camera.clear();
     } catch {
       // 忽略
     }
+    clearTemporaryTextsForPlayer(leaving.id);
   }
-  removeNumberShape(session, member.playerId);
+  convertNumberShapeToStatic(runtime, roomId, session, member);
   removeChatBubbles(member.playerId);
+  const marker = session.actionMarkers.get(member.playerId);
+  if (marker) {
+    try {
+      world.primitiveShapesManager.removeText(marker);
+    } catch {
+      // 忽略
+    }
+    session.actionMarkers.delete(member.playerId);
+  }
   eliminate(
     runtime,
     roomId,
@@ -1207,7 +1359,10 @@ function resolveGuard(
     session.protectedSeat = 0;
     // 本轮没有守护任何人:不占用"连续两晚"冷却,下一晚可自由选择
     session.lastProtectedSeat = 0;
-    runtime.announce(roomId, "§7守卫没有守护任何人");
+    // 不公开说守卫没守护任何人,只私聊守卫本人
+    playerInRoom(runtime, roomId, guard.playerId)?.sendMessage(
+      "§7你没有守护任何人",
+    );
   }
 }
 
@@ -1408,6 +1563,13 @@ function enterPhase(
     }
     if (current === "sniper") {
       session.night++;
+      if (session.night > MAX_NIGHTS) {
+        // 最大幕数兜底:弃权/平票等长时间无人淘汰时强制平局,防止房间被无限占用
+        runtime.announce(roomId, "§e已达到最大幕数,本局判为平局");
+        session.finished = true;
+        runtime.endGame(roomId, "最大幕数", "§e达到最大幕数,平局!");
+        return;
+      }
     }
     if (current === "day") {
       session.protectedSeat = 0;
@@ -1418,7 +1580,7 @@ function enterPhase(
     session.selections.clear();
     clearVoteMarkers(session);
     clearActionMarkers(session);
-    clearPhaseItems(runtime, roomId);
+    clearPhaseItems(runtime, roomId, session);
     givePhaseItems(runtime, roomId, session);
     announcePhaseStart(runtime, roomId, session);
     return;
@@ -1649,7 +1811,7 @@ export function makeWerewolfHooks(
         const pad = pads[index] ?? pads[pads.length - 1];
         const member: Member = {
           playerId: player.id,
-          name: player.name,
+          name: stripSectionCodes(player.name),
           // 号码永远从 1 开始顺序排;站到中间的物理色块上,颜色跟随色块
           number: index + 1,
           role: shuffledRoles[index],
@@ -1689,6 +1851,15 @@ export function makeWerewolfHooks(
         const player = playerInRoom(runtime, roomId, member.playerId);
         if (!player) continue;
         player.setGameMode(GameMode.Adventure);
+        // 对局中给饱和,防止饿死
+        try {
+          player.addEffect("minecraft:saturation", 999999, {
+            amplifier: 0,
+            showParticles: false,
+          });
+        } catch {
+          // 忽略
+        }
         player.nameTag = `${member.color}${member.name}§r`;
         player.chatNamePrefix = `${member.color}${member.number}号§r `;
         player.chatNameSuffix = "§r";
@@ -1744,12 +1915,13 @@ export function makeWerewolfHooks(
           );
         }
         try {
-          player.onScreenDisplay.setTitle(title, {
-            subtitle,
-            fadeInDuration: 5,
-            stayDuration: 100,
-            fadeOutDuration: 5,
-          });
+          showTemporaryTextForPlayer(
+            runtime,
+            roomId,
+            player,
+            [title, subtitle],
+            IDENTITY_SHOW_TICKS,
+          );
         } catch {
           // 忽略
         }
@@ -1843,12 +2015,16 @@ export function initWerewolf(getRuntime: () => MinigameRuntime): void {
     // 忽略
   }
 
-  // 对局内禁止一切伤害(无 PVP、无摔落伤害)
+  // 对局内与等候室一律禁止玩家伤害(无 PVP、无摔落伤害)
   world.beforeEvents.entityHurt.subscribe((event) => {
     const victim = event.hurtEntity;
     if (victim.typeId !== "minecraft:player") return;
     const roomId = runtime.roomIdFromDimension(victim.dimension.id);
-    if (roomId !== undefined && sessions.has(roomId)) {
+    if (
+      roomId !== undefined &&
+      roomId >= 1 &&
+      roomId <= runtime.config.roomCount
+    ) {
       event.cancel = true;
     }
   });
@@ -1858,7 +2034,7 @@ export function initWerewolf(getRuntime: () => MinigameRuntime): void {
     handleTeamChat(runtime, event);
   });
 
-  // 离开房间维度时立即恢复移动权限(回大厅/断线路径兜底)
+  // 离开房间维度时立即恢复移动权限、释放强制相机、清理该玩家所有悬浮字(回大厅/断线路径兜底)
   world.afterEvents.playerDimensionChange.subscribe((event) => {
     const fromRoom = runtime.roomIdFromDimension(event.fromDimension.id);
     if (fromRoom !== undefined && sessions.has(fromRoom)) {
@@ -1871,10 +2047,28 @@ export function initWerewolf(getRuntime: () => MinigameRuntime): void {
           InputPermissionCategory.Camera,
           true,
         );
+        event.player.camera.clear();
       } catch {
         // 忽略
       }
       removeChatBubbles(event.player.id);
+      clearTemporaryTextsForPlayer(event.player.id);
+      const session = sessions.get(fromRoom);
+      if (session) {
+        const member = session.members.get(event.player.id);
+        if (member) {
+          convertNumberShapeToStatic(runtime, fromRoom, session, member);
+        }
+        const marker = session.actionMarkers.get(event.player.id);
+        if (marker) {
+          try {
+            world.primitiveShapesManager.removeText(marker);
+          } catch {
+            // 忽略
+          }
+          session.actionMarkers.delete(event.player.id);
+        }
+      }
     }
   });
 

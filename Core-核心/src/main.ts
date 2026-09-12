@@ -1,6 +1,6 @@
 import { world, system } from "@minecraft/server";
 import { GameRegistry } from "./registry";
-import { initIpc } from "./ipc";
+import { initIpc, requestGameRegistration } from "./ipc";
 import { initLobby, ensureClockForAll } from "./lobby";
 import { refreshRoomViews, setUiRegistry } from "./ui";
 import { initCommands } from "./commands";
@@ -13,8 +13,12 @@ initCommands(() => registry);
 
 world.afterEvents.worldLoad.subscribe(() => {
   loadPartyMode();
-  // 等游戏包加载后广播一次当前派对状态
-  system.runTimeout(() => broadcastPartyMode(), 40);
+  // 等游戏包加载后广播一次当前派对状态,并请求一次重注册
+  // (兜底"游戏包 game.register 早于 Core 订阅而丢失"的极端情况)
+  system.runTimeout(() => {
+    broadcastPartyMode();
+    requestGameRegistration();
+  }, 40);
   const coreRegistry = new GameRegistry();
   registry = coreRegistry;
   setUiRegistry(coreRegistry);
@@ -22,7 +26,7 @@ world.afterEvents.worldLoad.subscribe(() => {
   initLobby(coreRegistry);
 
   system.runInterval(() => {
-    coreRegistry.tick(Date.now());
+    coreRegistry.tick(system.currentTick);
     refreshRoomViews();
   }, POLL_INTERVAL_TICKS);
 

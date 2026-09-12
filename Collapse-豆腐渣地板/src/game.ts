@@ -16,10 +16,12 @@ import {
   ItemLockMode,
   ItemStack,
   EntityComponentTypes,
+  type EntityHealthComponent,
   type EntityInventoryComponent,
   type Player,
 } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
+import { stripSectionCodes } from "../../shared/minigame-core/text";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import {
   clearHudTitle,
@@ -114,13 +116,14 @@ function aliveIds(
 
 // ===== 观战相机:follow_orbit 预设 + attach 引擎绑定 =====
 // 依赖:世界实验开关 "Creator Cameras: New Third Person Presets"
-// + 世界作弊(/camera 命令需要 cheats);自定义预设见
-// Cameras/Presets/spectate.json(继承 follow_orbit,半径 6)
+// + 世界作弊(/camera 命令需要 cheats);
+// 注:自定义预设(bearcade:spectate_orbit)在本版本不加载,已删除改用内置 follow_orbit,
+// 半径/几何由引擎决定;ORBIT_* 常量只用于运镜起点的 free 相机定位。
 
 /** 附加命令用临时 tag(观战者 / 目标,命令执行后移除) */
 const SPEC_OWNER_TAG = "bearcade:spec_owner";
 const SPEC_TARGET_TAG = "bearcade:spec_target";
-/** 环绕半径(与 spectate.json 的 radius 一致) */
+/** 环绕半径(仅用于运镜起点定位,与内置 follow_orbit 的实际环绕半径无关) */
 const ORBIT_RADIUS = 6;
 /** 预设起始俯仰角(度,正=向下)与起始环绕角(0=南/+z,与 JSON starting_rot 一致) */
 const ORBIT_PITCH_DEG = 15;
@@ -200,13 +203,9 @@ function transitionSpectateCamera(spectator: Player, target: Player): void {
     });
     system.runTimeout(() => {
       try {
-        // 自定义预设(半径 6)未加载时回退内置 follow_orbit(半径 10,起点几何不同,
-        // 会有一个小 snap,但保证功能可用)
-        try {
-          spectator.camera.setCamera("bearcade:spectate_orbit");
-        } catch {
-          spectator.camera.setCamera("minecraft:follow_orbit");
-        }
+        // 实测:本版本自定义相机预设(bearcade:spectate_orbit)不加载,
+        // 直接使用内置 follow_orbit(引擎级跟随零抖动,半径由引擎决定)
+        spectator.camera.setCamera("minecraft:follow_orbit");
         attachSpectateCamera(spectator, target);
       } catch (error) {
         console.warn("[Bearcade collapse] 观战相机附加失败", error);
@@ -229,7 +228,7 @@ function setSpectateTarget(
   }
   session.spectators.set(spectator.id, target.id);
   transitionSpectateCamera(spectator, target);
-  spectator.sendMessage(`§7正在观战 §e${target.name}§7(手持望远镜切换)`);
+  spectator.sendMessage(`§7正在观战 §e${stripSectionCodes(target.name)}§7(手持望远镜切换)`);
 }
 
 /** 观战台位置(淘汰玩家本体传送至此,可经 /bearcade:config 配置) */
@@ -274,7 +273,7 @@ function updateHud(
       hudMessage([
         { text: "§7你已淘汰" },
         { text: "\n" },
-        { text: target ? `观战 §e${target.name}` : "§7等待对局结束" },
+        { text: target ? `观战 §e${stripSectionCodes(target.name)}` : "§7等待对局结束" },
         { text: "\n" },
         { text: `存活 ${alive.length} 人` },
       ]),
@@ -311,7 +310,7 @@ function eliminatePlayer(
   }
   const targets = alivePlayers(runtime, roomId, session);
   setSpectateTarget(session, player, targets[0]);
-  runtime.announce(roomId, `§c${player.name} 掉出场地,被淘汰!`);
+  runtime.announce(roomId, `§c${stripSectionCodes(player.name)} 掉出场地,被淘汰!`);
 }
 
 function checkEnd(
@@ -327,7 +326,7 @@ function checkEnd(
     runtime.endGame(
       roomId,
       "游戏结束",
-      `§e${present[0].name} 存活到最后,获得最终胜利!`,
+      `§e${stripSectionCodes(present[0].name)} 存活到最后,获得最终胜利!`,
     );
   } else if (present.length === 0) {
     runtime.endGame(
@@ -618,22 +617,50 @@ export function initCollapse(getRuntime: () => MinigameRuntime): void {
     setSpectateTarget(session, player, target);
   });
 
-  // PVP 伤害控制:未开启时取消玩家间伤害;淘汰者不参与伤害
+  // PVP 伤害控制:未开启时取消玩家间伤害;淘汰者不参与伤害;
+  // 另拦截一切致命伤害(取消死亡,改为观战淘汰,避免重生回主世界)
   world.beforeEvents.entityHurt.subscribe((event) => {
     const victim = event.hurtEntity;
     if (!victim || victim.typeId !== "minecraft:player") return;
     const attacker = event.damageSource?.damagingEntity;
-    if (!attacker || attacker.typeId !== "minecraft:player") return;
+    const attackerIsPlayer = !!attacker && attacker.typeId === "minecraft:player";
     const roomId = runtime.roomIdFromDimension(victim.dimension.id);
     if (roomId === undefined) return;
     const session = sessions.get(roomId);
     if (!session) return;
-    if (!session.alive.has(victim.id) || !session.alive.has(attacker.id)) {
+    if (!session.alive.has(victim.id)) {
+      // 已淘汰玩家不再受伤(观战者免伤)
       event.cancel = true;
       return;
     }
-    if (system.currentTick < session.pvpTick) {
+    if (attackerIsPlayer && !session.alive.has(attacker.id)) {
       event.cancel = true;
+      return;
+    }
+    // PVP 开启前的玩家攻击整体取消(受保护,不判致死)
+    if (attackerIsPlayer && system.currentTick < session.pvpTick) {
+      event.cancel = true;
+      return;
+    }
+    // 致命伤害拦截(PVP 开启后的玩家攻击或环境伤害):取消死亡,按淘汰处理进入观战
+    const health = victim.getComponent(
+      EntityComponentTypes.Health,
+    ) as EntityHealthComponent | undefined;
+    if (health && health.currentValue - event.damage <= 0) {
+      event.cancel = true;
+      const victimId = victim.id;
+      // before 事件是 restricted execution:eliminatePlayer(传送/模式/相机)延迟到 system.run
+      system.run(() => {
+        const s = sessions.get(roomId);
+        if (!s) return;
+        const player = runtime
+          .roomPlayers(roomId)
+          .find((p) => p !== undefined && p.id === victimId);
+        if (player && s.alive.has(victimId)) {
+          eliminatePlayer(runtime, roomId, s, player);
+        }
+      });
+      return;
     }
   });
 }

@@ -6,7 +6,6 @@ import {
 import { START_POSITIONS } from "./config";
 import { system } from "@minecraft/server";
 import { GameManager } from "./GameManager";
-import { GlobalDataCache } from "./GlobalDataCache";
 
 let intervalID: number;
 const gameManager = GameManager.getInstance();
@@ -25,7 +24,6 @@ export function makeCTFHooks(
           START_POSITIONS[index] ?? START_POSITIONS[0],
         );
 
-        GlobalDataCache.getInstance().onPlayerJoin(player);
       });
       runtime.announce(roomId, "§a对局开始!");
 

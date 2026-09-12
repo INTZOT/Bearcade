@@ -11,10 +11,6 @@ import { world, type Player, type RawMessage, type ScoreboardIdentity, type Scor
 const HUD_TITLE_STAY_TICKS = 80;
 const identityCache = new Map<string, ScoreboardIdentity>();
 
-export function objectiveKey(objectiveId: string): string {
-  return objectiveId;
-}
-
 /** 创建/复用房间计分板 objective(不再挂到任何全局显示槽) */
 export function ensureObjective(
   objectiveId: string,
