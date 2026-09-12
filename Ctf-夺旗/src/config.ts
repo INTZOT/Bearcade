@@ -87,13 +87,24 @@ export const config = {
   flagReturnTime: 15,
   respawnTime: 5,
   initialBlockCount: 32,
-  arrowBreakRadius: 1,
+  arrowBreakRadius: 0.5,
+  arrowBreakRadiusUpgraded: 1.5,
+  killRestoration: 6,
+  waterDamageTriggerDelay: 20,
+  waterDamage: 4,
 
   regeneration: {
     /** 受伤后多少秒开始恢复 */
     delaySeconds: 15,
     /** 每秒恢复的生命值点数 */
     perSecond: 1,
+  },
+
+  flagCurse: {
+    /** 队伍旗帜持续未处于 home 状态多少秒后诅咒夺旗者 */
+    triggerSeconds: 180,
+    /** 被诅咒的夺旗者生命上限（半颗心为单位，8=4颗心） */
+    cursedMaxHealth: 6,
   },
 
   tnt: {
@@ -113,10 +124,15 @@ export const config = {
     tickReward: 1
   },
 
-  itemShop: {
-    shop1: { x: -1, y: 65, z: 0 },
-    shop2: { x: 1, y: 65, z: 0 }
-  },
+  itemShop: [
+    { x: -1, y: 65, z: 0 },
+    { x: 1, y: 65, z: 0 }
+  ],
+
+  buffShop: [
+    { x: -2, y: 65, z: 0 },
+    { x: 2, y: 65, z: 0 }
+  ],
 
   arena: {
     captureRadius: 1

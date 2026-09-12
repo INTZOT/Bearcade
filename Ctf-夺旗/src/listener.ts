@@ -1,6 +1,5 @@
 import { EntityHealCause, Player, system, world } from "@minecraft/server";
 import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
-import { config } from "./config";
 import { GameManager } from "./GameManager";
 import { GameState } from "./types";
 
@@ -140,8 +139,12 @@ export function initCTFListener(): void {
     const ctfPlayer = gameManager.getPlayerManager().getPlayer(owner.id);
     if (!ctfPlayer) return;
 
+    // 队伍升级箭后，射出的箭破坏范围增大
+    const teamId = gameManager.getTeamManager().getTeamIdOfPlayer(owner.id);
+    const radius = gameManager.getArrowBreakRadius(teamId);
+
     const hitLoc = event.location;
-    gameManager.breakPlacedBlocksInRadius(hitLoc, config.arrowBreakRadius);
+    gameManager.breakPlacedBlocksInRadius(hitLoc, radius);
     system.run(() => { event.projectile.remove() });
   });
 

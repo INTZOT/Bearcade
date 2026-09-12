@@ -38,3 +38,9 @@ export interface RoomInfo {
   playerIds: string[];
   templateOrigin?: Vector3;
 }
+
+export namespace CTFEnityTypes {
+  export const Flag = "bearcade:ctf_flag";
+  export const Shop = "bearcade:ctf_shop";
+  export const TNT = "bearcade:ctf_tnt";
+} 

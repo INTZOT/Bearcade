@@ -1,8 +1,7 @@
-import { Player, ItemStack, Entity } from "@minecraft/server";
+import { Player, ItemStack, Entity, VanillaEntityIdentifier } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
-import { MinecraftEntityTypes } from "@minecraft/vanilla-data";
 import { GameManager } from "./GameManager";
-import { Vector3 } from "./types";
+import { CTFEnityTypes, Vector3 } from "./types";
 
 export interface ShopItem {
   tag: string;
@@ -10,7 +9,7 @@ export interface ShopItem {
   price: number;
   icon?: string;           // 贴图路径
   itemStack?: ItemStack;   // 购买后给予的物品
-  callback?: (player: Player, item: ShopItem) => void;
+  callback?: (player: Player, item: ShopItem) => boolean;
 }
 
 export class Shop {
@@ -49,7 +48,8 @@ export class Shop {
 
   spawnShopEntity(location: Vector3): void {
     const gameManager = GameManager.getInstance();
-    const entity = gameManager.spawnEntity(MinecraftEntityTypes.ArmorStand, location);
+    const entity = gameManager.spawnEntity(CTFEnityTypes.Shop as VanillaEntityIdentifier, location);
+    entity.nameTag = this.title;
     this.shopEntity.set(entity.id, entity);
   }
 
@@ -84,7 +84,7 @@ export class Shop {
   async show(player: Player): Promise<void> {
     const form = new ActionFormData();
     form.title(this.title);
-    if(this.description) form.body(this.description);
+    if (this.description) form.body(this.description);
 
     const itemList = Array.from(this.items.values());
     for (const item of itemList) {
@@ -104,19 +104,32 @@ export class Shop {
     if (!selected) return;
 
     const callback = this.callbacks.get(selected.tag);
+    const targetpPlayer = GameManager.getInstance().getPlayerManager().getOrCreatePlayer(player);
+    if (targetpPlayer.getEconomy() < selected.price) {
+      player.sendMessage(`§c你没有足够的金币来购买 ${selected.name}`);
+      return;
+    }
+
     if (callback) {
-      const targetpPlayer = GameManager.getInstance().getPlayerManager().getOrCreatePlayer(player);
-      if (targetpPlayer.getEconomy() < selected.price) {
-        player.sendMessage(`§c你没有足够的金币来购买 ${selected.name}`);
-        return;
-      }
-      if(callback(player, selected.name)) {
+      if (callback(player, selected.name)) {
         targetpPlayer.reduceEconomy(selected.price);
         player.sendMessage(`§a你成功购买了 ${selected.name}`);
-      }
+      } else return;
     }
     else if (selected.callback) {
-      selected.callback(player, selected);
+      const result = selected.callback(player, selected);
+      if (result) {
+        targetpPlayer.reduceEconomy(selected.price);
+        player.sendMessage(`§a你成功购买了 ${selected.name}`);
+      } else return;
+    }
+    else if (selected.itemStack) {
+      player.getComponent("inventory")?.container.addItem(selected.itemStack);
+      targetpPlayer.reduceEconomy(selected.price);
+      player.sendMessage(`§a你成功购买了 ${selected.name}`);
+    } else {
+      player.sendMessage(`§c购买失败，商品 ${selected.name} 没有设置回调函数或物品`);
+      return;
     }
 
     // 购买完成后再次弹出商店表单

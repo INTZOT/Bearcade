@@ -43,4 +43,28 @@ export const MINECRAFT_COLOR_CODES: Record<string, string> = {
 export function getColorCode(colorName: string): string {
   return MINECRAFT_COLOR_CODES[colorName.toLowerCase()] ?? '§f';
 }
-  
+
+/** Minecraft 颜色名称 → Unicode 字符映射，范围为 \ue200~\ue20f */
+export const FLAG_UNICODE: Record<string, string> = {
+  black:        '\uE200',
+  dark_blue:    '\uE201',
+  dark_green:   '\uE202',
+  dark_aqua:    '\uE203',
+  dark_red:     '\uE204',
+  dark_purple:  '\uE205',
+  gold:         '\uE206',
+  gray:         '\uE207',
+  dark_gray:    '\uE208',
+  blue:         '\uE209',
+  green:        '\uE20A',
+  aqua:         '\uE20B',
+  red:          '\uE20C',
+  light_purple: '\uE20D',
+  yellow:       '\uE20E',
+  white:        '\uE20F',
+};
+
+/** 根据颜色名获取对应的 Unicode 字符，未知名称默认返回白色 */
+export function getFlagUnicode(colorName: string): string {
+  return FLAG_UNICODE[colorName.toLowerCase()] ?? FLAG_UNICODE.white;
+}

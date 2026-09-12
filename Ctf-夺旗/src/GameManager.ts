@@ -1,5 +1,5 @@
-import { Dimension, Entity, EntityDamageCause, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
-import { MinecraftEffectTypes, MinecraftEntityTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
+import { Dimension, Entity, EntityComponentTypes, EntityDamageCause, EntityHealthComponent, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
+import { MinecraftEffectTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
 import { MinigameRuntime } from '../../shared/minigame-core/runtime';
 import { config, PREP_SPAWN } from './config';
 import { CTFPlayer } from './CTFPlayer';
@@ -8,8 +8,9 @@ import { PlayerManager } from './PlayerManager';
 import { ScoreboardManager } from './ScoreboardManager';
 import { ShopManager } from './ShopManager';
 import { TeamManager } from './TeamManager';
-import { FlagState, GameState, PlayerState, Vector3 } from './types';
-import { distance } from './utils';
+import { CTFEnityTypes, FlagState, GameState, PlayerState, Vector3 } from './types';
+import { distance, getColorCode, getFlagUnicode } from './utils';
+import { floatingTextManager } from './FloatingTextManager';
 
 type TNTFuses = {
   location: Vector3;
@@ -26,6 +27,14 @@ export class GameManager {
   private deathPlayers: Map<string, number> = new Map();
   private readonly RESPAWN_DELAY_TICKS = config.respawnTime * 20;
   private placedBlocks: Set<string> = new Set();
+  private blockUpgradedTeams: Set<string> = new Set();
+  private arrowUpgradedTeams: Set<string> = new Set();
+  /** 已购买且尚未触发旗帜诅咒的队伍（触发后即消耗，可再次购买） */
+  private flagCurseTeams: Set<string> = new Set();
+  /** 各队旗帜持续未处于 home 状态的累计刻数 */
+  private flagNonHomeTicks: Map<string, number> = new Map();
+  /** 当前被旗帜诅咒的玩家 ID */
+  private cursedPlayers: Set<string> = new Set();
   private tntFuses: TNTFuses = [];
   private gamestate: GameState;
   private roomId: number | undefined;
@@ -63,12 +72,27 @@ export class GameManager {
       console.warn(`玩家 ${playerId} 加入队伍 ${teamId}`);
       const player = this.playerManager.getPlayer(playerId);
       if (player) player.teamId = teamId;
+
+      // 更新玩家名称标签颜色
+      const mcPlayer = player?.getPlayer();
+      if (mcPlayer) {
+        const team = this.teamManager.getTeam(teamId);
+        if (team) {
+          mcPlayer.nameTag = `${getColorCode(team.color)}${mcPlayer.name}§r`;
+        }
+      }
     });
 
     this.teamManager.on('playerLeft', ({ playerId }) => {
       console.warn(`玩家 ${playerId} 离开队伍`);
       const player = this.playerManager.getPlayer(playerId);
       if (player) player.teamId = null;
+
+      // 重置玩家名称标签颜色
+      const mcPlayer = player?.getPlayer();
+      if (mcPlayer) {
+        mcPlayer.nameTag = mcPlayer.name;
+      }
     });
   }
 
@@ -78,16 +102,17 @@ export class GameManager {
 
     const mainScoreboard = this.scoreboardManager.createTemplate('ctf_main');
     mainScoreboard.addColumn('header', '§l§e夺旗', {});
-    mainScoreboard.addColumn('team_name', '§f队伍: {team}', {
+    mainScoreboard.addColumn('team_name', '§f你的队伍: {team}', {
       team: (player) => {
         const team = this.teamManager.getTeamOfPlayer(player.id);
-        return team?.name ?? '§7无';
+        return team ? team.getDisplayName() : '§7无';
       }
     });
-    mainScoreboard.addColumn('team_score', '§f得分: {score}', {
-      score: (player) => {
-        const team = this.teamManager.getTeamOfPlayer(player.id);
-        return team?.score.toString() ?? '无数据';
+    mainScoreboard.addColumn('team_score', '§f得分情况: \n{score}', {
+      score: () => {
+        return this.teamManager.getAllTeams()
+          .map(team => `${team.getDisplayName()}: ${team.score}`)
+          .join('\n');
       }
     });
     mainScoreboard.addColumn('player_money', '§f经济: {money}', {
@@ -110,6 +135,68 @@ export class GameManager {
         return `tick: ${this.tickDuration}ms`;
       }
     })
+
+    const buffShop = this.shopManager.createShop('buff_shop');
+    if (!buffShop) throw new Error('Failed to create buff shop.');
+    buffShop.setTitle('增益商店');
+    buffShop.setDescription('在这里购买增益');
+    buffShop.addItem('arrow_upgrade', {
+      tag: 'arrow_upgrade',
+      name: '§l§a箭升级',
+      price: 125,
+    });
+    buffShop.setCallback('arrow_upgrade', (player, _name) => {
+      const team = this.teamManager.getTeamOfPlayer(player.id);
+      if (!team) {
+        player.sendMessage('§c你还没有队伍！');
+        return false;
+      }
+      if (this.hasArrowUpgrade(team.id)) {
+        player.sendMessage('§c你的队伍已经升级过箭了！');
+        return false;
+      }
+      if (!this.upgradeTeamArrows(team.id)) return false;
+      this.sendMessage(`${team.getDisplayName()} 的箭已升级，射出的箭破坏范围增大！`);
+      return true;
+    });
+    buffShop.addItem('block_upgrade', {
+      tag: 'block_upgrade',
+      name: '§l§a方块升级',
+      price: 200,
+    });
+    buffShop.setCallback('block_upgrade', (player, _name) => {
+      const team = this.teamManager.getTeamOfPlayer(player.id);
+      if (!team) {
+        player.sendMessage('§c你还没有队伍！');
+        return false;
+      }
+      if (this.hasBlockUpgrade(team.id)) {
+        player.sendMessage('§c你的队伍已经升级过方块了！');
+        return false;
+      }
+      if (!this.upgradeTeamBlocks(team.id)) return false;
+      this.sendMessage(`${team.getDisplayName()} 的方块已升级为混凝土，无法被箭矢破坏！`);
+      return true;
+    });
+    buffShop.addItem('flag_curse', {
+      tag: 'flag_curse',
+      name: '§l§a旗帜诅咒',
+      price: 200,
+    });
+    buffShop.setCallback('flag_curse', (player, _name) => {
+      const team = this.teamManager.getTeamOfPlayer(player.id);
+      if (!team) {
+        player.sendMessage('§c你还没有队伍！');
+        return false;
+      }
+      if (this.hasFlagCurse(team.id)) {
+        player.sendMessage('§c你的队伍的旗帜诅咒还未触发，无法重复购买！');
+        return false;
+      }
+      this.flagCurseTeams.add(team.id);
+      this.sendMessage(`${team.getDisplayName()} 已激活旗帜诅咒！其旗帜被夺取超过 ${config.flagCurse.triggerSeconds} 秒后，夺旗者的生命上限将被降低`);
+      return true;
+    });
 
     const itemShop = this.shopManager.createShop('item_shop');
     if (!itemShop) throw new Error('Failed to create item shop.');
@@ -135,8 +222,11 @@ export class GameManager {
         return false;
       }
       const color = team.color; // 'blue' 或 'green'
-      const woolId = `minecraft:${color}_wool`;
-      const item = new ItemStack(woolId, 16);
+      // 队伍升级后方块变为混凝土，否则为羊毛
+      const blockId = this.hasBlockUpgrade(team.id)
+        ? `minecraft:${color}_concrete`
+        : `minecraft:${color}_wool`;
+      const item = new ItemStack(blockId, 16);
       const result = inventory.container.addItem(item);
       if (result) {
         player.sendMessage('§c背包空间不足！');
@@ -150,18 +240,8 @@ export class GameManager {
       tag: 'arrow',
       name: '箭 x16',
       price: 25,
-      icon: 'textures/items/arrow'
-    });
-    itemShop.setCallback('arrow', (player, _name) => {
-      const inventory = player.getComponent('inventory');
-      if (!inventory?.container) return false;
-      const item = new ItemStack(MinecraftItemTypes.Arrow, 16);
-      const result = inventory.container.addItem(item);
-      if (result) {
-        player.sendMessage('§c背包空间不足！');
-        return false;
-      }
-      return true;
+      icon: 'textures/items/arrow',
+      itemStack: new ItemStack(MinecraftItemTypes.Arrow, 16)
     });
 
     // 3. 速度浆果（甜浆果）
@@ -169,18 +249,8 @@ export class GameManager {
       tag: 'berry',
       name: '速度浆果',
       price: 40,
-      icon: 'textures/items/sweet_berries'
-    });
-    itemShop.setCallback('berry', (player, _name) => {
-      const inventory = player.getComponent('inventory');
-      if (!inventory?.container) return false;
-      const item = new ItemStack(MinecraftItemTypes.SweetBerries, 1);
-      const result = inventory.container.addItem(item);
-      if (result) {
-        player.sendMessage('§c背包空间不足！');
-        return false;
-      }
-      return true;
+      icon: 'textures/items/sweet_berries',
+      itemStack: new ItemStack(MinecraftItemTypes.SweetBerries, 1)
     });
 
     // 4. TNT
@@ -188,18 +258,8 @@ export class GameManager {
       tag: 'tnt',
       name: 'TNT',
       price: 75,
-      icon: 'textures/items/tnt'
-    });
-    itemShop.setCallback('tnt', (player, _name) => {
-      const inventory = player.getComponent('inventory');
-      if (!inventory?.container) return false;
-      const item = new ItemStack(MinecraftItemTypes.Tnt, 1);
-      const result = inventory.container.addItem(item);
-      if (result) {
-        player.sendMessage('§c背包空间不足！');
-        return false;
-      }
-      return true;
+      icon: 'textures/items/tnt',
+      itemStack: new ItemStack(MinecraftItemTypes.Tnt, 1)
     });
 
     // 5. 铁剑
@@ -310,6 +370,58 @@ export class GameManager {
       return true;
     });
 
+    floatingTextManager.create('flag_carrier', {
+      text: '{logo}已夺取{team}的旗帜！',
+      offset: { x: 0, y: 2.6, z: 0 }
+    }, (entity) => {
+      if (!entity) return { team: '未知', logo: '§l§e无' };
+
+      const carriedFlag = this.flagManager.getAllFlags().find(
+        (flag) => flag.state === FlagState.CARRIED && flag.carrier?.uuid === entity.id
+      );
+      const team = carriedFlag
+        ? this.teamManager.getTeam(carriedFlag.teamId)
+        : undefined;
+      const logo = getFlagUnicode(team?.color ?? 'white');
+
+      return { team: team ? team.getDisplayName() : '未知', logo: logo };
+    });
+
+    floatingTextManager.create('flag_recovery', {
+      text: '{logo}§e{time}秒后回城',
+      offset: { x: 0, y: 3, z: 0 }
+    }, (entity) => {
+      if (!entity) return { time: 0, logo: '§l§e无' };
+      const flag = this.flagManager.getAllFlags().find(
+        (f) => f.state === FlagState.DROPPED && f.flagEntity?.id === entity.id
+      );
+      const team = flag ? this.teamManager.getTeam(flag.teamId) : undefined;
+      const logo = getFlagUnicode(team?.color ?? 'white');
+      return { time: Math.ceil((flag?.dropTimer ?? 0) / 20), logo };
+    });
+
+    floatingTextManager.create('flag_home', {
+      text: '{logo}{team}的旗帜',
+      offset: { x: 0, y: 3, z: 0 }
+    }, (entity) => {
+      if (!entity) return { team: '§f未知', logo: getFlagUnicode('white') };
+      const flag = this.flagManager.getAllFlags().find(
+        (f) => f.state === FlagState.HOME && f.flagEntity?.id === entity.id
+      );
+      const team = flag ? this.teamManager.getTeam(flag.teamId) : undefined;
+      const logo = getFlagUnicode(team?.color ?? 'white');
+      return { team: team ? team.getDisplayName() : '§f未知', logo };
+    });
+
+    floatingTextManager.create('tnt_fuse', {
+      text: '§c{time}秒后爆炸',
+      offset: { x: 0, y: 2, z: 0 }
+    }, (entity) => {
+      if (!entity) return { time: 0 };
+      const fuse = this.tntFuses.find((f) => f.entity.id === entity.id);
+      return { time: Math.ceil(Math.max(fuse?.remainingTicks ?? 0, 0) / 20) };
+    });
+
     this.initialized = true;
     this.gamestate = GameState.WAITING;
   }
@@ -325,6 +437,7 @@ export class GameManager {
 
     // 1. 初始化队伍
     this.teamManager.initialize(config.teams);
+    floatingTextManager.initialize(runtime.roomDim(roomId));
 
     // 2. 创建旗帜
     for (const teamCfg of config.teams) {
@@ -337,8 +450,14 @@ export class GameManager {
     // 3. 创建商店实体
     const itemShop = this.shopManager.getShop('item_shop');
     if (itemShop) {
-      Object.values(config.itemShop).forEach((shop: Vector3) => {
+      config.itemShop.forEach((shop: Vector3) => {
         itemShop.spawnShopEntity(shop);
+      });
+    }
+    const buffShop = this.shopManager.getShop('buff_shop');
+    if (buffShop) {
+      config.buffShop.forEach((shop: Vector3) => {
+        buffShop.spawnShopEntity(shop);
       });
     }
 
@@ -396,19 +515,25 @@ export class GameManager {
   }
 
   end(): void {
-    if (this.gamestate !== GameState.RUNNING) {
-      throw new Error('非法的游戏状态：' + this.gamestate);
-    }
+    if (this.gamestate !== GameState.RUNNING) return;
+
     this.gamestate = GameState.ENDING;
 
     try {
+      this.timeStamp = 0;
       this.clearTntFuses();
       this.clearPlacedBlocks();
+      this.blockUpgradedTeams.clear();
+      this.arrowUpgradedTeams.clear();
+      this.flagCurseTeams.clear();
+      this.flagNonHomeTicks.clear();
+      this.cursedPlayers.clear();
       this.waterTickCounter.clear();
       this.flagManager.clear();
       this.teamManager.resetTeams();
       this.playerManager.clear();
       this.shopManager.removeShopEntity();
+      floatingTextManager.removeAll();
       this.runtime?.endGame(this.roomId!, '游戏结束');
     } catch (error) {
       console.error('游戏结束时发生错误：', error);
@@ -421,16 +546,20 @@ export class GameManager {
     const start = Date.now();
 
     if (this.gamestate !== GameState.RUNNING) return;
+    // TODO 处理玩家离线
 
     this.scoreboardManager?.updateAll();
     this.flagManager.updateAll();
     this.checkCaptures();
     this.checkScore();
+    this.handleTextDesplay();
     this.processWaterDamage();
     this.handlePlayerRespawn();
+    this.updateFlagCurses();
     this.handleRegeneration();
     this.updateTntFuses();
     this.naturalMoney();
+    floatingTextManager.updateTextForAll();
     this.checkWin();
 
     this.timeStamp += 2;
@@ -455,17 +584,88 @@ export class GameManager {
     }
   }
 
-  private checkWin() :void { 
+  private checkWin(): void {
     const team = this.teamManager.checkWinCondition(config.maxScore);
     if (team) {
-      this.sendMessage(`${team.name} 获得胜利！`);
+      this.sendMessage(`${team.getDisplayName()} 获得胜利！`);
       this.end();
       return;
     }
-    if (this.timeStamp >= config.matchTime) {
+    if (this.timeStamp / 20 >= config.matchTime) {
       this.sendMessage(`游戏结束，平局！`);
       this.end();
       return;
+    }
+  }
+
+  /**
+   * 悬浮字显示逻辑
+   */
+  handleTextDesplay(): void {
+    const flags = this.flagManager.getAllFlags();
+
+    // 1. 夺旗者头顶信息：仅旗帜处于被携带状态时显示
+    const carriers = new Set<string>();
+    for (const flag of flags) {
+      if (flag.state !== FlagState.CARRIED || !flag.carrier) continue;
+      const mcPlayer = flag.carrier.getPlayer();
+      if (!mcPlayer?.isValid) continue;
+      carriers.add(mcPlayer.id);
+      floatingTextManager.bindToEntity('flag_carrier', mcPlayer);
+      floatingTextManager.show('flag_carrier', mcPlayer);
+    }
+    // 已不再携带旗帜（得分、死亡掉落、离线等）的实例移除显示
+    for (const entity of floatingTextManager.getBoundEntities('flag_carrier')) {
+      if (!carriers.has(entity.id)) {
+        floatingTextManager.remove('flag_carrier', entity);
+      }
+    }
+
+    // 2. 掉落旗帜头顶的回城倒计时：仅掉落状态时显示
+    const droppedEntities = new Set<string>();
+    for (const flag of flags) {
+      if (flag.state !== FlagState.DROPPED) continue;
+      if (!flag.flagEntity?.isValid) continue;
+      droppedEntities.add(flag.flagEntity.id);
+      floatingTextManager.bindToEntity('flag_recovery', flag.flagEntity);
+      floatingTextManager.show('flag_recovery', flag.flagEntity);
+    }
+    // 旗帜被拾取或已回城（实体被移除/替换）时移除残留实例
+    for (const entity of floatingTextManager.getBoundEntities('flag_recovery')) {
+      if (!droppedEntities.has(entity.id)) {
+        floatingTextManager.remove('flag_recovery', entity);
+      }
+    }
+
+    // 3. 在家旗帜头顶的归属信息：仅 HOME 状态时显示
+    const homeEntities = new Set<string>();
+    for (const flag of flags) {
+      if (flag.state !== FlagState.HOME) continue;
+      if (!flag.flagEntity?.isValid) continue;
+      homeEntities.add(flag.flagEntity.id);
+      floatingTextManager.bindToEntity('flag_home', flag.flagEntity);
+      floatingTextManager.show('flag_home', flag.flagEntity);
+    }
+    // 旗帜被夺取或掉落（实体被移除/替换）时移除残留实例
+    for (const entity of floatingTextManager.getBoundEntities('flag_home')) {
+      if (!homeEntities.has(entity.id)) {
+        floatingTextManager.remove('flag_home', entity);
+      }
+    }
+
+    // 4. TNT 头顶的爆炸倒计时：所有引信倒计时中的 TNT 实体
+    const tntEntities = new Set<string>();
+    for (const fuse of this.tntFuses) {
+      if (!fuse.entity.isValid) continue;
+      tntEntities.add(fuse.entity.id);
+      floatingTextManager.bindToEntity('tnt_fuse', fuse.entity);
+      floatingTextManager.show('tnt_fuse', fuse.entity);
+    }
+    // TNT 已爆炸或被清理时移除残留实例
+    for (const entity of floatingTextManager.getBoundEntities('tnt_fuse')) {
+      if (!tntEntities.has(entity.id)) {
+        floatingTextManager.remove('tnt_fuse', entity);
+      }
     }
   }
 
@@ -500,7 +700,7 @@ export class GameManager {
       const healthComp = mcPlayer.getComponent('health');
       if (!healthComp) continue;
 
-      const maxHealth = healthComp.effectiveMax;
+      const maxHealth = this.getEffectiveMaxHealth(mcPlayer);
       const currentHealth = healthComp.currentValue;
       if (currentHealth >= maxHealth) continue; // 满血不恢复
 
@@ -521,7 +721,7 @@ export class GameManager {
    * @param placer 放置者的 UUID
    */
   public scheduleTntExplosion(location: Vector3, placer: Player): void {
-    const entity = this.spawnEntity(MinecraftEntityTypes.ArmorStand, location);
+    const entity = this.spawnEntity(CTFEnityTypes.TNT as VanillaEntityIdentifier, location);
     entity.nameTag = 'TNT';
     this.tntFuses.push({
       location: { ...location },
@@ -653,15 +853,26 @@ export class GameManager {
       if (attacker) {
         this.playerManager.getOrCreatePlayer(attacker).onKill();
         this.playerManager.getOrCreatePlayer(attacker).addEconomy(config.economy.killReward);
+
+        const attackerHealth = attacker.getComponent(EntityComponentTypes.Health) as EntityHealthComponent;
+        attackerHealth?.setCurrentValue(
+          Math.min(attackerHealth.currentValue + config.killRestoration, this.getEffectiveMaxHealth(attacker))
+        );
+
         this.sendMessage(`§a${attacker.nameTag} 击杀了 ${player.nameTag}`);
       };
+
+      // 夺旗者死亡后解除旗帜诅咒，生命上限恢复
+      if (this.cursedPlayers.delete(player.id)) {
+        player.sendMessage('§a旗帜诅咒已解除，生命上限已恢复！');
+      }
 
       // 3. 如果携带旗帜，则掉落
       const flags = this.flagManager.getAllFlags();
       for (const flag of flags) {
         if (flag.carrier && flag.carrier.uuid === player.id) {
           flag.drop(player.location);
-          this.sendMessage(`${this.teamManager.getTeam(flag.teamId)?.name} 的旗帜已掉落！`)
+          this.sendMessage(`${this.teamManager.getTeam(flag.teamId)?.getDisplayName() ?? '未知'} 的旗帜已掉落！`)
           break;
         }
       }
@@ -711,6 +922,7 @@ export class GameManager {
 
     player.sendMessage('§a你已复活！');
   }
+
   private processWaterDamage(): void {
     const players = this.runtime?.roomPlayers(this.roomId!) ?? [];
 
@@ -721,9 +933,8 @@ export class GameManager {
         const current = this.waterTickCounter.get(player.id) || 0;
         const newCount = current + 2; // tick 每 2 刻执行一次，步长 2
 
-        if (newCount >= 20) {
-          // 每秒造成 2 点窒息伤害
-          player.applyDamage(2);
+        if (newCount >= config.waterDamageTriggerDelay) {
+          player.applyDamage(config.waterDamage);
           this.waterTickCounter.set(player.id, 0);
         } else {
           this.waterTickCounter.set(player.id, newCount);
@@ -765,7 +976,7 @@ export class GameManager {
         }
         if (alreadyCarrying) continue;
 
-        // 尝试拾取（Flag.pickup 内部会处理状态变更与实体清理）
+        // 尝试拾取（Flag.pickup 内部会处理状态变更与实体清理，悬浮字由 handleTextDesplay 统一显示）
         const success = flag.pickup(ctfPlayer, true);
         if (success) {
           this.sendMessage(`${mcPlayer.nameTag} 拾取了 ${this.teamManager.getTeam(flag.teamId)?.name} 的旗帜！`)
@@ -806,7 +1017,7 @@ export class GameManager {
       if (reward > 0) carrier.addEconomy(reward);
 
       if (mcPlayer) {
-        mcPlayer.sendMessage(`§a成功夺旗！ +1 分，奖励 ${reward} 金币`);
+        mcPlayer.sendMessage(`§a成功夺旗！ +1 分！`);
       }
     }
   }
@@ -825,10 +1036,11 @@ export class GameManager {
   }
 
   /**
- * 破坏指定位置周围半径内所有由玩家放置的方块
- * @param center 中心坐标
- * @param radius 半径（使用切比雪夫距离便于遍历）
- */
+   * 破坏指定位置周围半径内所有由玩家放置的方块（箭矢命中时调用）
+   * 升级后的混凝土不受箭矢破坏，保留记录以便 TNT / 玩家仍可移除
+   * @param center 中心坐标
+   * @param radius 半径（使用切比雪夫距离便于遍历）
+   */
   public breakPlacedBlocksInRadius(center: Vector3, radius: number): void {
     const dimension = this.getGameDimension();
     if (!dimension) return;
@@ -847,6 +1059,7 @@ export class GameManager {
           if (this.placedBlocks.has(key)) {
             const block = dimension.getBlock({ x, y, z });
             if (block) {
+              if (block.typeId.endsWith('_concrete')) continue;
               block.setType('minecraft:air');
               this.placedBlocks.delete(key);
             }
@@ -888,6 +1101,131 @@ export class GameManager {
 
   addPlacedBlock(location: Vector3): void {
     this.placedBlocks.add(`${location.x},${location.y},${location.z}`);
+  }
+
+  /** 判断队伍是否已升级方块 */
+  hasBlockUpgrade(teamId: string): boolean {
+    return this.blockUpgradedTeams.has(teamId);
+  }
+
+  /**
+   * 升级队伍方块：标记该队已升级，并立刻将全队成员背包中的羊毛替换
+   */
+  upgradeTeamBlocks(teamId: string): boolean {
+    const team = this.teamManager.getTeam(teamId);
+    if (!team) return false;
+
+    const woolId = `minecraft:${team.color}_wool`;
+    const concreteId = `minecraft:${team.color}_concrete`;
+
+    for (const ctfPlayer of this.getPlayersByTeam(teamId)) {
+      const container = ctfPlayer.getPlayer()?.getComponent('inventory')?.container;
+      if (!container) continue;
+
+      for (let i = 0; i < container.size; i++) {
+        const item = container.getItem(i);
+        if (item?.typeId === woolId) {
+          container.setItem(i, new ItemStack(concreteId, item.amount));
+        }
+      }
+    }
+
+    this.blockUpgradedTeams.add(teamId);
+    return true;
+  }
+
+  /** 判断队伍是否已升级箭 */
+  hasArrowUpgrade(teamId: string): boolean {
+    return this.arrowUpgradedTeams.has(teamId);
+  }
+
+  /**
+   * 升级队伍箭矢：标记该队已升级，全队射出的箭破坏范围增大
+   */
+  upgradeTeamArrows(teamId: string): boolean {
+    const team = this.teamManager.getTeam(teamId);
+    if (!team) return false;
+
+    this.arrowUpgradedTeams.add(teamId);
+    return true;
+  }
+
+  /**
+   * 获取指定队伍玩家射出箭矢的破坏半径（升级后增大）
+   * @param teamId 射箭者队伍 ID，无队伍时使用基础半径
+   */
+  getArrowBreakRadius(teamId: string | null): number {
+    if (teamId && this.arrowUpgradedTeams.has(teamId)) {
+      return config.arrowBreakRadiusUpgraded;
+    }
+    return config.arrowBreakRadius;
+  }
+
+  /** 判断队伍是否已购买且尚未触发的旗帜诅咒 */
+  hasFlagCurse(teamId: string): boolean {
+    return this.flagCurseTeams.has(teamId);
+  }
+
+  /**
+   * 旗帜诅咒
+   * 携带该旗帜的敌方玩家生命上限被压低，死亡后恢复
+   */
+  private updateFlagCurses(): void {
+    const triggerTicks = config.flagCurse.triggerSeconds * 20;
+
+    for (const flag of this.flagManager.getAllFlags()) {
+      // 旗帜回城后重新累计未在家时长
+      if (flag.state === FlagState.HOME) {
+        this.flagNonHomeTicks.set(flag.teamId, 0);
+        continue;
+      }
+
+      const nonHomeTicks = (this.flagNonHomeTicks.get(flag.teamId) ?? 0) + 2; // tick 每 2 刻执行一次
+      this.flagNonHomeTicks.set(flag.teamId, nonHomeTicks);
+
+      if (!this.flagCurseTeams.has(flag.teamId)) continue;
+      if (nonHomeTicks < triggerTicks) continue;
+      if (flag.state !== FlagState.CARRIED || !flag.carrier) continue;
+      if (flag.carrier.teamId === flag.teamId) continue; // 防御：不诅咒同队玩家
+      if (this.cursedPlayers.has(flag.carrier.uuid)) continue;
+
+      // 诅咒成功施加后消耗本次购买，队伍可再次购买
+      if (this.applyFlagCurse(flag.carrier.uuid, flag.teamId)) {
+        this.flagCurseTeams.delete(flag.teamId);
+      }
+    }
+  }
+
+  /**
+   * 对夺旗者施加旗帜诅咒：生命值压低至诅咒上限
+   * @returns 是否成功施加
+   */
+  private applyFlagCurse(playerId: string, flagTeamId: string): boolean {
+    const ctfPlayer = this.playerManager.getPlayer(playerId);
+    const mcPlayer = ctfPlayer?.getPlayer();
+    if (!mcPlayer?.isValid) return false;
+
+    this.cursedPlayers.add(playerId);
+
+    const healthComp = mcPlayer.getComponent('health') as EntityHealthComponent | undefined;
+    if (healthComp) {
+      healthComp.setCurrentValue(Math.min(healthComp.currentValue, config.flagCurse.cursedMaxHealth));
+    }
+
+    const teamName = this.teamManager.getTeam(flagTeamId)?.getDisplayName() ?? '未知';
+    mcPlayer.sendMessage(`§c你被 ${teamName} 的旗帜诅咒！生命上限降低至 ${config.flagCurse.cursedMaxHealth / 2} 颗心，死亡后恢复。`);
+    return true;
+  }
+
+  /**
+   * 获取玩家的有效生命上限
+   * - 若玩家被旗帜诅咒，则返回诅咒上限
+   */
+  private getEffectiveMaxHealth(player: Player): number {
+    const healthComp = player.getComponent('health') as EntityHealthComponent | undefined;
+    const normalMax = healthComp?.effectiveMax ?? 20;
+    if (!this.cursedPlayers.has(player.id)) return normalMax;
+    return Math.min(normalMax, config.flagCurse.cursedMaxHealth);
   }
 
   isPlacedBlock(location: Vector3): boolean {
