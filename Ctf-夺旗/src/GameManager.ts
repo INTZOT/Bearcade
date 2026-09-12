@@ -580,7 +580,7 @@ export class GameManager {
       return;
     }
   }
-  
+
   /**
    * 悬浮字显示逻辑
    */
@@ -898,6 +898,7 @@ export class GameManager {
 
     player.sendMessage('§a你已复活！');
   }
+
   private processWaterDamage(): void {
     const players = this.runtime?.roomPlayers(this.roomId!) ?? [];
 
@@ -908,9 +909,8 @@ export class GameManager {
         const current = this.waterTickCounter.get(player.id) || 0;
         const newCount = current + 2; // tick 每 2 刻执行一次，步长 2
 
-        if (newCount >= 20) {
-          // 每秒造成 2 点窒息伤害
-          player.applyDamage(2);
+        if (newCount >= config.waterDamageTriggerDelay) {
+          player.applyDamage(config.waterDamage);
           this.waterTickCounter.set(player.id, 0);
         } else {
           this.waterTickCounter.set(player.id, newCount);

@@ -88,6 +88,8 @@ export const config = {
   arrowBreakRadius: 0.5,
   arrowBreakRadiusUpgraded: 1.5,
   killRestoration: 6,
+  waterDamageTriggerDelay: 20,
+  waterDamage: 4,
 
   regeneration: {
     /** 受伤后多少秒开始恢复 */
