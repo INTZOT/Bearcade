@@ -30,6 +30,12 @@ export class GameManager {
   private placedBlocks: Set<string> = new Set();
   private blockUpgradedTeams: Set<string> = new Set();
   private arrowUpgradedTeams: Set<string> = new Set();
+  /** 已购买且尚未触发旗帜诅咒的队伍（触发后即消耗，可再次购买） */
+  private flagCurseTeams: Set<string> = new Set();
+  /** 各队旗帜持续未处于 home 状态的累计刻数 */
+  private flagNonHomeTicks: Map<string, number> = new Map();
+  /** 当前被旗帜诅咒的玩家 ID */
+  private cursedPlayers: Set<string> = new Set();
   private tntFuses: TNTFuses = [];
   private gamestate: GameState;
   private roomId: number | undefined;
@@ -173,15 +179,24 @@ export class GameManager {
       this.sendMessage(`${team.getDisplayName()} 的方块已升级为混凝土，无法被箭矢破坏！`);
       return true;
     });
-    buffShop.addItem('quick_respawn', {
-      tag: 'quick_respawn',
-      name: '§l§a快速重生',
-      price: 350,
-    });
     buffShop.addItem('flag_curse', {
       tag: 'flag_curse',
       name: '§l§a旗帜诅咒',
       price: 200,
+    });
+    buffShop.setCallback('flag_curse', (player, _name) => {
+      const team = this.teamManager.getTeamOfPlayer(player.id);
+      if (!team) {
+        player.sendMessage('§c你还没有队伍！');
+        return false;
+      }
+      if (this.hasFlagCurse(team.id)) {
+        player.sendMessage('§c你的队伍的旗帜诅咒还未触发，无法重复购买！');
+        return false;
+      }
+      this.flagCurseTeams.add(team.id);
+      this.sendMessage(`${team.getDisplayName()} 已激活旗帜诅咒！其旗帜被夺取超过 ${config.flagCurse.triggerSeconds} 秒后，夺旗者的生命上限将被降低`);
+      return true;
     });
 
     const itemShop = this.shopManager.createShop('item_shop');
@@ -511,6 +526,9 @@ export class GameManager {
       this.clearPlacedBlocks();
       this.blockUpgradedTeams.clear();
       this.arrowUpgradedTeams.clear();
+      this.flagCurseTeams.clear();
+      this.flagNonHomeTicks.clear();
+      this.cursedPlayers.clear();
       this.waterTickCounter.clear();
       this.flagManager.clear();
       this.teamManager.resetTeams();
@@ -538,6 +556,7 @@ export class GameManager {
     this.handleTextDesplay();
     this.processWaterDamage();
     this.handlePlayerRespawn();
+    this.updateFlagCurses();
     this.handleRegeneration();
     this.updateTntFuses();
     this.naturalMoney();
@@ -683,7 +702,7 @@ export class GameManager {
       const healthComp = mcPlayer.getComponent('health');
       if (!healthComp) continue;
 
-      const maxHealth = healthComp.effectiveMax;
+      const maxHealth = this.getEffectiveMaxHealth(mcPlayer);
       const currentHealth = healthComp.currentValue;
       if (currentHealth >= maxHealth) continue; // 满血不恢复
 
@@ -838,10 +857,17 @@ export class GameManager {
         this.playerManager.getOrCreatePlayer(attacker).addEconomy(config.economy.killReward);
 
         const attackerHealth = attacker.getComponent(EntityComponentTypes.Health) as EntityHealthComponent;
-        attackerHealth?.setCurrentValue(attackerHealth.currentValue + config.killRestoration);
+        attackerHealth?.setCurrentValue(
+          Math.min(attackerHealth.currentValue + config.killRestoration, this.getEffectiveMaxHealth(attacker))
+        );
 
         this.sendMessage(`§a${attacker.nameTag} 击杀了 ${player.nameTag}`);
       };
+
+      // 夺旗者死亡后解除旗帜诅咒，生命上限恢复
+      if (this.cursedPlayers.delete(player.id)) {
+        player.sendMessage('§a旗帜诅咒已解除，生命上限已恢复！');
+      }
 
       // 3. 如果携带旗帜，则掉落
       const flags = this.flagManager.getAllFlags();
@@ -1135,6 +1161,73 @@ export class GameManager {
       return config.arrowBreakRadiusUpgraded;
     }
     return config.arrowBreakRadius;
+  }
+
+  /** 判断队伍是否已购买且尚未触发的旗帜诅咒 */
+  hasFlagCurse(teamId: string): boolean {
+    return this.flagCurseTeams.has(teamId);
+  }
+
+  /**
+   * 旗帜诅咒
+   * 携带该旗帜的敌方玩家生命上限被压低，死亡后恢复
+   */
+  private updateFlagCurses(): void {
+    const triggerTicks = config.flagCurse.triggerSeconds * 20;
+
+    for (const flag of this.flagManager.getAllFlags()) {
+      // 旗帜回城后重新累计未在家时长
+      if (flag.state === FlagState.HOME) {
+        this.flagNonHomeTicks.set(flag.teamId, 0);
+        continue;
+      }
+
+      const nonHomeTicks = (this.flagNonHomeTicks.get(flag.teamId) ?? 0) + 2; // tick 每 2 刻执行一次
+      this.flagNonHomeTicks.set(flag.teamId, nonHomeTicks);
+
+      if (!this.flagCurseTeams.has(flag.teamId)) continue;
+      if (nonHomeTicks < triggerTicks) continue;
+      if (flag.state !== FlagState.CARRIED || !flag.carrier) continue;
+      if (flag.carrier.teamId === flag.teamId) continue; // 防御：不诅咒同队玩家
+      if (this.cursedPlayers.has(flag.carrier.uuid)) continue;
+
+      // 诅咒成功施加后消耗本次购买，队伍可再次购买
+      if (this.applyFlagCurse(flag.carrier.uuid, flag.teamId)) {
+        this.flagCurseTeams.delete(flag.teamId);
+      }
+    }
+  }
+
+  /**
+   * 对夺旗者施加旗帜诅咒：生命值压低至诅咒上限
+   * @returns 是否成功施加
+   */
+  private applyFlagCurse(playerId: string, flagTeamId: string): boolean {
+    const ctfPlayer = this.playerManager.getPlayer(playerId);
+    const mcPlayer = ctfPlayer?.getPlayer();
+    if (!mcPlayer?.isValid) return false;
+
+    this.cursedPlayers.add(playerId);
+
+    const healthComp = mcPlayer.getComponent('health') as EntityHealthComponent | undefined;
+    if (healthComp) {
+      healthComp.setCurrentValue(Math.min(healthComp.currentValue, config.flagCurse.cursedMaxHealth));
+    }
+
+    const teamName = this.teamManager.getTeam(flagTeamId)?.getDisplayName() ?? '未知';
+    mcPlayer.sendMessage(`§c你被 ${teamName} 的旗帜诅咒！生命上限降低至 ${config.flagCurse.cursedMaxHealth / 2} 颗心，死亡后恢复。`);
+    return true;
+  }
+
+  /**
+   * 获取玩家的有效生命上限
+   * - 若玩家被旗帜诅咒，则返回诅咒上限
+   */
+  private getEffectiveMaxHealth(player: Player): number {
+    const healthComp = player.getComponent('health') as EntityHealthComponent | undefined;
+    const normalMax = healthComp?.effectiveMax ?? 20;
+    if (!this.cursedPlayers.has(player.id)) return normalMax;
+    return Math.min(normalMax, config.flagCurse.cursedMaxHealth);
   }
 
   isPlacedBlock(location: Vector3): boolean {

@@ -98,6 +98,13 @@ export const config = {
     perSecond: 1,
   },
 
+  flagCurse: {
+    /** 队伍旗帜持续未处于 home 状态多少秒后诅咒夺旗者 */
+    triggerSeconds: 180,
+    /** 被诅咒的夺旗者生命上限（半颗心为单位，8=4颗心） */
+    cursedMaxHealth: 6,
+  },
+
   tnt: {
     /** 引信持续时间（游戏刻，20刻=1秒），默认4秒 */
     fuseTicks: 80,
