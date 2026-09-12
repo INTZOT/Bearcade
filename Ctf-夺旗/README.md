@@ -75,13 +75,22 @@ export const config = {
   matchTime: 300,              // 对局时长（秒）
   flagReturnTime: 15,          // 旗帜掉落后自动回城时间（秒）
   respawnTime: 5,              // 玩家复活等待时间（秒）
-  arrowBreakRadius: 1,         // 箭矢破坏玩家放置方块的半径
+  arrowBreakRadius: 0.5,       // 箭矢破坏玩家放置方块的默认半径
+  arrowBreakRadiusUpgraded: 1.5, // 队伍购买"箭升级"后的破坏半径
   killRestoration: 6,          // 击杀敌人后恢复的血量 
+  waterDamageTriggerDelay: 20, // 在水中持续多少刻后开始受到伤害
+  waterDamage: 4,              // 水中周期性伤害值（半心单位）
 
   // ---- 生命恢复 ----
   regeneration: {
     delaySeconds: 15,          // 受伤后延迟多少秒开始恢复
     perSecond: 1,              // 每秒恢复的生命值
+  },
+
+  // ---- 旗帜诅咒（增益商店购买） ----
+  flagCurse: {
+    triggerSeconds: 30,        // 队伍旗帜持续未处于 home 状态多少秒后诅咒夺旗者
+    cursedMaxHealth: 8,        // 被诅咒的夺旗者生命上限（半心单位，8=4颗心）
   },
 
   // ---- TNT 爆炸参数 ----
@@ -109,7 +118,7 @@ export const config = {
   buffShop: [
     { x: -2, y: 65, z: 0 },
     { x: 2, y: 65, z: 0 }
-  ]},
+  ],
 
   // ---- 旗帜判定半径 ----
   arena: {
