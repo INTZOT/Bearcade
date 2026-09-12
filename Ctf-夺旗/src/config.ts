@@ -85,7 +85,8 @@ export const config = {
   flagReturnTime: 15,
   respawnTime: 5,
   initialBlockCount: 32,
-  arrowBreakRadius: 1,
+  arrowBreakRadius: 0.5,
+  arrowBreakRadiusUpgraded: 1.5,
   killRestoration: 6,
 
   regeneration: {

@@ -29,6 +29,7 @@ export class GameManager {
   private readonly RESPAWN_DELAY_TICKS = config.respawnTime * 20;
   private placedBlocks: Set<string> = new Set();
   private blockUpgradedTeams: Set<string> = new Set();
+  private arrowUpgradedTeams: Set<string> = new Set();
   private tntFuses: TNTFuses = [];
   private gamestate: GameState;
   private roomId: number | undefined;
@@ -138,6 +139,20 @@ export class GameManager {
       tag: 'arrow_upgrade',
       name: '§l§a箭升级',
       price: 125,
+    });
+    buffShop.setCallback('arrow_upgrade', (player, _name) => {
+      const team = this.teamManager.getTeamOfPlayer(player.id);
+      if (!team) {
+        player.sendMessage('§c你还没有队伍！');
+        return false;
+      }
+      if (this.hasArrowUpgrade(team.id)) {
+        player.sendMessage('§c你的队伍已经升级过箭了！');
+        return false;
+      }
+      if (!this.upgradeTeamArrows(team.id)) return false;
+      this.sendMessage(`${team.getDisplayName()} 的箭已升级，射出的箭破坏范围增大！`);
+      return true;
     });
     buffShop.addItem('block_upgrade', {
       tag: 'block_upgrade',
@@ -495,6 +510,7 @@ export class GameManager {
       this.clearTntFuses();
       this.clearPlacedBlocks();
       this.blockUpgradedTeams.clear();
+      this.arrowUpgradedTeams.clear();
       this.waterTickCounter.clear();
       this.flagManager.clear();
       this.teamManager.resetTeams();
@@ -1092,6 +1108,33 @@ export class GameManager {
 
     this.blockUpgradedTeams.add(teamId);
     return true;
+  }
+
+  /** 判断队伍是否已升级箭 */
+  hasArrowUpgrade(teamId: string): boolean {
+    return this.arrowUpgradedTeams.has(teamId);
+  }
+
+  /**
+   * 升级队伍箭矢：标记该队已升级，全队射出的箭破坏范围增大
+   */
+  upgradeTeamArrows(teamId: string): boolean {
+    const team = this.teamManager.getTeam(teamId);
+    if (!team) return false;
+
+    this.arrowUpgradedTeams.add(teamId);
+    return true;
+  }
+
+  /**
+   * 获取指定队伍玩家射出箭矢的破坏半径（升级后增大）
+   * @param teamId 射箭者队伍 ID，无队伍时使用基础半径
+   */
+  getArrowBreakRadius(teamId: string | null): number {
+    if (teamId && this.arrowUpgradedTeams.has(teamId)) {
+      return config.arrowBreakRadiusUpgraded;
+    }
+    return config.arrowBreakRadius;
   }
 
   isPlacedBlock(location: Vector3): boolean {
