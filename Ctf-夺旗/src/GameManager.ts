@@ -28,6 +28,7 @@ export class GameManager {
   private deathPlayers: Map<string, number> = new Map();
   private readonly RESPAWN_DELAY_TICKS = config.respawnTime * 20;
   private placedBlocks: Set<string> = new Set();
+  private blockUpgradedTeams: Set<string> = new Set();
   private tntFuses: TNTFuses = [];
   private gamestate: GameState;
   private roomId: number | undefined;
@@ -143,10 +144,19 @@ export class GameManager {
       name: '§l§a方块升级',
       price: 200,
     });
-    buffShop.addItem('damage_absorption', {
-      tag: 'damage_absorption',
-      name: '§l§a伤害吸收',
-      price: 250,
+    buffShop.setCallback('block_upgrade', (player, _name) => {
+      const team = this.teamManager.getTeamOfPlayer(player.id);
+      if (!team) {
+        player.sendMessage('§c你还没有队伍！');
+        return false;
+      }
+      if (this.hasBlockUpgrade(team.id)) {
+        player.sendMessage('§c你的队伍已经升级过方块了！');
+        return false;
+      }
+      if (!this.upgradeTeamBlocks(team.id)) return false;
+      this.sendMessage(`${team.getDisplayName()} 的方块已升级为混凝土，无法被箭矢破坏！`);
+      return true;
     });
     buffShop.addItem('quick_respawn', {
       tag: 'quick_respawn',
@@ -183,8 +193,11 @@ export class GameManager {
         return false;
       }
       const color = team.color; // 'blue' 或 'green'
-      const woolId = `minecraft:${color}_wool`;
-      const item = new ItemStack(woolId, 16);
+      // 队伍升级后方块变为混凝土，否则为羊毛
+      const blockId = this.hasBlockUpgrade(team.id)
+        ? `minecraft:${color}_concrete`
+        : `minecraft:${color}_wool`;
+      const item = new ItemStack(blockId, 16);
       const result = inventory.container.addItem(item);
       if (result) {
         player.sendMessage('§c背包空间不足！');
@@ -481,6 +494,7 @@ export class GameManager {
       this.timeStamp = 0;
       this.clearTntFuses();
       this.clearPlacedBlocks();
+      this.blockUpgradedTeams.clear();
       this.waterTickCounter.clear();
       this.flagManager.clear();
       this.teamManager.resetTeams();
@@ -982,10 +996,11 @@ export class GameManager {
   }
 
   /**
- * 破坏指定位置周围半径内所有由玩家放置的方块
- * @param center 中心坐标
- * @param radius 半径（使用切比雪夫距离便于遍历）
- */
+   * 破坏指定位置周围半径内所有由玩家放置的方块（箭矢命中时调用）
+   * 升级后的混凝土不受箭矢破坏，保留记录以便 TNT / 玩家仍可移除
+   * @param center 中心坐标
+   * @param radius 半径（使用切比雪夫距离便于遍历）
+   */
   public breakPlacedBlocksInRadius(center: Vector3, radius: number): void {
     const dimension = this.getGameDimension();
     if (!dimension) return;
@@ -1004,6 +1019,7 @@ export class GameManager {
           if (this.placedBlocks.has(key)) {
             const block = dimension.getBlock({ x, y, z });
             if (block) {
+              if (block.typeId.endsWith('_concrete')) continue;
               block.setType('minecraft:air');
               this.placedBlocks.delete(key);
             }
@@ -1045,6 +1061,37 @@ export class GameManager {
 
   addPlacedBlock(location: Vector3): void {
     this.placedBlocks.add(`${location.x},${location.y},${location.z}`);
+  }
+
+  /** 判断队伍是否已升级方块 */
+  hasBlockUpgrade(teamId: string): boolean {
+    return this.blockUpgradedTeams.has(teamId);
+  }
+
+  /**
+   * 升级队伍方块：标记该队已升级，并立刻将全队成员背包中的羊毛替换
+   */
+  upgradeTeamBlocks(teamId: string): boolean {
+    const team = this.teamManager.getTeam(teamId);
+    if (!team) return false;
+
+    const woolId = `minecraft:${team.color}_wool`;
+    const concreteId = `minecraft:${team.color}_concrete`;
+
+    for (const ctfPlayer of this.getPlayersByTeam(teamId)) {
+      const container = ctfPlayer.getPlayer()?.getComponent('inventory')?.container;
+      if (!container) continue;
+
+      for (let i = 0; i < container.size; i++) {
+        const item = container.getItem(i);
+        if (item?.typeId === woolId) {
+          container.setItem(i, new ItemStack(concreteId, item.amount));
+        }
+      }
+    }
+
+    this.blockUpgradedTeams.add(teamId);
+    return true;
   }
 
   isPlacedBlock(location: Vector3): boolean {
