@@ -8,8 +8,9 @@ import { PlayerManager } from './PlayerManager';
 import { ScoreboardManager } from './ScoreboardManager';
 import { ShopManager } from './ShopManager';
 import { TeamManager } from './TeamManager';
-import { FlagState, GameState, PlayerState, Vector3 } from './types';
-import { distance } from './utils';
+import { CTFEnityTypes, FlagState, GameState, PlayerState, Vector3 } from './types';
+import { distance, getColorCode, getFlagUnicode } from './utils';
+import { floatingTextManager } from './FloatingTextManager';
 
 type TNTFuses = {
   location: Vector3;
