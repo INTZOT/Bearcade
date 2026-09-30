@@ -1,0 +1,7 @@
+{
+  "format_version": "1.19.0",
+  "bearcade:trio_x": { "textures": "trio_x", "sound": "stone" },
+  "bearcade:trio_o": { "textures": "trio_o", "sound": "stone" },
+  "bearcade:trio_x_ghost": { "textures": "trio_x_ghost", "sound": "stone" },
+  "bearcade:trio_o_ghost": { "textures": "trio_o_ghost", "sound": "stone" }
+}

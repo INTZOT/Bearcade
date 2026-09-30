@@ -1,0 +1,29 @@
+{
+  "format_version": "1.21.60",
+  "minecraft:block": {
+    "description": {
+      "identifier": "bearcade:trio_o",
+      "register_to_creative_inventory": true,
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:geometry": "geometry.trio_o",
+      "minecraft:material_instances": {
+        "*": { "texture": "trio_o", "render_method": "opaque" }
+      },
+      "minecraft:item_visual": {
+        "geometry": { "identifier": "geometry.trio_o_hand" },
+        "material_instances": {
+          "*": { "texture": "trio_o", "render_method": "opaque" }
+        }
+      },
+      "minecraft:collision_box": false,
+      "minecraft:selection_box": { "origin": [-8, 0, -8], "size": [16, 2, 16] },
+      "minecraft:destructible_by_mining": { "seconds_to_destroy": 0.05 },
+      "minecraft:destructible_by_explosion": { "explosion_resistance": 0 },
+      "minecraft:map_color": "#2C2E8F"
+    }
+  }
+}
