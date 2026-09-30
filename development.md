@@ -38,6 +38,7 @@
 | `Ctf-夺旗/` | 小游戏包 | 夺旗,红蓝两队夺旗 + 经济与商店 + TNT/搭桥,2 个房间(场地坐标仍为模板占位值,待建) |
 | `NewYearPig-杀年猪/` | 小游戏包 | 杀年猪,45×45 地皮限时刷动物击杀得分,4 个房间(`/bearcade:newyearpig_buildmap` 建地皮) |
 | `Studio-工作室/` | 小游戏包 | 工作室,7 回合合成交付 + 货架原材料 + 前三名得分,2 个房间(`/studio:build` 建图) |
+| `Trio-轮转井字棋/` | 小游戏包 | 轮转井字棋,3×3 三连取胜 + 每方最多 3 子(最老一子轮转虚化),三局两胜,2 个房间/2 人(`/bearcade:trio_buildmap` 建图) |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 | `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,屏幕右侧垂直居中的每玩家独立记分板 |
 
@@ -181,6 +182,7 @@ bearcade:gomoku_template
 | Ctf | 2 | `bearcade:ctf_1` ~ `bearcade:ctf_2` |
 | NewYearPig | 4 | `bearcade:newyearpig_1` ~ `bearcade:newyearpig_4` |
 | Studio | 2 | `bearcade:studio_1` ~ `bearcade:studio_2` |
+| Trio | 2 | `bearcade:trio_1` ~ `bearcade:trio_2` |
 | Template | 2 | `bearcade:mygame_1` ~ `bearcade:mygame_2` |
 
 ### 3.4 向 Core 上报状态
@@ -602,3 +604,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-09-08 | 审查修复批次一:HungerGame 淘汰玩家死亡后回观战台并恢复 follow_orbit(设重生点 + playerSpawn 兜底)、物资池保存按容器较小值遍历(修复 54/36 越界抛错)、LabEscape 死亡恢复到柱顶(设重生点 + playerSpawn 兜底)、NewYearPig 配置移入 worldLoad 并回写 prepSpawn(修复重启后准备点失效) |
 | 2026-09-08 | 低危清理批次:BridgeWar 装备实体 id 规范为 `bearcade:bridgewar_loadout_dummy`(文件与文档同步)、删除 Werewolf 重复结构文件与 Knockback 未使用的 HUD 资源包 ui/、移除共享层未使用的 `beginPending`/`manualStart`、Core 注册表限制 roomCount/maxPlayers ≤64、新增 `game.register_request` 重注册兜底并让 `upsertGame` 幂等、过期判定由 `Date.now()` 改为 `system.currentTick`、Mahjong/Gomoku/Go 调试日志统一走 `runtime.dbg`、删除 Ctf 死代码(Timer/GlobalDataCache) |
 | 2026-09-08 | 文档同步:README 与本文档补齐 FrozenFloor/Ctf/NewYearPig/Studio 四包(当前状态、模块表、包目录表、房间数表)、§4.6 补四包配置项并修正"最大人数唯一例外"与配置接入数量、§5.4 修正 `game.apply` 载荷、§4.8 明确 JSON UI 记分板接入范围;修正 CChess/pillars/FrozenFloor/HungerGame/Mahjong 包内 README 与代码不符之处 |
+| 2026-09-30 | 新增 Trio-轮转井字棋(3×3 三连取胜;每方场上最多 3 子,轮到自己时最老一子轮转出局并在原格留下「虚化」标记——该标记仅自己本回合存在、禁止原地复下,回合结束即消失,对手回合该格可正常落子;三局两胜,第 1 局随机先手、之后逐局轮换;每步 45 秒超时由脚本随机落子,同一玩家连续 3 次超时本局判负;每局 60 手流局兜底、整场最多 5 局;2 个房间/每房 2 人、不支持派对,观战与派对带队接口预留但未启用;`/bearcade:trio_buildmap` 自动生成 3×3 磁石棋盘 + 走道 + 防掉虚空屏障 + 准备平台;4 个自定义方块(深红 X / 深蓝 O / 浅红虚化 / 浅蓝虚化,虚化用 blend 半透明)与一对一 HUD 资源包,棋子模型由用户提供几何体并做居中(-5.5)与手持变体(Y=8)适配) |
