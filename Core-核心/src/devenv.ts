@@ -15,6 +15,7 @@ import {
 import type { GameRegistry } from "./registry";
 import type { GameEntry, RoomInfo } from "./types";
 import { isAdmin, isPartyMode, togglePartyMode } from "./party";
+import { isGameOpen, setGameOpen } from "./access";
 import { MENU_DELAY_TICKS, showNotice, trackForm } from "./ui";
 import {
   ROOM_DIM_PATTERN,
@@ -182,8 +183,9 @@ function openDevGameList(player: Player): void {
     form.label("§7暂无游戏(等待小游戏包注册)");
   } else {
     for (const entry of games) {
+      const open = isGameOpen(entry.game);
       form.button(
-        `${entry.displayName}  (${entry.roomCount} 房 / ${entry.maxPlayers} 人)`,
+        `${entry.displayName}${open ? "" : "(暂未开放)"}  (${entry.roomCount} 房 / ${entry.maxPlayers} 人)`,
         () => {
           form.close();
           system.runTimeout(
@@ -218,13 +220,21 @@ function openDevGameDetail(player: Player, game: string): void {
   form.label(
     `§7房间:§f${entry.roomCount} §7| 单房上限:§f${entry.maxPlayers} §7| 最少开局:§f${entry.minPlayers}`,
   );
+  const open = isGameOpen(entry.game);
   form.label(
-    `§7派对可用:§f${entry.partyAvailable ? "是" : "否"} §7| 调试日志:§f${debugOn ? "开" : "关"}`,
+    `§7派对可用:§f${entry.partyAvailable ? "是" : "否"} §7| 调试日志:§f${debugOn ? "开" : "关"} §7| 进入:§f${open ? "开放" : "暂未开放"}`,
   );
   form.label(
     `§7准备点:§f(${entry.prepSpawn.x}, ${entry.prepSpawn.y}, ${entry.prepSpawn.z})`,
   );
   form.spacer();
+  form.button(`进入开关(当前${open ? "开放" : "暂未开放"})`, () => {
+    form.close();
+    system.runTimeout(
+      () => openDevGameAccess(player, entry.game),
+      MENU_DELAY_TICKS,
+    );
+  });
   form.button("运行时配置", () => {
     form.close();
     system.runTimeout(() => {
@@ -280,6 +290,60 @@ function openDevGameDetail(player: Player, game: string): void {
     system.runTimeout(() => openDevGameList(player), MENU_DELAY_TICKS);
   });
   trackForm(player.id, form);
+}
+
+/** 进入开关:ObservableBoolean + subscribe,拨动即时生效,无需确认 */
+function openDevGameAccess(player: Player, game: string): void {
+  const registry = registryOrNotice(player);
+  if (!registry) return;
+  const entry = registry.getActiveGame(game);
+  if (!entry) {
+    showNotice(player, `游戏已不可用:${game}`);
+    openDevPanel(player);
+    return;
+  }
+
+  const openObs = new ObservableBoolean(isGameOpen(entry.game), {
+    clientWritable: true,
+  });
+  const stateLabel = new ObservableString(
+    accessStateLabel(isGameOpen(entry.game)),
+  );
+
+  const form = new CustomForm(player, `进入开关 · ${entry.displayName}`);
+  form.label(
+    "§7关闭后:该游戏仍出现在大厅游戏列表中,但带「暂未开放」后缀且无法点击进入。",
+  );
+  form.label("§7已在房间内的玩家不受影响,房间状态照常上报。");
+  form.label(stateLabel);
+  form.spacer();
+  form.toggle("允许玩家进入", openObs);
+  form.spacer();
+  form.label("§7拨动即时生效,无需确认。");
+  form.button("返回", () => {
+    form.close();
+    system.runTimeout(
+      () => openDevGameDetail(player, entry.game),
+      MENU_DELAY_TICKS,
+    );
+  });
+
+  const handle = openObs.subscribe((value: boolean) => {
+    const changed = setGameOpen(entry.game, value);
+    stateLabel.setData(accessStateLabel(value));
+    if (!changed) return;
+    player.sendMessage(
+      value
+        ? `§a已开放「${entry.displayName}」进入`
+        : `§c已关闭「${entry.displayName}」进入`,
+    );
+  });
+
+  trackForm(player.id, form, () => openObs.unsubscribe(handle));
+}
+
+function accessStateLabel(open: boolean): string {
+  return `§7当前状态:${open ? "§a开放" : "§c暂未开放"}`;
 }
 
 function openDevApplyConfirm(player: Player, game: string): void {

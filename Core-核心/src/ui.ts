@@ -12,6 +12,7 @@ import {
 import type { GameRegistry } from "./registry";
 import type { GameEntry, RoomInfo } from "./types";
 import { isAdmin, isPartyMode } from "./party";
+import { isGameOpen } from "./access";
 
 export const MENU_DELAY_TICKS = 2;
 let registryForUi: GameRegistry;
@@ -38,7 +39,11 @@ function closeForm(playerId: string): void {
   openForms.delete(playerId);
 }
 
-export function trackForm(playerId: string, form: CustomForm): void {
+export function trackForm(
+  playerId: string,
+  form: CustomForm,
+  onClosed?: () => void,
+): void {
   closeForm(playerId);
   openForms.set(playerId, form);
   try {
@@ -54,10 +59,12 @@ export function trackForm(playerId: string, form: CustomForm): void {
       if (view && view.form === form) {
         roomViews.delete(playerId);
       }
+      onClosed?.();
     });
   } catch (error) {
     console.warn("[Bearcade Core] 表单 show() 同步抛出", error);
     openForms.delete(playerId);
+    onClosed?.();
   }
 }
 
@@ -133,13 +140,19 @@ export function openGameList(player: Player): void {
     );
   } else {
     for (const entry of games) {
-      form.button(entry.displayName, () => {
-        closeForm(player.id);
-        system.runTimeout(
-          () => openRoomList(player, entry.game),
-          MENU_DELAY_TICKS,
-        );
-      });
+      // 进入开关关闭的游戏仍显示在列表,但带后缀且按钮不可点击
+      const open = isGameOpen(entry.game);
+      form.button(
+        open ? entry.displayName : `${entry.displayName}(暂未开放)`,
+        () => {
+          closeForm(player.id);
+          system.runTimeout(
+            () => openRoomList(player, entry.game),
+            MENU_DELAY_TICKS,
+          );
+        },
+        { disabled: new ObservableBoolean(!open) },
+      );
     }
   }
   form.spacer();
@@ -157,6 +170,10 @@ export function setUiRegistry(registry: GameRegistry): void {
 export function openRoomList(player: Player, game: string): void {
   const entry = registryForUi.getActiveGame(game);
   if (!entry) return;
+  if (!isGameOpen(game)) {
+    showNotice(player, `「${entry.displayName}」暂未开放。`);
+    return;
+  }
 
   closeForm(player.id);
   const labels = new Map<number, ObservableString>();
@@ -191,6 +208,12 @@ export function openRoomList(player: Player, game: string): void {
 
 function handleJoin(player: Player, entry: GameEntry, roomId: number): void {
   closeForm(player.id);
+
+  // 进入开关(菜单置灰之外的兜底:派对带队、旧表单迟到回调都要挡住)
+  if (!isGameOpen(entry.game)) {
+    showNotice(player, `「${entry.displayName}」暂未开放。`);
+    return;
+  }
 
   // 派对模式:管理员带队,全服玩家一起加入(仅 PartyAvailable 游戏)
   if (isPartyMode()) {

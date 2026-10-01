@@ -124,7 +124,8 @@ Core 提供命令:
 - `/bearcade:party`:管理员开关**派对模式**;
 - `/bearcade:config <gamename>`:管理员打开指定游戏的**运行时配置界面**(18 个小游戏中 16 个已接入,夺旗与剑与消亡V 未接入;对局进行中禁止修改);
 - `/bearcade:debug <gamename|all> enable|disable`:管理员开启/关闭指定游戏(或 `all` 全部游戏)的调试日志(共享运行时统一支持)。
-- **开发者面板**:管理员手持**命令方块矿车**(`minecraft:command_block_minecart`)右键即可打开图形面板,覆盖上述 `config` / `tmp` / `debug` / `party` / `quit` 的全部动作,并带房间状态实时总览;与命令共用同一份实现(`Core-核心/src/actions.ts`)。
+- `/bearcade:enable <gamename> true|false`:管理员**开放/关闭指定游戏的进入**;关闭后该游戏仍显示在游戏列表中并带「(暂未开放)」后缀、按钮不可点击,已在房间内的玩家与房间状态上报不受影响;
+- **开发者面板**:管理员手持**命令方块矿车**(`minecraft:command_block_minecart`)右键即可打开图形面板,覆盖上述 `config` / `tmp` / `debug` / `enable` / `party` / `quit` 的全部动作,并带房间状态实时总览与**进入开关组件**(拨动即时生效);与命令共用同一份实现(`Core-核心/src/actions.ts`)。
 
 派对模式:开启后普通玩家不能自行选择游戏加入;管理员从游戏列表点击房间时,Core 会把全服在线玩家一起带入该房间(忽略人数上限),且只允许 `partyAvailable=true` 的小游戏(如 gomoku=false、guessnbuild=true);带队时要求全服在线人数达到该游戏的最少开局人数(`minPlayers`),否则拒绝加入;派对模式开局倒计时固定 60 秒,不触发满员缩短。管理员以 `op` tag 判定。
 
@@ -133,7 +134,8 @@ Core 提供命令:
 - 主世界(`minecraft:overworld`)即大厅,由 Core 管理;
 - 玩家每次回到大厅自动获得钟物品:快捷栏第 1 格,`ItemLockMode.slot` 锁定,不可移动/丢弃;
 - 使用钟 → 一级主菜单 → 二级游戏列表 → 三级房间列表(人数 / 最大人数 / 状态,实时刷新);
-- 点击房间即发起入房请求;菜单基于 `@minecraft/server-ui` 的 CustomForm(DDUI)。
+- 点击房间即发起入房请求;菜单基于 `@minecraft/server-ui` 的 CustomForm(DDUI);
+- 被 `/bearcade:enable <gamename> false` 关闭的游戏仍列在游戏列表中,显示为「(暂未开放)」且按钮置灰不可点击;
 
 ### 返回大厅数据初始化与断线处理(契约)
 

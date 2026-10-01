@@ -360,6 +360,7 @@ Core 内置一个面向管理员的开发者面板,**不新增任何指令语义
   | 应用模板到全部房间 | `/bearcade:tmp ap <game>` | `game.apply` |
   | 模板范围配置 | `/bearcade:tmp sz <game>` | `game.sz` |
   | 切换调试日志 | `/bearcade:debug <game> enable\|disable` | `game.debug` |
+  | 进入开关(开关组件) | `/bearcade:enable <game> true\|false` | 无(Core 本地状态) |
   | 切换派对模式 | `/bearcade:party` | 广播 `party.mode` |
   | 强制中止当前房间对局 | `/bearcade:quit` | `game.quit` |
   | 传送回大厅 | `/bearcade:lobby` | — |
@@ -367,7 +368,17 @@ Core 内置一个面向管理员的开发者面板,**不新增任何指令语义
 - **房间状态总览**:每 2 秒随 Core 轮询刷新(面板侧 `refreshDevViews`),显示各房间人数/状态/是否可加入,数据来自注册表,不额外向游戏包索取。
 - **破坏性操作**:「应用模板到全部房间」带二次确认;进行中/倒计时的房间仍由共享运行时拒绝,不会打断对局。
 - **调试开关状态**:面板读取共享运行时写入的动态属性 `bearcade:debug_<gameid>`,**仅作展示**;切换动作仍统一走 `game.debug` IPC。
-- **实现位置**:`Core-核心/src/devenv.ts`(面板 UI + 触发监听)、`Core-核心/src/actions.ts`(动作层)、`Core-核心/src/ui.ts`(复用表单工具 `trackForm`/`showNotice`)。权限模型与命令完全一致:仅 `op` 可用。
+- **进入开关**:开关组件用 `ObservableBoolean` + `subscribe` 实现,**拨动即时生效**(无需确认);状态由 `Core-核心/src/access.ts` 持有并持久化到动态属性 `bearcade:game_access`,重启后仍生效。关闭只影响"能否从大厅进入",已在房间内的玩家、房间状态上报与注册都不受影响。
+- **实现位置**:`Core-核心/src/devenv.ts`(面板 UI + 触发监听)、`Core-核心/src/actions.ts`(动作层)、`Core-核心/src/access.ts`(进入开关)、`Core-核心/src/ui.ts`(复用表单工具 `trackForm`/`showNotice`)。权限模型与命令完全一致:仅 `op` 可用。
+
+### 4.10 游戏进入开关(`/bearcade:enable`)
+
+- 命令:`/bearcade:enable <gamename> true|false`(管理员),`game_access` 状态持久化在动态属性 `bearcade:game_access`(记录被关闭的游戏 id,缺省即开放);
+- **关闭后的表现**:游戏仍出现在大厅的二级游戏列表,但显示为 `<显示名>(暂未开放)`,**按钮置灰不可点击**;已打开的房间列表/派对带队等入口都有兜底校验(`ui.ts` 的 `openRoomList` / `handleJoin`);
+- **不影响**:已在房间内的玩家、房间状态上报与心跳、Core 的注册表与菜单刷新;重开该游戏只需再执行一次命令或拨回面板开关;
+- 面板入口:开发者面板 → 游戏列表 → 选中游戏 → 「进入开关」;
+- 未激活(未上报)的游戏不可切换。
+
 ## 5. 通信协议规范
 
 ### 5.1 通道与信封
@@ -626,6 +637,7 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-09-08 | 审查修复批次一:HungerGame 淘汰玩家死亡后回观战台并恢复 follow_orbit(设重生点 + playerSpawn 兜底)、物资池保存按容器较小值遍历(修复 54/36 越界抛错)、LabEscape 死亡恢复到柱顶(设重生点 + playerSpawn 兜底)、NewYearPig 配置移入 worldLoad 并回写 prepSpawn(修复重启后准备点失效) |
 | 2026-09-08 | 低危清理批次:BridgeWar 装备实体 id 规范为 `bearcade:bridgewar_loadout_dummy`(文件与文档同步)、删除 Werewolf 重复结构文件与 Knockback 未使用的 HUD 资源包 ui/、移除共享层未使用的 `beginPending`/`manualStart`、Core 注册表限制 roomCount/maxPlayers ≤64、新增 `game.register_request` 重注册兜底并让 `upsertGame` 幂等、过期判定由 `Date.now()` 改为 `system.currentTick`、Mahjong/Gomoku/Go 调试日志统一走 `runtime.dbg`、删除 Ctf 死代码(Timer/GlobalDataCache) |
 | 2026-10-01 | `/bearcade:tmp sz` 与常加载机制修正:常加载区按区块(X/Z)生效、Y 不参与区块加载,去掉"Y 必须与 −1~65 相交"的校验与 Y 硬编码(常加载区改为取模板 Y 范围);放开 X/Z 的 64 上限——横向超限本就由 `templateTiles` 自动分块解决,校验改为只限制世界边界 ±30,000,000、结构纵向 ≤384 与分块数 ≤1024(防坐标笔误),`tileSize` 超 64 自动钳制;占地超单个常加载区上限(约 100 区块)时回退包内 TICKING 配置并提示需要 `tileWindowed`,不再硬造超限的常加载区;修复 `/tmp sz` 改范围后房间与模板常加载区不更新(改为一律先删后建,模板区重建后等 3 tick 再捕获);`saveTemplateBounds` 改为返回分级提示;同步修正 docs/lessons.md §2.1~§2.3 关于常加载 Y 范围的过时结论 |
+| 2026-10-01 | 新增游戏进入开关:`/bearcade:enable <gamename> true\|false`(管理员)与开发者面板的**开关组件**(`ObservableBoolean` + `subscribe`,拨动即时生效、无需确认);关闭后游戏仍在大厅游戏列表显示,但带「(暂未开放)」后缀且按钮置灰不可点击,房间列表/入房/派对带队均有兜底校验;状态由新增的 `Core-核心/src/access.ts` 持久化到动态属性 `bearcade:game_access`(记录被关闭的游戏,缺省即开放),重启后仍生效;不影响已在房间内的玩家、房间状态上报与注册;文档新增 development.md §4.10 与 README 命令/菜单说明 |
 | 2026-10-01 | 新增 Core 开发者面板:管理员手持命令方块矿车右键打开,图形化覆盖 config/tmp/debug/party/quit 全部动作并带房间状态实时总览;抽出 `Core-核心/src/actions.ts` 作为 Core→游戏包的唯一动作层,命令与面板共用同一份实现(避免逻辑漂移),`ui.ts` 导出表单工具供面板复用;新增 development.md §4.9 与 README 说明 |
 | 2026-09-08 | 文档同步:README 与本文档补齐 FrozenFloor/Ctf/NewYearPig/Studio 四包(当前状态、模块表、包目录表、房间数表)、§4.6 补四包配置项并修正"最大人数唯一例外"与配置接入数量、§5.4 修正 `game.apply` 载荷、§4.8 明确 JSON UI 记分板接入范围;修正 CChess/pillars/FrozenFloor/HungerGame/Mahjong 包内 README 与代码不符之处 |
 | 2026-09-30 | 新增 Trio-轮转井字棋(3×3 三连取胜;每方场上最多 3 子,轮到自己时最老一子轮转出局并在原格留下「虚化」标记——该标记仅自己本回合存在、禁止原地复下,回合结束即消失,对手回合该格可正常落子;三局两胜,第 1 局随机先手、之后逐局轮换;每步 45 秒超时由脚本随机落子,同一玩家连续 3 次超时本局判负;每局 60 手流局兜底、整场最多 5 局;2 个房间/每房 2 人、不支持派对,观战与派对带队接口预留但未启用;`/bearcade:trio_buildmap` 自动生成 3×3 磁石棋盘 + 走道 + 防掉虚空屏障 + 准备平台;4 个自定义方块(深红 X / 深蓝 O / 浅红虚化 / 浅蓝虚化,虚化用 blend 半透明)与一对一 HUD 资源包,棋子模型由用户提供几何体并做居中(-5.5)与手持变体(Y=8)适配) |

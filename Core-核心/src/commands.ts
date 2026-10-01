@@ -16,6 +16,7 @@ import {
   type ActionResult,
   type TmpAction,
 } from "./actions";
+import { setGameOpen } from "./access";
 
 const TMP_ACTION_ENUM = "bearcade:tmp_action";
 const DEBUG_STATE_ENUM = "bearcade:debug_state";
@@ -234,6 +235,46 @@ export function initCommands(
       );
     } catch (error) {
       console.warn("[Bearcade Core] 注册 /bearcade:config 失败", error);
+    }
+
+    try {
+      event.customCommandRegistry.registerCommand(
+        {
+          name: "bearcade:enable",
+          description: "开放/关闭指定游戏的进入(关闭后仍在列表显示但带「暂未开放」且不可点击)",
+          permissionLevel: CommandPermissionLevel.Any,
+          cheatsRequired: false,
+          mandatoryParameters: [
+            {
+              name: "gamename",
+              type: CustomCommandParamType.String,
+            },
+            {
+              name: "enabled",
+              type: CustomCommandParamType.Boolean,
+            },
+          ],
+        },
+        (origin, gamename: string, enabled: boolean) => {
+          const check = requireAdmin(origin.sourceEntity);
+          if (!check.ok) return check.result;
+          if (!getRegistry()?.getActiveGame(gamename)) {
+            return {
+              status: CustomCommandStatus.Failure,
+              message: `未知游戏:${gamename}`,
+            };
+          }
+          const changed = setGameOpen(gamename, enabled);
+          return {
+            status: CustomCommandStatus.Success,
+            message: changed
+              ? `已${enabled ? "开放" : "关闭"}「${gamename}」进入`
+              : `「${gamename}」已是${enabled ? "开放" : "关闭"}状态`,
+          };
+        },
+      );
+    } catch (error) {
+      console.warn("[Bearcade Core] 注册 /bearcade:enable 失败", error);
     }
 
     try {
