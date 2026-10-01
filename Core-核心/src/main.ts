@@ -3,6 +3,7 @@ import { GameRegistry } from "./registry";
 import { initIpc, requestGameRegistration } from "./ipc";
 import { initLobby, ensureClockForAll } from "./lobby";
 import { refreshRoomViews, setUiRegistry } from "./ui";
+import { initDevPanel, refreshDevViews } from "./devenv";
 import { initCommands } from "./commands";
 import { broadcastPartyMode, loadPartyMode } from "./party";
 
@@ -24,12 +25,16 @@ world.afterEvents.worldLoad.subscribe(() => {
   setUiRegistry(coreRegistry);
   initIpc(coreRegistry);
   initLobby(coreRegistry);
+  initDevPanel(coreRegistry);
 
   system.runInterval(() => {
     coreRegistry.tick(system.currentTick);
     refreshRoomViews();
+    refreshDevViews();
   }, POLL_INTERVAL_TICKS);
 
   ensureClockForAll();
-  console.warn("[Bearcade Core] 已加载:大厅、DDUI 菜单、入房校验就绪");
+  console.warn(
+    "[Bearcade Core] 已加载:大厅、DDUI 菜单、入房校验、开发者面板(右键命令方块矿车)就绪",
+  );
 });

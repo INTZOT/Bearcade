@@ -344,6 +344,28 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
 - **集成约定**:`config/packs.json` 中每个资源包条目 `type: "resource"`,其 `dir` 指向 `<游戏>/resource-pack`(`gomoku_hud` ↔ `Gomoku-五子棋/resource-pack` 等);`build.mjs` 只为行为包跑 esbuild;`package.mjs` 把 `ui/` 打入独立 `<gameid>_hud.mcpack` 并并入 `bearcade.mcaddon`;`deploy.mjs` 把行为包部署到 `development_behavior_packs`,配对资源包还原为 `<游戏>-资源包` 后部署到相邻的 `development_resource_packs`(可用 `MC_DEV_RESOURCE_PACKS` 覆盖);指定任一行为包 ID 会自动带上配对 `_hud` 资源包。
 - 接入记分板 HUD 的小游戏在结束时于 `onBeforeReset` 调用 `clearHudTitle`;Core 玩家回大厅时也兜底清 title/actionbar/camera。
 
+### 4.9 开发者面板(命令的图形入口)
+
+Core 内置一个面向管理员的开发者面板,**不新增任何指令语义**,只是把 `/bearcade:*` 已有命令搬到图形界面,便于开发/运维时少记命令。
+
+- **打开方式**:管理员(拥有 `op` tag)手持 `minecraft:command_block_minecart`(命令方块矿车)右键。监听 `world.beforeEvents.itemUse` 并 `cancel`,站在铁轨上也不会误放矿车;非管理员**不拦截**,保留原版行为。
+- **入口对应关系**(动作统一实现在 `Core-核心/src/actions.ts`,命令与面板共用,**禁止各写一份**):
+
+  | 面板项 | 等价命令 | 下发操作码 |
+  | --- | --- | --- |
+  | 运行时配置 | `/bearcade:config <game>` | `game.config` |
+  | 进入模板维度 | `/bearcade:tmp tp <game>` | `game.tp` |
+  | 应用模板到全部房间 | `/bearcade:tmp ap <game>` | `game.apply` |
+  | 模板范围配置 | `/bearcade:tmp sz <game>` | `game.sz` |
+  | 切换调试日志 | `/bearcade:debug <game> enable\|disable` | `game.debug` |
+  | 切换派对模式 | `/bearcade:party` | 广播 `party.mode` |
+  | 强制中止当前房间对局 | `/bearcade:quit` | `game.quit` |
+  | 传送回大厅 | `/bearcade:lobby` | — |
+
+- **房间状态总览**:每 2 秒随 Core 轮询刷新(面板侧 `refreshDevViews`),显示各房间人数/状态/是否可加入,数据来自注册表,不额外向游戏包索取。
+- **破坏性操作**:「应用模板到全部房间」带二次确认;进行中/倒计时的房间仍由共享运行时拒绝,不会打断对局。
+- **调试开关状态**:面板读取共享运行时写入的动态属性 `bearcade:debug_<gameid>`,**仅作展示**;切换动作仍统一走 `game.debug` IPC。
+- **实现位置**:`Core-核心/src/devenv.ts`(面板 UI + 触发监听)、`Core-核心/src/actions.ts`(动作层)、`Core-核心/src/ui.ts`(复用表单工具 `trackForm`/`showNotice`)。权限模型与命令完全一致:仅 `op` 可用。
 ## 5. 通信协议规范
 
 ### 5.1 通道与信封
@@ -601,4 +623,5 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-09-01 | Werewolf-天黑请闭眼 最终调整合入(表单守卫、浮空字与相机清理、README/工作记录补充) |
 | 2026-09-08 | 审查修复批次一:HungerGame 淘汰玩家死亡后回观战台并恢复 follow_orbit(设重生点 + playerSpawn 兜底)、物资池保存按容器较小值遍历(修复 54/36 越界抛错)、LabEscape 死亡恢复到柱顶(设重生点 + playerSpawn 兜底)、NewYearPig 配置移入 worldLoad 并回写 prepSpawn(修复重启后准备点失效) |
 | 2026-09-08 | 低危清理批次:BridgeWar 装备实体 id 规范为 `bearcade:bridgewar_loadout_dummy`(文件与文档同步)、删除 Werewolf 重复结构文件与 Knockback 未使用的 HUD 资源包 ui/、移除共享层未使用的 `beginPending`/`manualStart`、Core 注册表限制 roomCount/maxPlayers ≤64、新增 `game.register_request` 重注册兜底并让 `upsertGame` 幂等、过期判定由 `Date.now()` 改为 `system.currentTick`、Mahjong/Gomoku/Go 调试日志统一走 `runtime.dbg`、删除 Ctf 死代码(Timer/GlobalDataCache) |
+| 2026-10-01 | 新增 Core 开发者面板:管理员手持命令方块矿车右键打开,图形化覆盖 config/tmp/debug/party/quit 全部动作并带房间状态实时总览;抽出 `Core-核心/src/actions.ts` 作为 Core→游戏包的唯一动作层,命令与面板共用同一份实现(避免逻辑漂移),`ui.ts` 导出表单工具供面板复用;新增 development.md §4.9 与 README 说明 |
 | 2026-09-08 | 文档同步:README 与本文档补齐 FrozenFloor/Ctf/NewYearPig/Studio 四包(当前状态、模块表、包目录表、房间数表)、§4.6 补四包配置项并修正"最大人数唯一例外"与配置接入数量、§5.4 修正 `game.apply` 载荷、§4.8 明确 JSON UI 记分板接入范围;修正 CChess/pillars/FrozenFloor/HungerGame/Mahjong 包内 README 与代码不符之处 |

@@ -124,6 +124,7 @@ Core 提供命令:
 - `/bearcade:party`:管理员开关**派对模式**;
 - `/bearcade:config <gamename>`:管理员打开指定游戏的**运行时配置界面**(18 个小游戏中 16 个已接入,夺旗与剑与消亡V 未接入;对局进行中禁止修改);
 - `/bearcade:debug <gamename|all> enable|disable`:管理员开启/关闭指定游戏(或 `all` 全部游戏)的调试日志(共享运行时统一支持)。
+- **开发者面板**:管理员手持**命令方块矿车**(`minecraft:command_block_minecart`)右键即可打开图形面板,覆盖上述 `config` / `tmp` / `debug` / `party` / `quit` 的全部动作,并带房间状态实时总览;与命令共用同一份实现(`Core-核心/src/actions.ts`)。
 
 派对模式:开启后普通玩家不能自行选择游戏加入;管理员从游戏列表点击房间时,Core 会把全服在线玩家一起带入该房间(忽略人数上限),且只允许 `partyAvailable=true` 的小游戏(如 gomoku=false、guessnbuild=true);带队时要求全服在线人数达到该游戏的最少开局人数(`minPlayers`),否则拒绝加入;派对模式开局倒计时固定 60 秒,不触发满员缩短。管理员以 `op` tag 判定。
 
@@ -166,7 +167,7 @@ Core 校验 `packId`(manifest header UUID)与 `game` 匹配,并结合 `sourceTyp
 
 | 包名 | 目录 | 职责 |
 | --- | --- | --- |
-| Core-核心 | `Core-核心/` | 大厅管理、钟物品、DDUI 菜单、注册与状态接收、入房校验、传送 |
+| Core-核心 | `Core-核心/` | 大厅管理、钟物品、DDUI 菜单、注册与状态接收、入房校验、传送、开发者面板(命令方块矿车) |
 | Gomoku-五子棋 | `Gomoku-五子棋/` | 五子棋:15×15 棋盘、随机黑白、放置棋子方块落子、五连判定、结算、强制中断 |
 | Template-小游戏模板 | `Template-小游戏模板/` | 可复制的小游戏脚手架:维度注册、模板复制、上报、状态机、命令 |
 | GuessNBuild-建筑猜猜乐 | `GuessNBuild-建筑猜猜乐/` | 建筑猜猜乐(第一版可运行):3~16 人回合制、建筑者创造/猜测者聊天答题、题库表单、每玩家 HUD 计分、目标分随人数、可开关调试 |

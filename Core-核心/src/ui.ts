@@ -13,7 +13,7 @@ import type { GameRegistry } from "./registry";
 import type { GameEntry, RoomInfo } from "./types";
 import { isAdmin, isPartyMode } from "./party";
 
-const MENU_DELAY_TICKS = 2;
+export const MENU_DELAY_TICKS = 2;
 let registryForUi: GameRegistry;
 
 interface RoomView {
@@ -38,7 +38,7 @@ function closeForm(playerId: string): void {
   openForms.delete(playerId);
 }
 
-function trackForm(playerId: string, form: CustomForm): void {
+export function trackForm(playerId: string, form: CustomForm): void {
   closeForm(playerId);
   openForms.set(playerId, form);
   try {
@@ -61,7 +61,7 @@ function trackForm(playerId: string, form: CustomForm): void {
   }
 }
 
-function showNotice(player: Player, text: string): void {
+export function showNotice(player: Player, text: string): void {
   new MessageBox(player, "Bearcade")
     .body(text)
     .button1("确定")
