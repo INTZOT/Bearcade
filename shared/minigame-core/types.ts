@@ -31,11 +31,16 @@ export interface MinigameConfig {
   templateFrom: Vec3;
   templateTo: Vec3;
   roomCopyOrigin: Vec3;
+  /**
+   * 常加载区。按区块(X/Z)生效,Y 不参与区块加载;
+   * 占地超过单个常加载区上限(实测约 100 区块)时,运行时回退使用这里的包内配置,
+   * 整图捕获/放置改由 tileWindowed 逐块建拆完成。
+   */
   tickingFrom: Vec3;
   tickingTo: Vec3;
   structureId: string;
   templateSpawn: Vec3;
-  /** 结构分块尺寸(默认 64):模板横向超过该值会自动切成多块捕获/放置 */
+  /** 结构分块尺寸(默认 64,上限 64——引擎结构限制):模板横向超过该值会自动切成多块捕获/放置 */
   tileSize?: number;
   /**
    * 窗口化分块模式(默认 false):模板过大(如 512² 远超引擎 100 区块/常加载区上限)时,

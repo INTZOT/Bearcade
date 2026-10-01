@@ -26,6 +26,24 @@ interface StartupContext {
  * 维度注册、模板命令/强制中止命令、模板捕获与复制、常加载、
  * 房间状态机、Core 上报、结束回大厅与重置。
  */
+/** 引擎结构上限:单块最大 64×384×64(横向超限由 templateTiles 自动分块解决) */
+const MAX_STRUCTURE_SIZE = 64;
+/** 结构纵向跨度上限 */
+const MAX_STRUCTURE_HEIGHT = 384;
+/** 常量加载区按区块(X/Z)生效,Y 不参与区块加载 */
+const CHUNK_SIZE = 16;
+/** 单个常加载区可覆盖的区块数上限(实测约 100,见 docs/lessons.md §2.3) */
+const MAX_TICKING_CHUNKS = 100;
+/** 模板分块数上限:防止坐标笔误产生成千上万块结构拖垮存档与主线程 */
+const MAX_TEMPLATE_TILES = 1024;
+/** 基岩版世界边界(±30,000,000),超出后结构捕获/放置必然失败 */
+const WORLD_LIMIT = 30_000_000;
+
+/** 常加载区需要覆盖的区块数(按 X/Z footprint 计算) */
+function tickingChunkCount(width: number, depth: number): number {
+  return Math.ceil(width / CHUNK_SIZE) * Math.ceil(depth / CHUNK_SIZE);
+}
+
 export class MinigameRuntime {
   readonly config: MinigameConfig;
   readonly hooks: MinigameHooks;
@@ -35,11 +53,31 @@ export class MinigameRuntime {
   private started = false;
   private partyMode = false;
   private debugEnabled = false;
+  /** 模板分块尺寸:钳制到引擎结构上限,避免单块超限 */
+  private readonly tileSize: number;
+  /** 包内声明的常加载区:超大模板时回退用它,不让整图 footprint 撑爆单个常加载区 */
+  private readonly declaredTicking: { from: Vec3; to: Vec3 };
+  /** 模板常加载区当前覆盖的坐标指纹(范围变更后需要重建) */
+  private templateAreaKey: string | undefined;
 
   constructor(config: MinigameConfig, hooks: MinigameHooks = {}) {
     this.config = config;
     this.hooks = hooks;
     this.roomPattern = new RegExp(`^bearcade:${config.gameId}_(\\d+)$`);
+    const rawTile = config.tileSize ?? MAX_STRUCTURE_SIZE;
+    this.tileSize = Math.min(
+      Math.max(Math.round(rawTile), 1),
+      MAX_STRUCTURE_SIZE,
+    );
+    if (this.tileSize !== rawTile) {
+      this.log(
+        `tileSize=${rawTile} 超出引擎结构上限 ${MAX_STRUCTURE_SIZE},已按 ${this.tileSize} 处理`,
+      );
+    }
+    this.declaredTicking = {
+      from: { ...config.tickingFrom },
+      to: { ...config.tickingTo },
+    };
   }
 
   private log(message: string, error?: unknown): void {
@@ -320,30 +358,72 @@ export class MinigameRuntime {
     this.config.templateFrom = from;
     this.config.templateTo = to;
     this.config.roomCopyOrigin = from;
-    this.config.tickingFrom = { x: from.x, y: -1, z: from.z };
-    this.config.tickingTo = { x: to.x, y: 65, z: to.z };
+    const chunks = tickingChunkCount(to.x - from.x + 1, to.z - from.z + 1);
+    if (chunks > MAX_TICKING_CHUNKS) {
+      // 超大模板:整图 footprint 超过单个常加载区上限,回退到包内声明的常加载区
+      // (通常只覆盖游玩区);整图捕获/放置交给 tileWindowed 逐块建拆常加载。
+      this.config.tickingFrom = { ...this.declaredTicking.from };
+      this.config.tickingTo = { ...this.declaredTicking.to };
+      this.log(
+        `模板占地约 ${chunks} 区块,超过单个常加载区上限 ${MAX_TICKING_CHUNKS};` +
+          "已保留包内常加载区配置,整图操作需包内开启 tileWindowed",
+      );
+      return;
+    }
+    // 常加载区按区块(X/Z)生效,Y 不参与区块加载;这里取模板 Y 范围仅为数值合法
+    this.config.tickingFrom = { x: from.x, y: from.y, z: from.z };
+    this.config.tickingTo = { x: to.x, y: to.y, z: to.z };
   }
 
-  saveTemplateBounds(from: Vec3, to: Vec3): boolean {
+  /**
+   * 保存模板范围(游戏内配置优先于包内 config.ts)。
+   * 只校验真正会触发引擎限制的条件:
+   * - 世界高度 -64~320;结构纵向跨度 ≤384;
+   * - 横向不限:超过 tileSize 由 templateTiles 自动分块捕获/放置;
+   * - 占地超过单个常加载区上限时,回退包内 TICKING 配置并给出提示。
+   */
+  saveTemplateBounds(
+    from: Vec3,
+    to: Vec3,
+  ): { ok: true; notes: string[] } | { ok: false; reason: string } {
     const x1 = Math.min(from.x, to.x);
     const x2 = Math.max(from.x, to.x);
     const y1 = Math.min(from.y, to.y);
     const y2 = Math.max(from.y, to.y);
     const z1 = Math.min(from.z, to.z);
     const z2 = Math.max(from.z, to.z);
-    if (
-      y1 < -64 ||
-      y2 > 320 ||
-      x2 - x1 + 1 > 64 ||
-      y2 - y1 + 1 > 384 ||
-      z2 - z1 + 1 > 64 ||
-      // 常加载区固定为 y −1~65:模板 y 范围必须与之相交,
-      // 否则场地内容(如高架平台)不在常加载区内,区块可能被卸载
-      y2 < -1 ||
-      y1 > 65
-    ) {
-      return false;
+    if (y1 < -64 || y2 > 320) {
+      return { ok: false, reason: "Y 范围必须落在世界高度 -64~320 内" };
     }
+    const height = y2 - y1 + 1;
+    if (height > MAX_STRUCTURE_HEIGHT) {
+      return {
+        ok: false,
+        reason: `Y 跨度 ${height} 超过引擎结构上限 ${MAX_STRUCTURE_HEIGHT}`,
+      };
+    }
+    if (
+      Math.abs(x1) > WORLD_LIMIT ||
+      Math.abs(x2) > WORLD_LIMIT ||
+      Math.abs(z1) > WORLD_LIMIT ||
+      Math.abs(z2) > WORLD_LIMIT
+    ) {
+      return {
+        ok: false,
+        reason: `X/Z 必须落在世界边界 ±${WORLD_LIMIT} 内`,
+      };
+    }
+    const width = x2 - x1 + 1;
+    const depth = z2 - z1 + 1;
+    const tiles =
+      Math.ceil(width / this.tileSize) * Math.ceil(depth / this.tileSize);
+    if (tiles > MAX_TEMPLATE_TILES) {
+      return {
+        ok: false,
+        reason: `该范围需要 ${tiles} 块(上限 ${MAX_TEMPLATE_TILES}),请检查坐标是否误填`,
+      };
+    }
+    const chunks = tickingChunkCount(width, depth);
     const normalized = {
       from: { x: x1, y: y1, z: z1 } as Vec3,
       to: { x: x2, y: y2, z: z2 } as Vec3,
@@ -353,10 +433,21 @@ export class MinigameRuntime {
       `bearcade:template_bounds_${this.config.gameId}`,
       JSON.stringify(normalized),
     );
+    const notes = [`模板 ${width}×${height}×${depth},分 ${tiles} 块捕获/放置`];
+    if (chunks > MAX_TICKING_CHUNKS) {
+      notes.push(
+        `占地 ${chunks} 区块,超过单个常加载区上限 ${MAX_TICKING_CHUNKS}:已保留包内常加载区配置,整图捕获/放置需包内开启 tileWindowed`,
+      );
+    } else {
+      notes.push(
+        `常加载区覆盖模板占地 ${chunks} 区块(全部房间合计 ${chunks * this.config.roomCount} 区块)`,
+      );
+    }
+    notes.push(`执行 /bearcade:tmp ap ${this.config.gameId} 应用到全部房间`);
     this.log(
-      `模板范围已保存:(${x1},${y1},${z1}) ~ (${x2},${y2},${z2}),执行 /bearcade:tmp ap ${this.config.gameId} 应用到全部房间`,
+      `模板范围已保存:(${x1},${y1},${z1}) ~ (${x2},${y2},${z2});${notes.join(";")}`,
     );
-    return true;
+    return { ok: true, notes };
   }
 
   private openTemplateBoundsForm(player: Player): void {
@@ -387,6 +478,12 @@ export class MinigameRuntime {
     form.label(
       "填写模板维度的起始点/终点坐标(含端点)。保存后执行 /bearcade:tmp ap 应用到全部房间。",
     );
+    form.label(
+      "§7横向不限(超过分块尺寸会自动多块捕获/放置);Y 跨度上限 384,且须落在 -64~320 内。",
+    );
+    form.label(
+      "§7占地超过单个常加载区上限时,会自动回退到包内 TICKING 配置(整图操作需包内开启 tileWindowed)。",
+    );
     form.spacer();
     form.textField("起始点 X", fromX);
     form.textField("起始点 Y", fromY);
@@ -402,15 +499,14 @@ export class MinigameRuntime {
         player.sendMessage("§c坐标格式不正确,请输入整数");
         return;
       }
-      if (!this.saveTemplateBounds(from, to)) {
-        player.sendMessage(
-          "§c范围不合法:需在 y -64~320 内、尺寸不超过 64×384×64,且 y 范围必须与常加载区(-1~65)相交",
-        );
+      const saved = this.saveTemplateBounds(from, to);
+      if (!saved.ok) {
+        player.sendMessage(`§c范围不合法:${saved.reason}`);
         return;
       }
-      player.sendMessage(
-        `§a已保存模板范围,执行 /bearcade:tmp ap ${this.config.gameId} 应用到全部房间`,
-      );
+      for (const note of saved.notes) {
+        player.sendMessage(`§a${note}`);
+      }
     });
     form.show().catch((error) => {
       this.log("模板范围表单显示失败", error);
@@ -519,7 +615,7 @@ export class MinigameRuntime {
 
   private templateTiles(): { id: string; from: Vec3; to: Vec3 }[] {
     const { templateFrom, templateTo, structureId } = this.config;
-    const size = this.config.tileSize ?? 64;
+    const size = this.tileSize;
     const width = templateTo.x - templateFrom.x + 1;
     const depth = templateTo.z - templateFrom.z + 1;
     const xCount = Math.ceil(width / size);
@@ -555,6 +651,38 @@ export class MinigameRuntime {
     }
   }
 
+  /**
+   * 确保模板常加载区覆盖当前 tickingFrom/To。
+   * 范围变更(如 /tmp sz 改动模板位置)时重建并等区块加载,
+   * 否则仍然覆盖旧位置,createFromWorld 会把新位置捕获成空气。
+   */
+  private async ensureTemplateTickingArea(
+    dimension: ReturnType<MinigameRuntime["roomDim"]>,
+  ): Promise<void> {
+    const areaId = this.tickingAreaId("template");
+    const key = `${this.config.tickingFrom.x},${this.config.tickingFrom.z},${this.config.tickingTo.x},${this.config.tickingTo.z}`;
+    if (
+      this.templateAreaKey === key &&
+      world.tickingAreaManager.hasTickingArea(areaId)
+    ) {
+      return;
+    }
+    const had = world.tickingAreaManager.hasTickingArea(areaId);
+    if (had) {
+      world.tickingAreaManager.removeTickingArea(areaId);
+    }
+    await world.tickingAreaManager.createTickingArea(areaId, {
+      dimension,
+      from: this.config.tickingFrom,
+      to: this.config.tickingTo,
+    });
+    this.templateAreaKey = key;
+    if (had) {
+      // 范围变更:给区块加载留时间,避免捕获到空气
+      await system.waitTicks(3);
+    }
+  }
+
   private async captureTemplateTiles(): Promise<
     { id: string; from: Vec3; to: Vec3 }[]
   > {
@@ -574,15 +702,8 @@ export class MinigameRuntime {
         });
       }
     } else {
-      // 模板维度必须常加载,否则 worldLoad 时区块未加载,createFromWorld 会失败
-      const templateAreaId = this.tickingAreaId("template");
-      if (!world.tickingAreaManager.hasTickingArea(templateAreaId)) {
-        await world.tickingAreaManager.createTickingArea(templateAreaId, {
-          dimension: templateDim,
-          from: this.config.tickingFrom,
-          to: this.config.tickingTo,
-        });
-      }
+      // 模板维度必须常加载,否则 createFromWorld 会读到未加载区块(捕获成空气)
+      await this.ensureTemplateTickingArea(templateDim);
       for (const tile of tiles) {
         world.structureManager.createFromWorld(
           tile.id,
@@ -757,7 +878,21 @@ export class MinigameRuntime {
     return run;
   }
 
-  /** 确保房间游玩区有常加载区域(ap 修复缺失常加载区的房间时使用;已存在则不动) */
+  /** 房间常加载区:先删后建,保证 /tmp sz 改动范围后覆盖区同步更新 */
+  private async recreateRoomTickingArea(roomId: number): Promise<void> {
+    const dim = this.roomDim(roomId);
+    const areaId = this.tickingAreaId(roomId);
+    if (world.tickingAreaManager.hasTickingArea(areaId)) {
+      world.tickingAreaManager.removeTickingArea(areaId);
+    }
+    await world.tickingAreaManager.createTickingArea(areaId, {
+      dimension: dim,
+      from: this.config.tickingFrom,
+      to: this.config.tickingTo,
+    });
+  }
+
+  /** 确保房间游玩区有常加载区域(死场景启动路径使用;已存在则不动) */
   private async ensureRoomTickingArea(roomId: number): Promise<void> {
     const dim = this.roomDim(roomId);
     const areaId = this.tickingAreaId(roomId);
@@ -779,7 +914,8 @@ export class MinigameRuntime {
     const tiles = await this.captureTemplateTiles();
     for (const roomId of roomIds) {
       const dim = this.roomDim(roomId);
-      await this.ensureRoomTickingArea(roomId);
+      // 重建而不是"缺失才建":/tmp sz 改动范围后旧覆盖区必须被替换
+      await this.recreateRoomTickingArea(roomId);
       // 注意:模板范围变更(移动/改尺寸)导致的旧场地残留不再自动清理,
       // 由开发者在模板维度人工处理(重建房间场地后 ap 覆盖)。
       if (this.config.tileWindowed) {
