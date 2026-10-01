@@ -1,0 +1,12 @@
+{
+  "resource_pack_name": "bearcade_trio",
+  "texture_name": "atlas.terrain",
+  "padding": 8,
+  "num_mip_levels": 4,
+  "texture_data": {
+    "trio_x": { "textures": "textures/blocks/trio_x" },
+    "trio_o": { "textures": "textures/blocks/trio_o" },
+    "trio_x_ghost": { "textures": "textures/blocks/trio_x_ghost" },
+    "trio_o_ghost": { "textures": "textures/blocks/trio_o_ghost" }
+  }
+}

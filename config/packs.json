@@ -857,6 +857,49 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "trio",
+      "dir": "Trio-轮转井字棋",
+      "name": "Bearcade Trio",
+      "description": "Bearcade 轮转井字棋小游戏包(3×3 三连取胜;每方最多 3 子,最老一子轮转虚化)",
+      "headerUuid": "09fed5ca-d50b-47ad-a1a6-d78a0a228509",
+      "moduleUuid": "d22fdd42-6ee8-49e5-b560-633117b0f434",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "trio_hud",
+      "type": "resource",
+      "dir": "Trio-轮转井字棋/resource-pack",
+      "name": "Bearcade Trio HUD",
+      "description": "Bearcade 轮转井字棋 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包(含棋子/虚影方块模型与贴图)",
+      "headerUuid": "4be200d1-0e69-4558-b6fc-0218e74c9b86",
+      "moduleUuid": "87e9dbff-0a7e-4dfd-8c23-c515fcee774f",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }

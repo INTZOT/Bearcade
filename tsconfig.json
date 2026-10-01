@@ -37,6 +37,7 @@
     "SND5-剑与消亡V/src/**/*.ts",
     "Template-小游戏模板/src/**/*.ts",
     "Toolkit-开发者工具/src/**/*.ts",
+    "Trio-轮转井字棋/src/**/*.ts",
     "Werewolf-天黑请闭眼/src/**/*.ts",
     "pillars-幸运之柱/src/**/*.ts",
     "shared/**/*.ts"
