@@ -1,0 +1,24 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bearcade:allstars_prop_command_block",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/allstars_command_block"
+      },
+      "geometry": {
+        "default": "geometry.green_beret.command_block"
+      },
+      "render_controllers": [
+        "controller.render.bearcade_allstars_prop"
+      ],
+      "min_engine_version": "1.21.90",
+      "scripts": {
+        "scale": "query.property('bearcade:prop_scale')"
+      }
+    }
+  }
+}

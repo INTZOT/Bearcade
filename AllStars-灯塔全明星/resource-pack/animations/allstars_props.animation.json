@@ -1,0 +1,22 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.bearcade_allstars.command_cage": {
+      "loop": true,
+      "bones": {
+        "Cage": {
+          "rotation": [
+            0,
+            0,
+            "-6.875 * math.clamp((query.property('bearcade:cage_time') - 0.866667) / 0.533333, 0, 1)"
+          ],
+          "scale": [
+            "(1 - 0.63 * math.clamp((query.property('bearcade:cage_time') - 1.966667) / 0.1, 0, 1)) * math.max(0.001, 1 - math.clamp((query.property('bearcade:cage_time') - 2.166667) / 0.166666, 0, 1))",
+            "(1 - 0.2 * math.clamp((query.property('bearcade:cage_time') - 1.966667) / 0.1, 0, 1)) * math.max(0.001, 1 - math.clamp((query.property('bearcade:cage_time') - 2.166667) / 0.166666, 0, 1))",
+            "(1 - 0.63 * math.clamp((query.property('bearcade:cage_time') - 1.966667) / 0.1, 0, 1)) * math.max(0.001, 1 - math.clamp((query.property('bearcade:cage_time') - 2.166667) / 0.166666, 0, 1))"
+          ]
+        }
+      }
+    }
+  }
+}

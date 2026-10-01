@@ -1,0 +1,29 @@
+{
+  "format_version": "1.10.0",
+  "render_controllers": {
+    "controller.render.bearcade_allstars_cage": {
+      "geometry": "Geometry.default",
+      "materials": [
+        {
+          "*": "Material.default"
+        }
+      ],
+      "arrays": {
+        "textures": {
+          "Array.cage_colors": [
+            "Texture.default",
+            "Texture.impact"
+          ]
+        }
+      },
+      "textures": [
+        "Array.cage_colors[query.property('bearcade:cage_time') >= 2.016667]"
+      ],
+      "part_visibility": [
+        {
+          "*": "query.property('bearcade:cage_time') >= 0.6 && query.property('bearcade:cage_time') < 2.333334"
+        }
+      ]
+    }
+  }
+}

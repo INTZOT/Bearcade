@@ -1,0 +1,72 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "bearcade:allstars_prop_pearl",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false,
+      "properties": {
+        "bearcade:prop_scale": {
+          "type": "float",
+          "range": [
+            0.0,
+            1.0
+          ],
+          "default": 0.001,
+          "client_sync": true
+        }
+      }
+    },
+    "component_groups": {
+      "bearcade:prop_driven": {
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": false
+        }
+      }
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "allstars_prop"
+        ]
+      },
+      "minecraft:health": {
+        "value": 20,
+        "max": 20
+      },
+      "minecraft:collision_box": {
+        "width": 0.05,
+        "height": 0.05
+      },
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": false
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:persistent": {},
+      "minecraft:scale": {
+        "value": 1.5
+      },
+      "minecraft:damage_sensor": {
+        "triggers": {
+          "cause": "all",
+          "deals_damage": "no"
+        }
+      }
+    },
+    "events": {
+      "bearcade:prop_driven": {
+        "add": {
+          "component_groups": [
+            "bearcade:prop_driven"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bearcade:allstars_command_cage",
+      "min_engine_version": "1.21.90",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/allstars_command_cage",
+        "impact": "textures/entity/allstars_command_cage_impact"
+      },
+      "geometry": {
+        "default": "geometry.bearcade_allstars.command_cage"
+      },
+      "animations": {
+        "pose": "animation.bearcade_allstars.command_cage"
+      },
+      "scripts": {
+        "animate": [
+          "pose"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.bearcade_allstars_cage"
+      ]
+    }
+  }
+}

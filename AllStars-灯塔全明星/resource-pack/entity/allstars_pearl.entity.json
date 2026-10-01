@@ -1,0 +1,24 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bearcade:allstars_prop_pearl",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/allstars_pearl"
+      },
+      "geometry": {
+        "default": "geometry.green_beret.ender_pearl"
+      },
+      "render_controllers": [
+        "controller.render.bearcade_allstars_prop"
+      ],
+      "scripts": {
+        "scale": "query.property('bearcade:prop_scale')"
+      },
+      "min_engine_version": "1.21.90"
+    }
+  }
+}

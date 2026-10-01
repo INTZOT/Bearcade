@@ -1,4 +1,5 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { copyTree as cpSync } from "./copy-tree.mjs";
 import path from "node:path";
 import { zipDirectory } from "./zip.mjs";
 import { EXTRA_DIRS, RESOURCE_DIRS, RESOURCE_ROOT_FILES } from "./extras.mjs";

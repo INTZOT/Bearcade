@@ -1,0 +1,48 @@
+{
+  "format_version": "1.10.0",
+  "render_controllers": {
+    "controller.render.bearcade_allstars_fighter": {
+      "geometry": "Geometry.default",
+      "materials": [
+        {
+          "*": "Material.default"
+        }
+      ],
+      "textures": [
+        "Texture.default"
+      ],
+      "part_visibility": [
+        {
+          "*": "query.property('bearcade:allstars_opacity') > 0.01"
+        }
+      ]
+    },
+    "controller.render.bearcade_allstars_fighter_blue": {
+      "geometry": "Geometry.default",
+      "materials": [
+        {
+          "*": "Material.default"
+        }
+      ],
+      "textures": [
+        "Texture.blue"
+      ],
+      "part_visibility": [
+        {
+          "*": "query.property('bearcade:allstars_opacity') > 0.01"
+        }
+      ]
+    },
+    "controller.render.bearcade_allstars_prop": {
+      "geometry": "Geometry.default",
+      "materials": [
+        {
+          "*": "Material.default"
+        }
+      ],
+      "textures": [
+        "Texture.default"
+      ]
+    }
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "bearcade:allstars_afterimage",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false,
+      "properties": {
+        "bearcade:allstars_clip": {
+          "type": "int",
+          "range": [
+            0,
+            85
+          ],
+          "default": 44,
+          "client_sync": true
+        },
+        "bearcade:allstars_time": {
+          "type": "float",
+          "range": [
+            0.0,
+            60.0
+          ],
+          "default": 0.0,
+          "client_sync": true
+        },
+        "bearcade:allstars_opacity": {
+          "type": "float",
+          "range": [
+            0.0,
+            1.0
+          ],
+          "default": 1.0,
+          "client_sync": true
+        },
+        "bearcade:allstars_blue": {
+          "type": "bool",
+          "default": false,
+          "client_sync": true
+        }
+      }
+    },
+    "component_groups": {
+      "bearcade:allstars_driven": {
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        }
+      },
+      "bearcade:prop_driven": {
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": false
+        }
+      }
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "allstars_prop"
+        ]
+      },
+      "minecraft:health": {
+        "value": 100,
+        "max": 100
+      },
+      "minecraft:collision_box": {
+        "width": 0,
+        "height": 0
+      },
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": false
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:knockback_resistance": {
+        "value": 1
+      },
+      "minecraft:damage_sensor": {
+        "triggers": {
+          "cause": "all",
+          "deals_damage": "no"
+        }
+      },
+      "minecraft:persistent": {},
+      "minecraft:nameable": {
+        "allow_name_tag_renaming": false
+      }
+    },
+    "events": {
+      "bearcade:allstars_driven": {
+        "add": {
+          "component_groups": [
+            "bearcade:allstars_driven"
+          ]
+        }
+      },
+      "bearcade:prop_driven": {
+        "add": {
+          "component_groups": [
+            "bearcade:prop_driven"
+          ]
+        }
+      }
+    }
+  }
+}
