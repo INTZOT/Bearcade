@@ -15,3 +15,7 @@ docs/minecraft-creator.md
 
 # 本地参考文件夹(存放参考包/示例,不参与构建、不入库)
 Reference-参考/
+
+# 远程部署流水线(本地/内网运维工具,不入库)
+scripts/deploy-server.mjs
+scripts/server/
