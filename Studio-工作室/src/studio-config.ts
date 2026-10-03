@@ -289,7 +289,7 @@ export function openStudioConfig(
           player,
           "原材料列表",
           cfg.materialBlocks,
-          "输入货架上的可挖掘方块 ID,用英文逗号分隔。例如:minecraft:oak_log,minecraft:stone",
+          "输入可挖掘的原材料方块 ID(对局维度内位置不限),用英文逗号分隔。例如:minecraft:oak_log,minecraft:stone",
           (value) => {
             cfg.materialBlocks = value;
             persist();
