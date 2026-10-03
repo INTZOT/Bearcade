@@ -1,0 +1,79 @@
+{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "green_beret:leaf_flight",
+      "basic_render_parameters": {
+        "material": "particles_alpha",
+        "texture": "textures/particle/leaf"
+      }
+    },
+    "components": {
+      "minecraft:emitter_rate_instant": {
+        "num_particles": 56
+      },
+      "minecraft:emitter_lifetime_once": {
+        "active_time": 0.01
+      },
+      "minecraft:emitter_shape_point": {
+        "offset": [
+          "variable.right.x * math.cos(variable.particle_random_1 * 360) * (0.18 + variable.particle_random_3 * 0.25)",
+          "math.sin(variable.particle_random_1 * 360) * (0.18 + variable.particle_random_3 * 0.25)",
+          "variable.right.z * math.cos(variable.particle_random_1 * 360) * (0.18 + variable.particle_random_3 * 0.25)"
+        ],
+        "direction": [
+          "variable.dir.x",
+          0,
+          "variable.dir.z"
+        ]
+      },
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": "variable.range / variable.speed"
+      },
+      "minecraft:particle_initial_spin": {
+        "rotation": "variable.particle_random_1 * 360",
+        "rotation_rate": "(variable.particle_random_4 - 0.5) * 720"
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          "0.15 * (0.65 + variable.particle_random_2 * 0.65)",
+          "0.1 * (0.65 + variable.particle_random_2 * 0.65)"
+        ],
+        "facing_camera_mode": "rotate_xyz",
+        "uv": {
+          "texture_width": 24,
+          "texture_height": 16,
+          "uv": [
+            0,
+            0
+          ],
+          "uv_size": [
+            24,
+            16
+          ]
+        }
+      },
+      "minecraft:particle_appearance_tinting": {
+        "color": [
+          "0.72 + variable.particle_random_3 * 0.28",
+          1,
+          "0.7 + variable.particle_random_2 * 0.3",
+          "math.clamp((variable.particle_lifetime - variable.particle_age) / 0.08, 0, 1)"
+        ]
+      },
+      "minecraft:particle_initial_speed": [
+        "variable.dir.x * variable.speed",
+        0,
+        "variable.dir.z * variable.speed"
+      ],
+      "minecraft:particle_motion_dynamic": {
+        "linear_acceleration": [
+          "variable.right.x * math.cos(variable.particle_age * 720 + variable.particle_random_1 * 360) * 2",
+          "math.sin(variable.particle_age * 720 + variable.particle_random_1 * 360) * 2",
+          "variable.right.z * math.cos(variable.particle_age * 720 + variable.particle_random_1 * 360) * 2"
+        ],
+        "linear_drag_coefficient": 0
+      }
+    }
+  }
+}

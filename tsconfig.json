@@ -18,6 +18,7 @@
     "types": []
   },
   "include": [
+    "AllStars-灯塔全明星/src/**/*.ts",
     "BridgeWar-急速战桥/src/**/*.ts",
     "CChess-中国象棋/src/**/*.ts",
     "Collapse-豆腐渣地板/src/**/*.ts",

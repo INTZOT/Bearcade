@@ -900,6 +900,50 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "allstars",
+      "dir": "AllStars-灯塔全明星",
+      "name": "Bearcade 灯塔全明星对决",
+      "description": "Bearcade 灯塔全明星小游戏包(横板伪2D 1v1 格斗:M1 主干已实现,首个角色春叶 86 段原生动画已接入;场地与数值待实测)",
+      "headerUuid": "efde1bf1-0b29-42a5-94db-8ce2f679cea0",
+      "moduleUuid": "4996b595-1ba7-4650-a584-14452ef8f92a",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior",
+      "dataModuleUuid": "e89e0d80-24f9-486d-90b2-37467111ac95"
+    },
+    {
+      "id": "allstars_hud",
+      "type": "resource",
+      "dir": "AllStars-灯塔全明星/resource-pack",
+      "name": "Bearcade 灯塔全明星 HUD",
+      "description": "Bearcade 灯塔全明星 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "headerUuid": "48b50900-694e-4983-af5a-1dd65f77167d",
+      "moduleUuid": "28abec3a-ccdf-489c-8ef1-37ee38de593d",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }

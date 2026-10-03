@@ -1,0 +1,17 @@
+{
+  "source": "春叶 v047 archive (read only)",
+  "samples": [
+    {
+      "source": "previews/v039/preview_manifest.json",
+      "sha256": "85a3a7cda6a1a0bd0772b73523e1e7829237611868d267dae2c86fe25b156d42",
+      "output": "src/data/super3-scenes.json"
+    },
+    {
+      "source": "previews/v043/preview_manifest.json",
+      "sha256": "e13b8833928b520e1d58d8252e505fd1f56a9e9cb7855f6cfff75e3eca9fde03",
+      "output": "src/data/victory-scenes.json"
+    }
+  ],
+  "coordinates": "preview model units / 16; fixed pair origin; authored Root unchanged",
+  "rebuild": "hand anchors: node scripts/allstars-sample-hands.mjs; scenes: extract scene/pearls from listed manifest modes.cinema by source tick"
+}

@@ -1,0 +1,376 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bearcade:allstars_chunye",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/chunye",
+        "blue": "textures/entity/chunye_blue"
+      },
+      "geometry": {
+        "default": "geometry.green_beret_fighter"
+      },
+      "animations": {
+        "air_fall": "animation.green_beret.air_fall",
+        "air_rise": "animation.green_beret.air_rise",
+        "attack_air_heavy": "animation.green_beret.attack_air_heavy",
+        "attack_air_heavy_2": "animation.green_beret.attack_air_heavy_2",
+        "attack_air_heavy_3": "animation.green_beret.attack_air_heavy_3",
+        "attack_air_light": "animation.green_beret.attack_air_light",
+        "attack_air_light_2": "animation.green_beret.attack_air_light_2",
+        "attack_air_light_3": "animation.green_beret.attack_air_light_3",
+        "attack_air_medium": "animation.green_beret.attack_air_medium",
+        "attack_air_medium_2": "animation.green_beret.attack_air_medium_2",
+        "attack_air_medium_3": "animation.green_beret.attack_air_medium_3",
+        "attack_crouch_heavy": "animation.green_beret.attack_crouch_heavy",
+        "attack_crouch_heavy_2": "animation.green_beret.attack_crouch_heavy_2",
+        "attack_crouch_heavy_3": "animation.green_beret.attack_crouch_heavy_3",
+        "attack_crouch_light": "animation.green_beret.attack_crouch_light",
+        "attack_crouch_light_2": "animation.green_beret.attack_crouch_light_2",
+        "attack_crouch_light_3": "animation.green_beret.attack_crouch_light_3",
+        "attack_crouch_medium": "animation.green_beret.attack_crouch_medium",
+        "attack_crouch_medium_2": "animation.green_beret.attack_crouch_medium_2",
+        "attack_crouch_medium_3": "animation.green_beret.attack_crouch_medium_3",
+        "attack_stand_heavy": "animation.green_beret.attack_stand_heavy",
+        "attack_stand_heavy_2": "animation.green_beret.attack_stand_heavy_2",
+        "attack_stand_heavy_3": "animation.green_beret.attack_stand_heavy_3",
+        "attack_stand_light": "animation.green_beret.attack_stand_light",
+        "attack_stand_light_2": "animation.green_beret.attack_stand_light_2",
+        "attack_stand_light_3": "animation.green_beret.attack_stand_light_3",
+        "attack_stand_medium": "animation.green_beret.attack_stand_medium",
+        "attack_stand_medium_2": "animation.green_beret.attack_stand_medium_2",
+        "attack_stand_medium_3": "animation.green_beret.attack_stand_medium_3",
+        "crouch_enter": "animation.green_beret.crouch_enter",
+        "crouch_exit": "animation.green_beret.crouch_exit",
+        "dash_backward": "animation.green_beret.dash_backward",
+        "dash_forward": "animation.green_beret.dash_forward",
+        "getup": "animation.green_beret.getup",
+        "guard_crouch": "animation.green_beret.guard_crouch",
+        "guard_hit_crouch": "animation.green_beret.guard_hit_crouch",
+        "guard_hit_stand": "animation.green_beret.guard_hit_stand",
+        "guard_stand": "animation.green_beret.guard_stand",
+        "hit_air": "animation.green_beret.hit_air",
+        "hit_crouch": "animation.green_beret.hit_crouch",
+        "hit_stand": "animation.green_beret.hit_stand",
+        "hit_stand_heavy": "animation.green_beret.hit_stand_heavy",
+        "idle_crouch": "animation.green_beret.idle_crouch",
+        "idle_down": "animation.green_beret.idle_down",
+        "idle_stand": "animation.green_beret.idle_stand",
+        "intro": "animation.green_beret.intro",
+        "jump_land": "animation.green_beret.jump_land",
+        "jump_start": "animation.green_beret.jump_start",
+        "knockdown": "animation.green_beret.knockdown",
+        "leaf_dive_hit": "animation.green_beret.leaf_dive_hit",
+        "leaf_dive_land": "animation.green_beret.leaf_dive_land",
+        "leaf_dive_loop": "animation.green_beret.leaf_dive_loop",
+        "leaf_dive_start": "animation.green_beret.leaf_dive_start",
+        "leaf_launch_air": "animation.green_beret.leaf_launch_air",
+        "leaf_launch_hit": "animation.green_beret.leaf_launch_hit",
+        "leaf_launch_land": "animation.green_beret.leaf_launch_land",
+        "leaf_rise_end": "animation.green_beret.leaf_rise_end",
+        "leaf_rise_loop": "animation.green_beret.leaf_rise_loop",
+        "leaf_rise_start": "animation.green_beret.leaf_rise_start",
+        "special_leaf_burst": "animation.green_beret.special_leaf_burst",
+        "super_1": "animation.green_beret.super_1",
+        "super_1_victim": "animation.green_beret.super_1_victim",
+        "super_2": "animation.green_beret.super_2",
+        "super_2_victim": "animation.green_beret.super_2_victim",
+        "super_2_whiff": "animation.green_beret.super_2_whiff",
+        "super_3_chain": "animation.green_beret.super_3_chain",
+        "super_3_chain_victim": "animation.green_beret.super_3_chain_victim",
+        "super_3_confirm": "animation.green_beret.super_3_confirm",
+        "super_3_confirm_victim": "animation.green_beret.super_3_confirm_victim",
+        "super_3_finish": "animation.green_beret.super_3_finish",
+        "super_3_finish_victim": "animation.green_beret.super_3_finish_victim",
+        "super_3_low_finish": "animation.green_beret.super_3_low_finish",
+        "super_3_low_finish_victim": "animation.green_beret.super_3_low_finish_victim",
+        "super_3_start": "animation.green_beret.super_3_start",
+        "super_3_whiff": "animation.green_beret.super_3_whiff",
+        "throw_cast": "animation.green_beret.throw_cast",
+        "throw_tech_cast": "animation.green_beret.throw_tech_cast",
+        "throw_tech_victim": "animation.green_beret.throw_tech_victim",
+        "throw_victim": "animation.green_beret.throw_victim",
+        "throw_whiff": "animation.green_beret.throw_whiff",
+        "victory_match": "animation.green_beret.victory_match",
+        "victory_match_idle": "animation.green_beret.victory_match_idle",
+        "victory_round": "animation.green_beret.victory_round",
+        "victory_round_idle": "animation.green_beret.victory_round_idle",
+        "walk_backward": "animation.green_beret.walk_backward",
+        "walk_forward": "animation.green_beret.walk_forward"
+      },
+      "render_controllers": [
+        {
+          "controller.render.bearcade_allstars_fighter": "!query.property('bearcade:allstars_blue')"
+        },
+        {
+          "controller.render.bearcade_allstars_fighter_blue": "query.property('bearcade:allstars_blue')"
+        }
+      ],
+      "scripts": {
+        "animate": [
+          {
+            "air_fall": "query.property('bearcade:allstars_clip') == 0"
+          },
+          {
+            "air_rise": "query.property('bearcade:allstars_clip') == 1"
+          },
+          {
+            "attack_air_heavy": "query.property('bearcade:allstars_clip') == 2"
+          },
+          {
+            "attack_air_heavy_2": "query.property('bearcade:allstars_clip') == 3"
+          },
+          {
+            "attack_air_heavy_3": "query.property('bearcade:allstars_clip') == 4"
+          },
+          {
+            "attack_air_light": "query.property('bearcade:allstars_clip') == 5"
+          },
+          {
+            "attack_air_light_2": "query.property('bearcade:allstars_clip') == 6"
+          },
+          {
+            "attack_air_light_3": "query.property('bearcade:allstars_clip') == 7"
+          },
+          {
+            "attack_air_medium": "query.property('bearcade:allstars_clip') == 8"
+          },
+          {
+            "attack_air_medium_2": "query.property('bearcade:allstars_clip') == 9"
+          },
+          {
+            "attack_air_medium_3": "query.property('bearcade:allstars_clip') == 10"
+          },
+          {
+            "attack_crouch_heavy": "query.property('bearcade:allstars_clip') == 11"
+          },
+          {
+            "attack_crouch_heavy_2": "query.property('bearcade:allstars_clip') == 12"
+          },
+          {
+            "attack_crouch_heavy_3": "query.property('bearcade:allstars_clip') == 13"
+          },
+          {
+            "attack_crouch_light": "query.property('bearcade:allstars_clip') == 14"
+          },
+          {
+            "attack_crouch_light_2": "query.property('bearcade:allstars_clip') == 15"
+          },
+          {
+            "attack_crouch_light_3": "query.property('bearcade:allstars_clip') == 16"
+          },
+          {
+            "attack_crouch_medium": "query.property('bearcade:allstars_clip') == 17"
+          },
+          {
+            "attack_crouch_medium_2": "query.property('bearcade:allstars_clip') == 18"
+          },
+          {
+            "attack_crouch_medium_3": "query.property('bearcade:allstars_clip') == 19"
+          },
+          {
+            "attack_stand_heavy": "query.property('bearcade:allstars_clip') == 20"
+          },
+          {
+            "attack_stand_heavy_2": "query.property('bearcade:allstars_clip') == 21"
+          },
+          {
+            "attack_stand_heavy_3": "query.property('bearcade:allstars_clip') == 22"
+          },
+          {
+            "attack_stand_light": "query.property('bearcade:allstars_clip') == 23"
+          },
+          {
+            "attack_stand_light_2": "query.property('bearcade:allstars_clip') == 24"
+          },
+          {
+            "attack_stand_light_3": "query.property('bearcade:allstars_clip') == 25"
+          },
+          {
+            "attack_stand_medium": "query.property('bearcade:allstars_clip') == 26"
+          },
+          {
+            "attack_stand_medium_2": "query.property('bearcade:allstars_clip') == 27"
+          },
+          {
+            "attack_stand_medium_3": "query.property('bearcade:allstars_clip') == 28"
+          },
+          {
+            "crouch_enter": "query.property('bearcade:allstars_clip') == 29"
+          },
+          {
+            "crouch_exit": "query.property('bearcade:allstars_clip') == 30"
+          },
+          {
+            "dash_backward": "query.property('bearcade:allstars_clip') == 31"
+          },
+          {
+            "dash_forward": "query.property('bearcade:allstars_clip') == 32"
+          },
+          {
+            "getup": "query.property('bearcade:allstars_clip') == 33"
+          },
+          {
+            "guard_crouch": "query.property('bearcade:allstars_clip') == 34"
+          },
+          {
+            "guard_hit_crouch": "query.property('bearcade:allstars_clip') == 35"
+          },
+          {
+            "guard_hit_stand": "query.property('bearcade:allstars_clip') == 36"
+          },
+          {
+            "guard_stand": "query.property('bearcade:allstars_clip') == 37"
+          },
+          {
+            "hit_air": "query.property('bearcade:allstars_clip') == 38"
+          },
+          {
+            "hit_crouch": "query.property('bearcade:allstars_clip') == 39"
+          },
+          {
+            "hit_stand": "query.property('bearcade:allstars_clip') == 40"
+          },
+          {
+            "hit_stand_heavy": "query.property('bearcade:allstars_clip') == 41"
+          },
+          {
+            "idle_crouch": "query.property('bearcade:allstars_clip') == 42"
+          },
+          {
+            "idle_down": "query.property('bearcade:allstars_clip') == 43"
+          },
+          {
+            "idle_stand": "query.property('bearcade:allstars_clip') == 44"
+          },
+          {
+            "intro": "query.property('bearcade:allstars_clip') == 45"
+          },
+          {
+            "jump_land": "query.property('bearcade:allstars_clip') == 46"
+          },
+          {
+            "jump_start": "query.property('bearcade:allstars_clip') == 47"
+          },
+          {
+            "knockdown": "query.property('bearcade:allstars_clip') == 48"
+          },
+          {
+            "leaf_dive_hit": "query.property('bearcade:allstars_clip') == 49"
+          },
+          {
+            "leaf_dive_land": "query.property('bearcade:allstars_clip') == 50"
+          },
+          {
+            "leaf_dive_loop": "query.property('bearcade:allstars_clip') == 51"
+          },
+          {
+            "leaf_dive_start": "query.property('bearcade:allstars_clip') == 52"
+          },
+          {
+            "leaf_launch_air": "query.property('bearcade:allstars_clip') == 53"
+          },
+          {
+            "leaf_launch_hit": "query.property('bearcade:allstars_clip') == 54"
+          },
+          {
+            "leaf_launch_land": "query.property('bearcade:allstars_clip') == 55"
+          },
+          {
+            "leaf_rise_end": "query.property('bearcade:allstars_clip') == 56"
+          },
+          {
+            "leaf_rise_loop": "query.property('bearcade:allstars_clip') == 57"
+          },
+          {
+            "leaf_rise_start": "query.property('bearcade:allstars_clip') == 58"
+          },
+          {
+            "special_leaf_burst": "query.property('bearcade:allstars_clip') == 59"
+          },
+          {
+            "super_1": "query.property('bearcade:allstars_clip') == 60"
+          },
+          {
+            "super_1_victim": "query.property('bearcade:allstars_clip') == 61"
+          },
+          {
+            "super_2": "query.property('bearcade:allstars_clip') == 62"
+          },
+          {
+            "super_2_victim": "query.property('bearcade:allstars_clip') == 63"
+          },
+          {
+            "super_2_whiff": "query.property('bearcade:allstars_clip') == 64"
+          },
+          {
+            "super_3_chain": "query.property('bearcade:allstars_clip') == 65"
+          },
+          {
+            "super_3_chain_victim": "query.property('bearcade:allstars_clip') == 66"
+          },
+          {
+            "super_3_confirm": "query.property('bearcade:allstars_clip') == 67"
+          },
+          {
+            "super_3_confirm_victim": "query.property('bearcade:allstars_clip') == 68"
+          },
+          {
+            "super_3_finish": "query.property('bearcade:allstars_clip') == 69"
+          },
+          {
+            "super_3_finish_victim": "query.property('bearcade:allstars_clip') == 70"
+          },
+          {
+            "super_3_low_finish": "query.property('bearcade:allstars_clip') == 71"
+          },
+          {
+            "super_3_low_finish_victim": "query.property('bearcade:allstars_clip') == 72"
+          },
+          {
+            "super_3_start": "query.property('bearcade:allstars_clip') == 73"
+          },
+          {
+            "super_3_whiff": "query.property('bearcade:allstars_clip') == 74"
+          },
+          {
+            "throw_cast": "query.property('bearcade:allstars_clip') == 75"
+          },
+          {
+            "throw_tech_cast": "query.property('bearcade:allstars_clip') == 76"
+          },
+          {
+            "throw_tech_victim": "query.property('bearcade:allstars_clip') == 77"
+          },
+          {
+            "throw_victim": "query.property('bearcade:allstars_clip') == 78"
+          },
+          {
+            "throw_whiff": "query.property('bearcade:allstars_clip') == 79"
+          },
+          {
+            "victory_match": "query.property('bearcade:allstars_clip') == 80"
+          },
+          {
+            "victory_match_idle": "query.property('bearcade:allstars_clip') == 81"
+          },
+          {
+            "victory_round": "query.property('bearcade:allstars_clip') == 82"
+          },
+          {
+            "victory_round_idle": "query.property('bearcade:allstars_clip') == 83"
+          },
+          {
+            "walk_backward": "query.property('bearcade:allstars_clip') == 84"
+          },
+          {
+            "walk_forward": "query.property('bearcade:allstars_clip') == 85"
+          }
+        ]
+      }
+    }
+  }
+}

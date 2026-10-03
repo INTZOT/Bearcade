@@ -2,6 +2,10 @@ import { build } from "esbuild";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+// Reapply playback controls after any asset re-import. Authored bone tracks are untouched.
+await import("./allstars-presentation-assets.mjs");
+await import("./allstars-sample-hands.mjs");
+
 const root = process.cwd();
 const config = JSON.parse(
   await readFile(path.join(root, "config", "packs.json"), "utf8"),
@@ -79,6 +83,8 @@ for (const pack of config.packs) {
         ],
     dependencies: isResource ? [] : [...(pack.dependencies ?? []), ...packDeps],
   };
+
+  if (pack.dataModuleUuid) manifest.modules.push({ type: "data", uuid: pack.dataModuleUuid, version });
 
   await writeFile(
     path.join(dir, "manifest.json"),
