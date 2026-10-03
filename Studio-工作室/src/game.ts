@@ -25,7 +25,6 @@ import { getStudioConfig, openStudioConfig } from "./studio-config";
 import type { StudioConfig } from "./config";
 import {
   getBuildSize,
-  materialPositions,
   refillMaterials,
 } from "./map";
 import {
@@ -77,7 +76,6 @@ interface StudioRoomState {
   roundAwards: { id: string; points: number }[];
   intervalId?: number;
   ended: boolean;
-  materialKeys: Set<string>;
   originalMinPlayers: number;
 }
 
@@ -102,7 +100,6 @@ function getState(roomId: number): StudioRoomState {
       playerNames: new Map(),
       roundAwards: [],
       ended: false,
-      materialKeys: new Set(),
       originalMinPlayers: 2,
     };
     roomStates.set(roomId, state);
@@ -340,11 +337,6 @@ function startRound(
   state.targetItem = pickTarget(state, cfg);
   state.targetName = targetDisplayName(state.targetItem);
 
-  const size = getBuildSize();
-  state.materialKeys = new Set(
-    materialPositions(size, cfg).map((p) => `${p.x},${p.y},${p.z}`),
-  );
-
   runtime.announce(
     roomId,
     `§e第 ${state.round}/${cfg.roundCount} 回合:请在工作室中制作 §b${state.targetName}§r`,
@@ -554,14 +546,14 @@ export function makeStudioHooks(
       if (!state) return false;
       const cfg = getStudioConfig();
       const typeId = event.block.typeId;
-      const isMaterial =
+      // 对局维度内:只要是原材料方块(原材料列表中的类型),位置不限都可挖掘;
+      // 不在列表中的方块(石砖墙体/地板、玻璃天花板、货架木板、工作台、熔炉)一律不可破坏
+      return (
         cfg.materialBlocks.includes(typeId) ||
         // 红石矿石被触碰后会变成 lit_redstone_ore,仍应视为可挖掘原材料
         (typeId === "minecraft:lit_redstone_ore" &&
-          cfg.materialBlocks.includes("minecraft:redstone_ore"));
-      if (!isMaterial) return false;
-      const key = `${event.block.x},${event.block.y},${event.block.z}`;
-      return state.materialKeys.has(key);
+          cfg.materialBlocks.includes("minecraft:redstone_ore"))
+      );
     },
     canPlace(_event: PlayerPlaceBlockBeforeEvent): boolean {
       return false;
