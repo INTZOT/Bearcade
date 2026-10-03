@@ -76,6 +76,8 @@ interface StudioRoomState {
   roundAwards: { id: string; points: number }[];
   intervalId?: number;
   ended: boolean;
+  /** 回合切换中:正在从模板重建整房,主循环暂停 */
+  transitioning: boolean;
   originalMinPlayers: number;
 }
 
@@ -100,6 +102,7 @@ function getState(roomId: number): StudioRoomState {
       playerNames: new Map(),
       roundAwards: [],
       ended: false,
+      transitioning: false,
       originalMinPlayers: 2,
     };
     roomStates.set(roomId, state);
@@ -305,6 +308,25 @@ function updateAllHud(
   }
 }
 
+/** 整房重建前把玩家送回各自出生点,避免结构放置时被方块覆盖 */
+function teleportPlayersToStart(
+  runtime: MinigameRuntime,
+  roomId: number,
+): void {
+  const players = runtime.roomPlayers(roomId);
+  players.forEach((player, index) => {
+    try {
+      runtime.teleportPlayer(
+        roomId,
+        player,
+        START_POSITIONS[index % START_POSITIONS.length] ?? START_POSITIONS[0]!,
+      );
+    } catch {
+      // 单个玩家传送失败不阻断重置
+    }
+  });
+}
+
 function startRound(
   roomId: number,
   state: StudioRoomState,
@@ -313,7 +335,8 @@ function startRound(
 ): void {
   const players = runtime.roomPlayers(roomId);
   const dim = runtime.roomDim(roomId);
-  // 回合重置:清掉落物、清熔炉残留、复原货架
+  // 此时场地通常已由 runtime.resetRoom 整房重建;这里保留清理与补货作为兜底
+  // (重置失败的回退路径也走这里,至少保证货架原材料补回)
   clearDroppedItems(dim);
   resetFurnaces(dim, cfg);
 
@@ -383,13 +406,41 @@ function finalizeRound(
   }
 
   state.round++;
-  startRound(roomId, state, cfg, runtime);
+  const nextRound = state.round;
+  state.transitioning = true;
+  // 整房从模板重建:墙壁/地板/天花板、工作台/熔炉、货架与原材料一起复原。
+  // 场地内任意位置被挖掉的原材料方块都会补回(不再只补货架那几排),
+  // 熔炉内部、掉落物也随之清零,无需逐项手工复原。
+  clearDroppedItems(runtime.roomDim(roomId));
+  teleportPlayersToStart(runtime, roomId);
+  runtime.announce(roomId, `§7第 ${nextRound} 回合准备中:重置场地…`);
+
+  const continueNextRound = () => {
+    state.transitioning = false;
+    // 期间对局可能已结束/房间已重置(startRound 会把玩家拉回场地),
+    // 只在本局仍是当前房间状态时继续下一回合
+    if (
+      roomStates.get(roomId) !== state ||
+      state.ended ||
+      !runtime.isRunning(roomId)
+    ) {
+      return;
+    }
+    startRound(roomId, state, cfg, runtime);
+  };
+  void runtime.resetRoom(roomId).then(continueNextRound, (error) => {
+    // 回退路径:startRound 内部仍会 refillMaterials,保证货架原材料补回、本回合可继续
+    console.warn(`[Studio] 房间 ${roomId} 整房重置失败,回退为仅复原货架`, error);
+    continueNextRound();
+  });
 }
 
 function tickRoom(roomId: number): void {
   const runtime = runtimeGetter();
   const state = getState(roomId);
   if (!runtime.isRunning(roomId) || state.ended) return;
+  // 回合切换中(整房重建)暂停主循环,避免在场地半成品上跑秒烧/计分/超时
+  if (state.transitioning) return;
   const cfg = getStudioConfig();
   const now = system.currentTick;
   const dim = runtime.roomDim(roomId);
@@ -504,6 +555,7 @@ export function makeStudioHooks(
       state.scores.clear();
       state.playerNames.clear();
       state.ended = false;
+      state.transitioning = false;
       state.originalMinPlayers = runtime.config.minPlayers ?? 2;
       if (state.intervalId !== undefined) {
         system.clearRun(state.intervalId);
