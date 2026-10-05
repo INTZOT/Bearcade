@@ -944,6 +944,49 @@
       ],
       "dependencies": [],
       "packDependencies": []
+    },
+    {
+      "id": "territory_war",
+      "dir": "TerritoryWar-领地战争",
+      "name": "Bearcade 领地战争",
+      "description": "Bearcade 领地战争小游戏包(骨架阶段,玩法待定)",
+      "headerUuid": "73f75e88-36ae-4b64-8e9f-1eb5bdc99da0",
+      "moduleUuid": "0ade7992-ce59-48f6-9fce-86be826c11cd",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [
+        {
+          "module_name": "@minecraft/server",
+          "version": "2.10.0-beta"
+        },
+        {
+          "module_name": "@minecraft/server-ui",
+          "version": "2.2.0-beta"
+        }
+      ],
+      "packDependencies": [
+        "core"
+      ],
+      "type": "behavior"
+    },
+    {
+      "id": "territory_war_hud",
+      "type": "resource",
+      "dir": "TerritoryWar-领地战争/resource-pack",
+      "name": "Bearcade 领地战争 HUD",
+      "description": "Bearcade 领地战争占位资源包(当前无 HUD 内容,保持一对一资源包结构)",
+      "headerUuid": "015eb116-94b6-47eb-bb1e-3a4691cece5b",
+      "moduleUuid": "0c12223b-46a8-4920-9b9a-a42b6e2d2528",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
     }
   ]
 }
