@@ -1,7 +1,8 @@
 import { Dimension, Entity, EntityComponentTypes, EntityDamageCause, EntityHealthComponent, EquipmentSlot, GameMode, ItemStack, Player, system, VanillaEntityIdentifier } from '@minecraft/server';
 import { MinecraftEffectTypes, MinecraftItemTypes } from '@minecraft/vanilla-data';
 import { MinigameRuntime } from '../../shared/minigame-core/runtime';
-import { config, PREP_SPAWN } from './config';
+import { INITIAL_ARMOR, INITIAL_INVENTORY, PREP_SPAWN } from './config';
+import { getCTFConfig } from './ctf-config';
 import { CTFPlayer } from './CTFPlayer';
 import { FlagManager } from './FlagManager';
 import { PlayerManager } from './PlayerManager';
@@ -25,7 +26,6 @@ export class GameManager {
   private tickDuration = 0;
   private waterTickCounter = new Map<string, number>();
   private deathPlayers: Map<string, number> = new Map();
-  private readonly RESPAWN_DELAY_TICKS = config.respawnTime * 20;
   private placedBlocks: Set<string> = new Set();
   private blockUpgradedTeams: Set<string> = new Set();
   private arrowUpgradedTeams: Set<string> = new Set();
@@ -124,7 +124,7 @@ export class GameManager {
     mainScoreboard.addColumn('time_left', '§f剩余时间: {time}', {
       time: () => {
         const elapsedSec = this.timeStamp / 20;
-        const remaining = Math.max(0, Math.floor(config.matchTime - elapsedSec));
+        const remaining = Math.max(0, Math.floor(getCTFConfig().matchTime - elapsedSec));
         const min = Math.floor(remaining / 60);
         const sec = remaining % 60;
         return `${min}:${sec.toString().padStart(2, '0')}`;
@@ -194,7 +194,7 @@ export class GameManager {
         return false;
       }
       this.flagCurseTeams.add(team.id);
-      this.sendMessage(`${team.getDisplayName()} 已激活旗帜诅咒！其旗帜被夺取超过 ${config.flagCurse.triggerSeconds} 秒后，夺旗者的生命上限将被降低`);
+      this.sendMessage(`${team.getDisplayName()} 已激活旗帜诅咒！其旗帜被夺取超过 ${getCTFConfig().flagCurseTriggerSeconds} 秒后，夺旗者的生命上限将被降低`);
       return true;
     });
 
@@ -436,11 +436,11 @@ export class GameManager {
     this.cleanEntity();
 
     // 1. 初始化队伍
-    this.teamManager.initialize(config.teams);
+    this.teamManager.initialize(getCTFConfig().teams);
     floatingTextManager.initialize(runtime.roomDim(roomId));
 
     // 2. 创建旗帜
-    for (const teamCfg of config.teams) {
+    for (const teamCfg of getCTFConfig().teams) {
       const flagPos = teamCfg.flagHomePosition;
       if (flagPos) {
         this.flagManager.createFlag(teamCfg.id, flagPos);
@@ -450,13 +450,13 @@ export class GameManager {
     // 3. 创建商店实体
     const itemShop = this.shopManager.getShop('item_shop');
     if (itemShop) {
-      config.itemShop.forEach((shop: Vector3) => {
+      getCTFConfig().itemShops.forEach((shop: Vector3) => {
         itemShop.spawnShopEntity(shop);
       });
     }
     const buffShop = this.shopManager.getShop('buff_shop');
     if (buffShop) {
-      config.buffShop.forEach((shop: Vector3) => {
+      getCTFConfig().buffShops.forEach((shop: Vector3) => {
         buffShop.spawnShopEntity(shop);
       });
     }
@@ -465,7 +465,7 @@ export class GameManager {
     const players = this.runtime.roomPlayers(this.roomId);
     for (const mcPlayer of players) {
       const ctfPlayer = this.playerManager.getOrCreatePlayer(mcPlayer);
-      ctfPlayer.setEconomy(config.economy.initial);
+      ctfPlayer.setEconomy(getCTFConfig().economyInitial);
       this.scoreboardManager.setPlayerDisplay(mcPlayer.id, 'ctf_main');
 
       // 轮询自动分配
@@ -474,14 +474,14 @@ export class GameManager {
       // 分配初始护甲
       const equippable = mcPlayer.getComponent('equippable');
       if (equippable) {
-        equippable.setEquipment(EquipmentSlot.Legs, new ItemStack(config.initialArmor.leggings));
-        equippable.setEquipment(EquipmentSlot.Feet, new ItemStack(config.initialArmor.boots));
+        equippable.setEquipment(EquipmentSlot.Legs, new ItemStack(INITIAL_ARMOR.leggings));
+        equippable.setEquipment(EquipmentSlot.Feet, new ItemStack(INITIAL_ARMOR.boots));
       }
 
       // 分配初始物品到背包
       const inventory = mcPlayer.getComponent('inventory')?.container;
       if (inventory) {
-        for (const entry of config.initialInventory) {
+        for (const entry of INITIAL_INVENTORY) {
           inventory.addItem(new ItemStack(entry.item, entry.count));
         }
       }
@@ -489,7 +489,7 @@ export class GameManager {
       if (team && inventory) {
         const woolId = `minecraft:${team.color}_wool`;
         try {
-          inventory.addItem(new ItemStack(woolId, config.initialBlockCount));
+          inventory.addItem(new ItemStack(woolId, getCTFConfig().initialBlockCount));
         } catch (err) {
           console.warn(`[GameManager] 无法生成: ${woolId}`, err);
         }
@@ -580,18 +580,18 @@ export class GameManager {
 
   private naturalMoney(): void {
     if (this.timeStamp % 20 === 0) {
-      this.playerManager.addEconomyToAll(config.economy.tickReward);
+      this.playerManager.addEconomyToAll(getCTFConfig().economyTickReward);
     }
   }
 
   private checkWin(): void {
-    const team = this.teamManager.checkWinCondition(config.maxScore);
+    const team = this.teamManager.checkWinCondition(getCTFConfig().maxScore);
     if (team) {
       this.sendMessage(`${team.getDisplayName()} 获得胜利！`);
       this.end();
       return;
     }
-    if (this.timeStamp / 20 >= config.matchTime) {
+    if (this.timeStamp / 20 >= getCTFConfig().matchTime) {
       this.sendMessage(`游戏结束，平局！`);
       this.end();
       return;
@@ -706,11 +706,11 @@ export class GameManager {
 
       // 判断未受伤时长（刻）
       const elapsedTicks = this.timeStamp - ctfPlayer.lastDamageTime;
-      const delayTicks = config.regeneration.delaySeconds * 20;
+      const delayTicks = getCTFConfig().regenDelaySeconds * 20;
       if (elapsedTicks <= delayTicks) continue;
 
       // 恢复生命值（每秒恢复配置量）
-      const newHealth = Math.min(maxHealth, currentHealth + config.regeneration.perSecond);
+      const newHealth = Math.min(maxHealth, currentHealth + getCTFConfig().regenPerSecond);
       healthComp.setCurrentValue(newHealth);
     }
   }
@@ -726,7 +726,7 @@ export class GameManager {
     this.tntFuses.push({
       location: { ...location },
       placerId: placer.id,
-      remainingTicks: config.tnt.fuseTicks,
+      remainingTicks: getCTFConfig().tntFuseTicks,
       entity: entity
     });
     placer.playSound('random.fuse');
@@ -765,8 +765,8 @@ export class GameManager {
     // 如果实体可用，则使用实体的位置
     if (entity.isValid) center = entity.location;
 
-    const radius = config.tnt.explosionRadius;
-    const damage = config.tnt.playerDamage;
+    const radius = getCTFConfig().tntExplosionRadius;
+    const damage = getCTFConfig().tntPlayerDamage;
 
     // ---- 破坏玩家放置的方块（仅限 placedBlocks 中记录的） ----
     const startX = Math.floor(center.x - radius);
@@ -852,11 +852,11 @@ export class GameManager {
       this.playerManager.getOrCreatePlayer(player).onDeath();
       if (attacker) {
         this.playerManager.getOrCreatePlayer(attacker).onKill();
-        this.playerManager.getOrCreatePlayer(attacker).addEconomy(config.economy.killReward);
+        this.playerManager.getOrCreatePlayer(attacker).addEconomy(getCTFConfig().economyKillReward);
 
         const attackerHealth = attacker.getComponent(EntityComponentTypes.Health) as EntityHealthComponent;
         attackerHealth?.setCurrentValue(
-          Math.min(attackerHealth.currentValue + config.killRestoration, this.getEffectiveMaxHealth(attacker))
+          Math.min(attackerHealth.currentValue + getCTFConfig().killRestoration, this.getEffectiveMaxHealth(attacker))
         );
 
         this.sendMessage(`§a${attacker.nameTag} 击杀了 ${player.nameTag}`);
@@ -878,10 +878,10 @@ export class GameManager {
       }
 
       // 4. 发送消息
-      player.sendMessage('§c你已阵亡，将在 ' + config.respawnTime + ' 秒后复活');
+      player.sendMessage('§c你已阵亡，将在 ' + getCTFConfig().respawnTime + ' 秒后复活');
 
       // 5. 开始计时
-      this.deathPlayers.set(player.id, this.RESPAWN_DELAY_TICKS);
+      this.deathPlayers.set(player.id, getCTFConfig().respawnTime * 20);
     });
   }
 
@@ -933,8 +933,8 @@ export class GameManager {
         const current = this.waterTickCounter.get(player.id) || 0;
         const newCount = current + 2; // tick 每 2 刻执行一次，步长 2
 
-        if (newCount >= config.waterDamageTriggerDelay) {
-          player.applyDamage(config.waterDamage);
+        if (newCount >= getCTFConfig().waterDamageTriggerDelay) {
+          player.applyDamage(getCTFConfig().waterDamage);
           this.waterTickCounter.set(player.id, 0);
         } else {
           this.waterTickCounter.set(player.id, newCount);
@@ -946,7 +946,7 @@ export class GameManager {
   }
 
   private checkCaptures(): void {
-    const captureRadius = config.arena.captureRadius; // 从配置读取拾取半径
+    const captureRadius = getCTFConfig().captureRadius; // 从配置读取拾取半径
     const flags = this.flagManager.getAllFlags();
     const players = this.playerManager.getAllPlayers();
 
@@ -987,7 +987,7 @@ export class GameManager {
   }
 
   private checkScore(): void {
-    const captureRadius = config.arena.captureRadius;
+    const captureRadius = getCTFConfig().captureRadius;
     const flags = this.flagManager.getAllFlags();
 
     for (const flag of flags) {
@@ -1013,7 +1013,7 @@ export class GameManager {
       flag.returnHome(); // 敌方旗帜归还
       this.teamManager.addTeamScore(carrierTeamId, 1);
 
-      const reward = config.economy.flagReward ?? 0;
+      const reward = getCTFConfig().economyFlagReward ?? 0;
       if (reward > 0) carrier.addEconomy(reward);
 
       if (mcPlayer) {
@@ -1156,9 +1156,9 @@ export class GameManager {
    */
   getArrowBreakRadius(teamId: string | null): number {
     if (teamId && this.arrowUpgradedTeams.has(teamId)) {
-      return config.arrowBreakRadiusUpgraded;
+      return getCTFConfig().arrowBreakRadiusUpgraded;
     }
-    return config.arrowBreakRadius;
+    return getCTFConfig().arrowBreakRadius;
   }
 
   /** 判断队伍是否已购买且尚未触发的旗帜诅咒 */
@@ -1171,7 +1171,7 @@ export class GameManager {
    * 携带该旗帜的敌方玩家生命上限被压低，死亡后恢复
    */
   private updateFlagCurses(): void {
-    const triggerTicks = config.flagCurse.triggerSeconds * 20;
+    const triggerTicks = getCTFConfig().flagCurseTriggerSeconds * 20;
 
     for (const flag of this.flagManager.getAllFlags()) {
       // 旗帜回城后重新累计未在家时长
@@ -1209,11 +1209,11 @@ export class GameManager {
 
     const healthComp = mcPlayer.getComponent('health') as EntityHealthComponent | undefined;
     if (healthComp) {
-      healthComp.setCurrentValue(Math.min(healthComp.currentValue, config.flagCurse.cursedMaxHealth));
+      healthComp.setCurrentValue(Math.min(healthComp.currentValue, getCTFConfig().flagCurseMaxHealth));
     }
 
     const teamName = this.teamManager.getTeam(flagTeamId)?.getDisplayName() ?? '未知';
-    mcPlayer.sendMessage(`§c你被 ${teamName} 的旗帜诅咒！生命上限降低至 ${config.flagCurse.cursedMaxHealth / 2} 颗心，死亡后恢复。`);
+    mcPlayer.sendMessage(`§c你被 ${teamName} 的旗帜诅咒！生命上限降低至 ${getCTFConfig().flagCurseMaxHealth / 2} 颗心，死亡后恢复。`);
     return true;
   }
 
@@ -1225,7 +1225,7 @@ export class GameManager {
     const healthComp = player.getComponent('health') as EntityHealthComponent | undefined;
     const normalMax = healthComp?.effectiveMax ?? 20;
     if (!this.cursedPlayers.has(player.id)) return normalMax;
-    return Math.min(normalMax, config.flagCurse.cursedMaxHealth);
+    return Math.min(normalMax, getCTFConfig().flagCurseMaxHealth);
   }
 
   isPlacedBlock(location: Vector3): boolean {

@@ -4,6 +4,7 @@ import {
   clearHudTitle,
 } from "../../shared/minigame-core/scoreboardHud";
 import { START_POSITIONS } from "./config";
+import { openCTFConfig } from "./ctf-config";
 import { system } from "@minecraft/server";
 import { GameManager } from "./GameManager";
 
@@ -45,6 +46,10 @@ export function makeCTFHooks(
       for (const player of runtime.roomPlayers(roomId)) {
         clearHudTitle(player);
       }
+    },
+
+    openConfig(player) {
+      openCTFConfig(player, getRuntime());
     },
   };
 }
