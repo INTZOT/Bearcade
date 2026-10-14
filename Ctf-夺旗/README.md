@@ -34,98 +34,26 @@ src/
 
 ### ⚙️ 配置说明
 
-```ts
-export const config = {
-  // ---- 队伍配置 ----
-  teams: [
-    {
-      id: 'blue',
-      name: '蓝队',
-      color: 'blue',           // 对应羊毛颜色
-      hex: '#5555FF',
-      spawnPoint: { x: 5, y: 65, z: 0 },
-      flagHomePosition: { x: 6, y: 65, z: 0 }
-    },
-    {
-      id: 'green',
-      name: '绿队',
-      color: 'green',
-      hex: '#55FF55',
-      spawnPoint: { x: -5, y: 65, z: 0 },
-      flagHomePosition: { x: -6, y: 65, z: 0 }
-    }
-  ] as const,
+#### 运行时配置(`/bearcade:config ctf`)
 
-  // ---- 初始装备 ----
-  initialArmor: {
-    leggings: 'minecraft:diamond_leggings',
-    boots: 'minecraft:diamond_boots'
-  } as const,
-  initialInventory: [
-    { item: 'minecraft:diamond_sword', count: 1 },
-    { item: 'minecraft:bow', count: 1 },
-    { item: 'minecraft:arrow', count: 16 }
-  ],
-  initialBlockCount: 32,       // 初始羊毛方块数量
+管理员在游戏中执行 `/bearcade:config ctf` 打开配置界面(对局进行中禁止修改),配置持久化到动态属性 `bearcade:config_ctf`,重启后仍生效,界面提供「恢复默认」。可配置项:
 
-  // ---- 胜利条件与时间 ----
-  maxScore: 3,                 // 获胜所需分数
-  matchTime: 300,              // 对局时长（秒）
-  flagReturnTime: 15,          // 旗帜掉落后自动回城时间（秒）
-  respawnTime: 5,              // 玩家复活等待时间（秒）
-  arrowBreakRadius: 0.5,       // 箭矢破坏玩家放置方块的默认半径
-  arrowBreakRadiusUpgraded: 1.5, // 队伍购买"箭升级"后的破坏半径
-  killRestoration: 6,          // 击杀敌人后恢复的血量 
-  waterDamageTriggerDelay: 20, // 在水中持续多少刻后开始受到伤害
-  waterDamage: 4,              // 水中周期性伤害值（半心单位）
+- 准备房间坐标(保存后自动重新向 Core 注册,入房落点即时生效);
+- 各队出生点 / 旗帜位置(蓝队、绿队);
+- 物品商店 / 增益商店实体位置;
+- 获胜所需分数、对局时长(分钟)、旗帜掉落回城时间(秒)、复活等待(秒);
+- 初始羊毛方块数、击杀回血(半心);
+- 生命回复:延迟(秒)/ 速度(半心/秒);
+- 旗帜诅咒:触发秒数 / 被诅咒者生命上限(半心);
+- TNT:引信(秒)/ 爆炸半径(格)/ 伤害(半心);
+- 经济:初始金币、击杀奖励、夺旗奖励、每秒金币;
+- 水中受伤延迟(秒)/ 水中伤害(半心)、旗帜拾取半径(格)。
 
-  // ---- 生命恢复 ----
-  regeneration: {
-    delaySeconds: 15,          // 受伤后延迟多少秒开始恢复
-    perSecond: 1,              // 每秒恢复的生命值
-  },
+#### 代码默认值
 
-  // ---- 旗帜诅咒（增益商店购买） ----
-  flagCurse: {
-    triggerSeconds: 30,        // 队伍旗帜持续未处于 home 状态多少秒后诅咒夺旗者
-    cursedMaxHealth: 8,        // 被诅咒的夺旗者生命上限（半心单位，8=4颗心）
-  },
+以上各项的代码默认值集中在 [src/config.ts](src/config.ts) 的 `CTF_CONFIG_DEFAULTS`(持久化值优先)。初始护甲与武器(`INITIAL_ARMOR`/`INITIAL_INVENTORY`,物品 ID 不适合表单编辑)仍为代码常量。
 
-  // ---- TNT 爆炸参数 ----
-  tnt: {
-    fuseTicks: 80,             // 引信时长（刻，20刻=1秒）
-    explosionRadius: 4,        // 爆炸半径（格）
-    playerDamage: 8,           // 对非队友玩家造成的伤害（半心单位，8=4颗心）
-  },
-
-  // ---- 经济系统 ----
-  economy: {
-    initial: 200,              // 初始金币
-    killReward: 15,            // 击杀奖励
-    flagReward: 150,           // 成功夺旗奖励
-    winReward: 100,            // 胜利队伍额外奖励（未使用）
-    tickReward: 1              // 每秒自动获得的金币（被动收入）
-  },
-
-  // ---- 商店实体位置（盔甲架） ----
-  itemShop:[
-    { x: -1, y: 65, z: 0 },
-    { x: 1, y: 65, z: 0 }
-  ],
-
-  buffShop: [
-    { x: -2, y: 65, z: 0 },
-    { x: 2, y: 65, z: 0 }
-  ],
-
-  // ---- 旗帜判定半径 ----
-  arena: {
-    captureRadius: 1           // 拾取/归还旗帜的判定距离（格）
-  }
-};
-```
-
-> **修改提示**：商店商品（价格、图标、回调）在 `GameManager.initialize()` 中硬编码，如需调整请直接编辑该方法内的 `itemShop.addItem()` 和 `setCallback()` 部分。
+> **修改提示**:商店商品(价格、图标、回调)在 `GameManager.initialize()` 中硬编码,如需调整请直接编辑该方法内的 `itemShop.addItem()` 和 `setCallback()` 部分。
 
 ---
 
