@@ -310,12 +310,13 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
   - 实验室逃脱:准备房间坐标、普通/派对最大人数、地图几何(地面 Y/柱高/塌陷区)、游戏时长、第一名后倒计时、派对最大柱子数;
   - 围棋:准备房间坐标、棋盘位置、黑/白方开局坐标、黑贴目、每方局时、俯瞰高度;
   - 中国象棋:准备房间坐标、棋盘位置、红/黑方开局坐标、俯瞰高度、每方局时;
+  - 夺旗:准备房间坐标、各队出生点/旗帜位置、物品/增益商店位置、获胜分数、对局时长、旗帜回城/复活等待、初始羊毛数、击杀回血、回复延迟/速度、旗帜诅咒触发/生命上限、TNT 引信/半径/伤害、经济(初始/击杀/夺旗/每秒)、水中伤害、拾取半径;
   - 饥饿游戏:准备房间坐标、各阶段时长、出生等分圆/死斗场、扣血保底、观战台位置、四级物资池管理;
   - 麻将:准备房间坐标、场地 Y 与 X/Z 范围、骰子按钮位置、四个座位坐标、牌垛/手牌/副露/牌河的距离与每行数量;
   - 冰冻地板:准备房间坐标、场地中心、蓝冰环顶部 Y、内/外圈半径、融化间隔/动画时长/次数、每轮收缩与扩张格数、虚空淘汰高度、雪球击退强度与每格雪球数量、观战位置、装饰开关;
   - 杀年猪:准备房间坐标、地图原点/边长、一局时长、开局动物数/生成间隔/每批数量/人数加成/场上上限、-50% 动物概率、受惊逃跑秒数与冲量、动物分值、生成权重、特殊事件;
   - 工作室:准备房间坐标、普通模式最大人数、总回合数、单回合超时、第一名后等待、前三名得分、地面 Y、默认场地尺寸、题库管理、原材料列表;
-  - 未接入配置界面:**夺旗**、**剑与消亡V**(执行 `/bearcade:config` 会提示"该游戏未提供配置界面")。
+  - 未接入配置界面:**剑与消亡V**(执行 `/bearcade:config` 会提示"该游戏未提供配置界面")。
 - **对局中禁止修改**:存在运行中/倒计时对局时,配置界面拒绝打开(共享运行时 `hasActiveGame` 守卫)。
 
 调试命令:`/bearcade:debug <gamename|all> enable|disable`(管理员)经 `game.debug` IPC 显式开启/关闭该游戏的调试日志;`all` 时 Core 会批量下发到全部已注册游戏(共享运行时统一管理;旧 `/bearcade:gnb_debug` 已移除)。
@@ -653,5 +654,6 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-09-25 | 灯塔全明星 实机修复「实体存在但春叶模型不可见」:根因是资源包客户端实体里的 `"scripts": { "animate": [] }` 过不了客户端 schema 校验(`[Animation][error] … client_entity | description | scripts | animate | Array too small (0 < 1)`),**整条 client_entity 描述被丢弃**——实体/脚本/粒子一切正常,模型完全不渲染;同时自建 `render_controllers/allstars_chunye.render_controllers.json` 实机报 `[Rendering][error] error parsing …`(内容与内建 `controller.render.default` 完全等价),改用原版内建控制器并删除自建 RC 文件;`minecraft:damage_sensor` 的 `triggers` 由「数组 + `cause`」改为原版对象写法(消除非致命 Json 报错);`diag` 新增 A/B 渲染探针(`bearcade:allstars_probe`,取春叶同贴图的最简 16³ 方块实体,用于分层定位);`scripts/allstars-ingest-chunye.mjs` 同步修正(不再生成 `scripts` 块与 RC 文件);`npm run check` 新增**自定义实体静态校验**(`scripts.animate` 空数组 / 缺 `render_controllers` / 缺 `textures.default` / 引用的自定义 RC 文件不存在 / BP 实体 `damage_sensor.triggers` 数组带 `cause`),已用负例实测能拦下本次这类 bug;踩坑细节见 `docs/lessons.md` §14 |
 | 2026-09-24 | 灯塔全明星工具与资产:新增 `/bearcade:allstars_buildmap`(模板维度一键生成擂台+准备台,需 op)、`/bearcade:allstars_diag`(自检:配置/动画清单/实体生成/相机/HUD/输入/场地)、`/scriptevent allstars:probe`(原始输入打点,用于实测 `getMovementVector()` 轴语义);`scripts/allstars-gen-combat.mjs` 从源资产导出 27 段攻击逐招帧数据到 `src/data/chunye.combat.ts`;场地坐标与生成尺寸对齐(原 `TEMPLATE_FROM/TO` 只框 ±7 会漏掉半个擂台);输入层加固(控制笼不再禁用 Jump/Sneak 权限、防御改按"水平轴背向对手"、新增按键兜底) |
 | 2026-10-01 | 新增 Core 开发者面板:管理员手持命令方块矿车右键打开,图形化覆盖 config/tmp/debug/party/quit 全部动作并带房间状态实时总览;抽出 `Core-核心/src/actions.ts` 作为 Core→游戏包的唯一动作层,命令与面板共用同一份实现(避免逻辑漂移),`ui.ts` 导出表单工具供面板复用;新增 development.md §4.9 与 README 说明 |
+| 2026-10-14 | 夺旗接入 `/bearcade:config ctf` 运行时配置(仿 CChess 模式):新增 `src/ctf-config.ts`(openConfig 钩子 + `bearcade:config_ctf` 动态属性持久化 + 对局中禁改守卫 + 恢复默认);config.ts 静态 `config` 对象拆为 `CTFConfig` 接口 + `CTF_CONFIG_DEFAULTS`(物品/护甲初始装备保留为代码常量);GameManager/Flag 全部改读 `getCTFConfig()`(回复速度、诅咒、TNT、经济、水中伤害、拾取半径等即改即生效);可配置:准备房间坐标、各队出生点/旗帜位置、商店位置、获胜分数、对局时长、旗帜回城/复活等待、初始羊毛数、击杀回血、回复延迟/速度、旗帜诅咒、TNT 三参、经济四参、水中伤害、拾取半径 |
 | 2026-09-08 | 文档同步:README 与本文档补齐 FrozenFloor/Ctf/NewYearPig/Studio 四包(当前状态、模块表、包目录表、房间数表)、§4.6 补四包配置项并修正"最大人数唯一例外"与配置接入数量、§5.4 修正 `game.apply` 载荷、§4.8 明确 JSON UI 记分板接入范围;修正 CChess/pillars/FrozenFloor/HungerGame/Mahjong 包内 README 与代码不符之处 |
 | 2026-09-30 | 新增 Trio-轮转井字棋(3×3 三连取胜;每方场上最多 3 子,轮到自己时最老一子轮转出局并在原格留下「虚化」标记——该标记仅自己本回合存在、禁止原地复下,回合结束即消失,对手回合该格可正常落子;三局两胜,第 1 局随机先手、之后逐局轮换;每步 45 秒超时由脚本随机落子,同一玩家连续 3 次超时本局判负;每局 60 手流局兜底、整场最多 5 局;2 个房间/每房 2 人、不支持派对,观战与派对带队接口预留但未启用;`/bearcade:trio_buildmap` 自动生成 3×3 磁石棋盘 + 走道 + 防掉虚空屏障 + 准备平台;4 个自定义方块(深红 X / 深蓝 O / 浅红虚化 / 浅蓝虚化,虚化用 blend 半透明)与一对一 HUD 资源包,棋子模型由用户提供几何体并做居中(-5.5)与手持变体(Y=8)适配) |
