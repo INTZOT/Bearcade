@@ -20,6 +20,7 @@ import {
   TICKING_FROM,
   TICKING_TO,
 } from "./config";
+import { getCTFConfig, loadCTFConfig } from "./ctf-config";
 import { GameManager } from "./GameManager";
 import { initCTFListener } from "./listener";
 
@@ -56,6 +57,11 @@ system.beforeEvents.startup.subscribe((event) => {
 });
 
 world.afterEvents.worldLoad.subscribe(() => {
+  // 配置读取依赖世界已加载(动态属性),必须在 worldLoad 内进行;
+  // 并把持久化的准备点写回运行时,否则 /bearcade:config 改过的 prepSpawn
+  // 在服务器重启后失效(Core 仍按代码常量传送)。
+  loadCTFConfig();
+  runtime.config.prepSpawn = getCTFConfig().prepSpawn;
   runtime.initWorld();
   runtime.initEvents();
 

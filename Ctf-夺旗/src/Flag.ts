@@ -1,5 +1,5 @@
 import { Entity, VanillaEntityIdentifier } from '@minecraft/server';
-import { config } from './config';
+import { getCTFConfig } from './ctf-config';
 import { CTFPlayer } from './CTFPlayer';
 import { GameManager } from './GameManager';
 import { Vector3, FlagState, CTFEnityTypes } from './types';
@@ -51,7 +51,7 @@ export class Flag {
     this.state = FlagState.DROPPED;
     this.position = { ...position };
     this.carrier = null;
-    this.dropTimer = config.flagReturnTime * 20; // 30秒回城
+    this.dropTimer = getCTFConfig().flagReturnTime * 20; // 掉落回城倒计时
 
     this.spawnFlagEntity();
 
