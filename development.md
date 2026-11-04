@@ -40,6 +40,7 @@
 | `NewYearPig-杀年猪/` | 小游戏包 | 杀年猪,45×45 地皮限时刷动物击杀得分,4 个房间(`/bearcade:newyearpig_buildmap` 建地皮) |
 | `Studio-工作室/` | 小游戏包 | 工作室,7 回合合成交付 + 货架原材料 + 前三名得分,2 个房间(`/studio:build` 建图) |
 | `Trio-轮转井字棋/` | 小游戏包 | 轮转井字棋,3×3 三连取胜 + 每方最多 3 子(最老一子轮转虚化),三局两胜,2 个房间/2 人(`/bearcade:trio_buildmap` 建图) |
+| `TerritoryWar-领地战争/` | 小游戏包 | 领地战争,41×41 领地网格 + 拖尾迹圈地(洪水填充判封闭区) + 切断尾迹击杀,限时/无尽两种模式按领土占比排名,2 个房间/8 人(`/bearcade:territory_war_buildmap` 建图) |
 | `Toolkit-开发者工具/` | 工具包 | 纯工具不注册游戏:悬浮公告 /btd、物品属性编辑 /cis |
 | `<游戏>/resource-pack/` | 资源包子目录 | 内嵌在行为包目录中,构建/部署时拆分为 `<游戏>-资源包`;JSON UI HUD,屏幕右侧垂直居中的每玩家独立记分板 |
 
@@ -185,6 +186,7 @@ bearcade:gomoku_template
 | Studio | 2 | `bearcade:studio_1` ~ `bearcade:studio_2` |
 | AllStars | 8 | `bearcade:allstars_1` ~ `bearcade:allstars_8` |
 | Trio | 2 | `bearcade:trio_1` ~ `bearcade:trio_2` |
+| TerritoryWar | 2 | `bearcade:territory_war_1` ~ `bearcade:territory_war_2` |
 | Template | 2 | `bearcade:mygame_1` ~ `bearcade:mygame_2` |
 
 ### 3.4 向 Core 上报状态
@@ -316,7 +318,8 @@ Core 提供命令 `/bearcade:config <gamename>`(管理员),经 `game.config` IPC
   - 冰冻地板:准备房间坐标、场地中心、蓝冰环顶部 Y、内/外圈半径、融化间隔/动画时长/次数、每轮收缩与扩张格数、虚空淘汰高度、雪球击退强度与每格雪球数量、观战位置、装饰开关;
   - 杀年猪:准备房间坐标、地图原点/边长、一局时长、开局动物数/生成间隔/每批数量/人数加成/场上上限、-50% 动物概率、受惊逃跑秒数与冲量、动物分值、生成权重、特殊事件;
   - 工作室:准备房间坐标、普通模式最大人数、总回合数、单回合超时、第一名后等待、前三名得分、地面 Y、默认场地尺寸、题库管理、原材料列表;
-  - 未接入配置界面:**剑与消亡V**(执行 `/bearcade:config` 会提示"该游戏未提供配置界面")。
+  - 领地战争:准备房间坐标、场地中心(X/Z)、场地边长、场地地面 Y、一局时长(0 = 无尽模式)、复活等待、初始领地边长、获胜领土占比、移动加速等级;
+  - 未接入配置界面:**夺旗**、**剑与消亡V**(执行 `/bearcade:config` 会提示"该游戏未提供配置界面")。
 - **对局中禁止修改**:存在运行中/倒计时对局时,配置界面拒绝打开(共享运行时 `hasActiveGame` 守卫)。
 
 调试命令:`/bearcade:debug <gamename|all> enable|disable`(管理员)经 `game.debug` IPC 显式开启/关闭该游戏的调试日志;`all` 时 Core 会批量下发到全部已注册游戏(共享运行时统一管理;旧 `/bearcade:gnb_debug` 已移除)。
@@ -657,3 +660,4 @@ Core 行为:校验通过后写入注册表,并持久化到世界动态属性 `be
 | 2026-10-14 | 夺旗接入 `/bearcade:config ctf` 运行时配置(仿 CChess 模式):新增 `src/ctf-config.ts`(openConfig 钩子 + `bearcade:config_ctf` 动态属性持久化 + 对局中禁改守卫 + 恢复默认);config.ts 静态 `config` 对象拆为 `CTFConfig` 接口 + `CTF_CONFIG_DEFAULTS`(物品/护甲初始装备保留为代码常量);GameManager/Flag 全部改读 `getCTFConfig()`(回复速度、诅咒、TNT、经济、水中伤害、拾取半径等即改即生效);可配置:准备房间坐标、各队出生点/旗帜位置、商店位置、获胜分数、对局时长、旗帜回城/复活等待、初始羊毛数、击杀回血、回复延迟/速度、旗帜诅咒、TNT 三参、经济四参、水中伤害、拾取半径 |
 | 2026-09-08 | 文档同步:README 与本文档补齐 FrozenFloor/Ctf/NewYearPig/Studio 四包(当前状态、模块表、包目录表、房间数表)、§4.6 补四包配置项并修正"最大人数唯一例外"与配置接入数量、§5.4 修正 `game.apply` 载荷、§4.8 明确 JSON UI 记分板接入范围;修正 CChess/pillars/FrozenFloor/HungerGame/Mahjong 包内 README 与代码不符之处 |
 | 2026-09-30 | 新增 Trio-轮转井字棋(3×3 三连取胜;每方场上最多 3 子,轮到自己时最老一子轮转出局并在原格留下「虚化」标记——该标记仅自己本回合存在、禁止原地复下,回合结束即消失,对手回合该格可正常落子;三局两胜,第 1 局随机先手、之后逐局轮换;每步 45 秒超时由脚本随机落子,同一玩家连续 3 次超时本局判负;每局 60 手流局兜底、整场最多 5 局;2 个房间/每房 2 人、不支持派对,观战与派对带队接口预留但未启用;`/bearcade:trio_buildmap` 自动生成 3×3 磁石棋盘 + 走道 + 防掉虚空屏障 + 准备平台;4 个自定义方块(深红 X / 深蓝 O / 浅红虚化 / 浅蓝虚化,虚化用 blend 半透明)与一对一 HUD 资源包,棋子模型由用户提供几何体并做居中(-5.5)与手持变体(Y=8)适配) |
+| 2026-11-03 | 新增 TerritoryWar-领地战争(按《围城大作战》/Surround.io 实现):41×41 格领地网格(1 格 = 1 方块,领土混凝土 / 尾迹羊毛,8 色槽),每 2 tick 采样玩家所在格并逐格补线;回到自己领土时以「领土 + 尾迹」为墙从四边洪水填充,围出的封闭区域连同尾迹线一起落定(圈到的他人领土一并抢占),单格进出不产地面;踩到别人尾迹即切断击杀,对方领土清零、传送准备区并按 `复活等待` 在随机空地复活重开;限时(默认 180 秒)按领土占比排名,占比达 `获胜占比` 提前结束;全程取消房间内玩家伤害(击杀只由断尾决定)、冒险模式 + `canPlace/canBreak` 恒 false;2 房/8 人、不支持派对,`/bearcade:territory_war_buildmap` 一键生成领地地面 + 外框屏障 + 准备平台,`/bearcade:config territory_war` 接入 9 项运行时配置,配对 `territory_war_hud` 资源包显示右侧记分板(占比以 rawtext score token 注入) |
