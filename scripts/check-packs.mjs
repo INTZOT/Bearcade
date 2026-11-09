@@ -61,6 +61,39 @@ for (const pack of config.packs) {
 }
 
 // ---------------------------------------------------------------
+// 公共 HUD 包校验:hud 是全部记分板小游戏共用的 JSON UI 资源包,
+// 条目与 ui 母本必须齐全;游戏包内再放 ui/hud_screen.json 会与公共包
+// 同名控件按包优先级属性合并(行为不可靠),直接报错拦下。
+// ---------------------------------------------------------------
+const hudPack = config.packs.find((pack) => pack.id === "hud");
+let hudOk = true;
+if (!hudPack || hudPack.type !== "resource" || hudPack.dir !== "hud") {
+  console.error('✗ config/packs.json 缺少 id "hud"、type "resource"、dir "hud" 的公共 HUD 包');
+  failed = true;
+  hudOk = false;
+} else {
+  for (const file of ["hud_screen.json", "_ui_defs.json"]) {
+    if (!existsSync(path.join(root, "hud", "ui", file))) {
+      console.error(`✗ 公共 HUD 包缺少 hud/ui/${file}`);
+      failed = true;
+      hudOk = false;
+    }
+  }
+}
+for (const pack of config.packs) {
+  if (pack.id === "hud") continue;
+  if (existsSync(path.join(root, pack.dir, "ui", "hud_screen.json"))) {
+    console.error(
+      `✗ ${pack.dir}/ui/hud_screen.json 与公共 HUD 包冲突(同名控件按包优先级属性合并,行为不可靠);自定义记分板请改公共母本 hud/ui/`,
+    );
+    failed = true;
+  }
+}
+if (hudOk) {
+  console.log("✓ 公共 HUD 包:hud/ui/ 母本齐全");
+}
+
+// ---------------------------------------------------------------
 // 自定义实体静态校验(2026-09-25 实机踩坑后加入,详见 docs/lessons.md §14)
 // 背景:客户端实体(client_entity)是**整条描述**级别校验 —— 任何一处不合法,
 // 整条描述被丢弃,表现为"实体存在、脚本/粒子一切正常、模型完全不渲染",

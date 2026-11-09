@@ -52,18 +52,20 @@ copy("package.json", "package.json");
 copy("tsconfig.json", "tsconfig.json");
 copy("scripts", "scripts");
 copy("shared", "shared");
+// 共享 HUD 母本:devkit 内 template_hud 打包时依赖它注入 JSON UI
+copy("hud", "hud");
 
-// 包:Core + 模板(模板目录内已内嵌 resource-pack,不含内部小游戏)
+// 包:Core + 模板 + 公共 HUD 包(模板游戏的记分板 UI 依赖它,不含内部小游戏)
 copy("Core-核心", "Core-核心");
 copy("Template-小游戏模板", "Template-小游戏模板");
 
-// 过滤后的包配置:开发者只会构建 Core 与自己的游戏;
+// 过滤后的包配置:开发者只会构建 Core 与自己的游戏(hud 公共包必须随行);
 // projectVersion/phase 必须保留,否则开发套件构建时版本会静默回退。
 const filtered = {
   projectVersion: config.projectVersion,
   phase: config.phase,
   packs: config.packs.filter((pack) =>
-    ["core", "template", "template_hud"].includes(pack.id),
+    ["core", "template", "hud"].includes(pack.id),
   ),
 };
 mkdirSync(path.join(dist, "config"), { recursive: true });
@@ -76,7 +78,7 @@ writeFileSync(
 mkdirSync(path.join(dist, "packs"), { recursive: true });
 copy("dist/packages/core.mcpack", "packs/core.mcpack");
 copy("dist/packages/template.mcpack", "packs/template.mcpack");
-copy("dist/packages/template_hud.mcpack", "packs/template_hud.mcpack");
+copy("dist/packages/hud.mcpack", "packs/hud.mcpack");
 
 const zipPath = path.join(root, "dist", `BearcadeDevKit-${version}.zip`);
 await zipDirectory(dist, zipPath);

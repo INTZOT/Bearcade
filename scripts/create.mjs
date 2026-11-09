@@ -151,11 +151,9 @@ async function main() {
   console.log(`\n📂 复制模板到 ${dirName} ...`);
   await copyDir(templatePath, destPath);
 
-  /* 生成新UUID */
+  /* 生成新UUID(行为包;资源包不再默认创建,需要专属客户端资产时仿 gomoku 手工加 _hud 条目) */
   const behaviorHeaderUuid = randomUUID();
   const behaviorModuleUuid = randomUUID();
-  const resourceHeaderUuid = randomUUID();
-  const resourceModuleUuid = randomUUID();
 
   /* 先精确修改 config.ts（在全局替换之前，避免正则失效） */
   const configPath = path.join(destPath, "src", "config.ts");
@@ -217,8 +215,6 @@ async function main() {
     { from: "我的小游戏", to: displayName },
     { from: "95076440-41a8-49f8-9aeb-f57f4edd0db5", to: behaviorHeaderUuid },
     { from: "606ae45a-4410-4625-adba-f1532e850615", to: behaviorModuleUuid },
-    { from: "c572494e-0ae6-4dd4-84e0-68e7e9ff6f28", to: resourceHeaderUuid },
-    { from: "f081d86e-be48-4e58-b198-520dd8c03ae7", to: resourceModuleUuid },
     { from: "Template-小游戏模板", to: dirName },
   ];
 
@@ -239,12 +235,8 @@ async function main() {
   const packsPath = path.join(root, "config", "packs.json");
   const packsConfig = JSON.parse(await readFile(packsPath, "utf8"));
 
-  if (
-    packsConfig.packs.some(
-      (p) => p.id === gameId || p.id === `${gameId}_hud`
-    )
-  ) {
-    console.error(`\n❌ packs.json 中已存在 id 为 ${gameId} 或 ${gameId}_hud 的包`);
+  if (packsConfig.packs.some((p) => p.id === gameId)) {
+    console.error(`\n❌ packs.json 中已存在 id 为 ${gameId} 的包`);
     process.exit(1);
   }
 
@@ -266,18 +258,8 @@ async function main() {
     type: "behavior",
   });
 
-  packsConfig.packs.push({
-    id: `${gameId}_hud`,
-    type: "resource",
-    dir: `${dirName}/resource-pack`,
-    name: `Bearcade ${displayName} HUD`,
-    description: `Bearcade ${displayName}占位资源包(当前无 HUD 内容,保持一对一资源包结构)`,
-    headerUuid: resourceHeaderUuid,
-    moduleUuid: resourceModuleUuid,
-    minEngineVersion: [1, 26, 40],
-    dependencies: [],
-    packDependencies: [],
-  });
+  // 不再默认创建 <game>_hud 占位资源包:记分板 UI 由公共 hud 资源包统一提供,
+  // 新游戏需要专属客户端资产(贴图/模型)时再仿 gomoku 手工在 packs.json 加 _hud 条目。
 
   await writeFile(packsPath, JSON.stringify(packsConfig, null, 2) + "\n", "utf8");
 
@@ -295,7 +277,7 @@ async function main() {
   console.log("\n✅ 小游戏包创建完成！");
   console.log(`   目录: ${dirName}/`);
   console.log(`   行为包 UUID: ${behaviorHeaderUuid}`);
-  console.log(`   资源包 UUID: ${resourceHeaderUuid}`);
+  console.log(`   记分板 HUD:由公共 hud 资源包提供,无需额外配置(需要专属贴图/模型时再仿 gomoku 加 _hud 条目)`);
   console.log("\n📖 后续步骤：");
   console.log(`   1. npm run build`);
   console.log(`   2. npm run typecheck`);

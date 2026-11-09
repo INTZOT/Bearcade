@@ -7,8 +7,8 @@
 //     - depthTest = false  → 永远渲染,不被方块/角色遮挡;
 //     - 默认始终面向相机    → 天然的 HUD;
 //     - visibleTo = 本房两人 → 逐玩家隔离,多房间并存不串台。
-//   这样做的好处是**完全不碰** resource-pack/ui/hud_screen.json
-//   (它与其它 20 个资源包逐字节相同,改动会与其它游戏冲突,见 lessons §10.3)。
+//   这样做的好处是**完全不碰**公共 HUD 资源包 hud/ui/hud_screen.json
+//   (它是全部记分板小游戏共用的独立包,改动会影响所有游戏,见 lessons §10.3)。
 //
 // 演出期间隐藏原有四个 HUD 形状，结束后恢复；开场操控信息走 actionbar。
 // TextPrimitive 不可用时记录日志，不切换到 title HUD。

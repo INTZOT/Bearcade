@@ -9,16 +9,19 @@ const packsConfig = JSON.parse(
 );
 
 // 监听目标从 config/packs.json 派生,新增游戏包无需手工维护本文件;
-// devkit 的过滤后 config 只含 core/template,监听也自动只覆盖存在的目录。
-// 部分资源包没有 ui/ 目录(如占位资源包),不存在则跳过,
+// devkit 的过滤后 config 只含 core/template/hud,监听也自动只覆盖存在的目录。
+// hud 公共资源包整体监听;部分资源包没有本地 ui/ 目录,不存在则跳过,
 // 否则 fs.watch 迭代时抛 ENOENT 导致整个 watch 进程崩溃。
 const targets = [
   "config",
   "shared",
+  "hud",
   ...packsConfig.packs.map((pack) =>
     pack.type === "resource" ? `${pack.dir}/ui` : `${pack.dir}/src`,
   ),
 ].filter((target) => existsSync(target));
+// 去重:公共 hud 包整体已监听,派生出的 hud/ui 不再重复挂 watcher
+const uniqueTargets = [...new Set(targets)];
 
 function runBuild() {
   return new Promise((resolve, reject) => {
@@ -57,11 +60,11 @@ function requestRebuild() {
     });
 }
 
-console.log("watch:监听 config/、shared/ 与 config/packs.json 中各包 src/,Ctrl+C 退出");
+console.log("watch:监听 config/、shared/、hud/ 与 config/packs.json 中各包 src/,Ctrl+C 退出");
 await runBuild();
 
 const watchers = await Promise.all(
-  targets.map((target) => watch(target, { recursive: true })),
+  uniqueTargets.map((target) => watch(target, { recursive: true })),
 );
 for (const watcher of watchers) {
   (async () => {

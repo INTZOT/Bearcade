@@ -68,6 +68,8 @@ function targetRootFor(pack) {
 
 const requestedIds = new Set(onlyIds);
 function isSelected(pack) {
+  // 公共 HUD 包是全部记分板游戏的依赖,漏部署即 UI 缺失:任何部署都带上
+  if (pack.id === "hud") return true;
   if (requestedIds.size === 0) return true;
   if (requestedIds.has(pack.id)) return true;
   // 一对一分包:请求任一行为包时自动带上其配对 _hud 资源包,反之亦然

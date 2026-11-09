@@ -32,6 +32,22 @@
       "type": "behavior"
     },
     {
+      "id": "hud",
+      "type": "resource",
+      "dir": "hud",
+      "name": "Bearcade HUD",
+      "description": "Bearcade 公共 JSON UI 记分板资源包(全部小游戏共用,title 通道重排版为右侧记分板;须随小游戏行为包一同启用)",
+      "headerUuid": "d1f2c406-a1d9-4a60-a22f-320eafe358a4",
+      "moduleUuid": "2704b9a3-6824-412e-b5e3-06eef54be707",
+      "minEngineVersion": [
+        1,
+        26,
+        40
+      ],
+      "dependencies": [],
+      "packDependencies": []
+    },
+    {
       "id": "gomoku",
       "dir": "Gomoku-五子棋",
       "name": "Bearcade Gomoku",
@@ -321,121 +337,9 @@
       "type": "resource",
       "dir": "Gomoku-五子棋/resource-pack",
       "name": "Bearcade Gomoku RP",
-      "description": "Bearcade Gomoku 资源包:HUD + 自定义棋盘方块与棋子贴图/模型",
+      "description": "Bearcade Gomoku 资源包:自定义棋盘方块与棋子贴图/模型(记分板 UI 由公共 hud 资源包提供)",
       "headerUuid": "35515079-01eb-4e33-aaa3-0b42663d6318",
       "moduleUuid": "2b743470-bab7-40f0-930a-dba422c6ee68",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
-      "id": "guessnbuild_hud",
-      "type": "resource",
-      "dir": "GuessNBuild-建筑猜猜乐/resource-pack",
-      "name": "Bearcade GuessNBuild HUD",
-      "description": "Bearcade GuessNBuild HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "b51829c1-3379-4578-bf97-d144b433800c",
-      "moduleUuid": "da50d250-88b2-41b1-b5e9-1ba35541662b",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
-      "id": "bridgewar_hud",
-      "type": "resource",
-      "dir": "BridgeWar-急速战桥/resource-pack",
-      "name": "Bearcade BridgeWar HUD",
-      "description": "Bearcade BridgeWar HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "e3a58963-16f5-4ba5-b300-5bd361334743",
-      "moduleUuid": "204c6a7b-c9b6-4e30-9e9e-4651396ed46c",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
-      "id": "pigcatcher_hud",
-      "type": "resource",
-      "dir": "PigCatcher-猪猪争夺战/resource-pack",
-      "name": "Bearcade PigCatcher HUD",
-      "description": "Bearcade PigCatcher HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "fb263b8e-5339-426c-8ea8-f61a87a431de",
-      "moduleUuid": "c258c44f-e8ab-44c5-9516-9871d037b429",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
-      "id": "collapse_hud",
-      "type": "resource",
-      "dir": "Collapse-豆腐渣地板/resource-pack",
-      "name": "Bearcade Collapse HUD",
-      "description": "Bearcade Collapse HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "8f39f5a7-c144-4b9b-8b21-e85db5b1390d",
-      "moduleUuid": "f8eaa986-51e7-49de-9bd6-842881788c68",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
-      "id": "snd5_hud",
-      "type": "resource",
-      "dir": "SND5-剑与消亡V/resource-pack",
-      "name": "Bearcade SND5 HUD",
-      "description": "Bearcade SND5 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "de0fc5f0-e7f2-4329-894e-b46550447f53",
-      "moduleUuid": "118455b6-1d16-4423-a328-1870dd1daaf4",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
-      "id": "template_hud",
-      "type": "resource",
-      "dir": "Template-小游戏模板/resource-pack",
-      "name": "Bearcade Template HUD",
-      "description": "Bearcade Template HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "c572494e-0ae6-4dd4-84e0-68e7e9ff6f28",
-      "moduleUuid": "f081d86e-be48-4e58-b198-520dd8c03ae7",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
-      "id": "werewolf_hud",
-      "type": "resource",
-      "dir": "Werewolf-天黑请闭眼/resource-pack",
-      "name": "Bearcade Werewolf HUD",
-      "description": "Bearcade 天黑请闭眼占位资源包(当前无 HUD 内容,保持一对一资源包结构)",
-      "headerUuid": "fcebcfa8-23e5-4ea0-beb2-a478a8686e3a",
-      "moduleUuid": "427e2615-ea29-41f2-93a6-2b1a04cff177",
       "minEngineVersion": [
         1,
         26,
@@ -546,7 +450,7 @@
       "type": "resource",
       "dir": "HungerGame-饥饿游戏/resource-pack",
       "name": "Bearcade HungerGame HUD",
-      "description": "Bearcade HungerGame HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "description": "Bearcade HungerGame 资源包:物资箱方块贴图(记分板 UI 由公共 hud 资源包提供)",
       "headerUuid": "18af88c8-bdc5-4dc4-a491-6cbf61167409",
       "moduleUuid": "27e2f0e3-6e95-4707-a8d2-2ff0d2455e79",
       "minEngineVersion": [
@@ -562,7 +466,7 @@
       "type": "resource",
       "dir": "Knockback-击退战/resource-pack",
       "name": "Bearcade Knockback HUD",
-      "description": "Bearcade Knockback HUD:与对应行为包一对一分布的 JSON UI hud_screen 副本(玩法以 actionbar 与浮空字计分为主,不写 scoreboard objective)",
+      "description": "Bearcade Knockback 资源包:击退木棍贴图(本游戏用 actionbar/浮空字计分,倒计时 title 保持原版居中样式,不依赖 hud 包的记分板重排版)",
       "headerUuid": "6122c4d4-2ed4-46a2-b536-123776d1adb9",
       "moduleUuid": "66bd4875-cc03-4d10-964f-9e42a0575213",
       "minEngineVersion": [
@@ -601,22 +505,6 @@
       "type": "behavior"
     },
     {
-      "id": "labescape_hud",
-      "type": "resource",
-      "dir": "LabEscape-实验室逃脱/resource-pack",
-      "name": "Bearcade LabEscape HUD",
-      "description": "Bearcade LabEscape HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "d8464542-4c2c-486b-a89e-81b80d20a5f1",
-      "moduleUuid": "cfdd29de-e9af-4d61-96e6-10dc29c8c38d",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
       "id": "mahjong",
       "dir": "Mahjong-麻将",
       "name": "Bearcade Mahjong",
@@ -648,7 +536,7 @@
       "type": "resource",
       "dir": "Mahjong-麻将/resource-pack",
       "name": "Bearcade Mahjong HUD",
-      "description": "Bearcade Mahjong HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "description": "Bearcade Mahjong 资源包:112 张麻将牌模型/贴图与操作按钮图标(记分板 UI 由公共 hud 资源包提供)",
       "headerUuid": "c22e5d6c-a434-4fa9-b676-6c0d80d41f13",
       "moduleUuid": "7b2c3896-8970-4335-8272-4f17a8f3a27c",
       "minEngineVersion": [
@@ -741,27 +629,11 @@
       "type": "behavior"
     },
     {
-      "id": "frozenfloor_hud",
-      "type": "resource",
-      "dir": "FrozenFloor-冰冻地板/resource-pack",
-      "name": "Bearcade FrozenFloor HUD",
-      "description": "Bearcade FrozenFloor HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "da9cfa1a-20b5-4ae9-ae4d-a6e5e4f6a53b",
-      "moduleUuid": "fb0efdfd-247c-45b1-8be9-e787169dda6f",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
       "id": "ctf_hud",
       "type": "resource",
       "dir": "Ctf-夺旗/resource-pack",
       "name": "Bearcade 夺旗 HUD",
-      "description": "Bearcade 夺旗 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "description": "Bearcade 夺旗资源包:旗帜/商店/TNT 实体模型贴图与商店字体(记分板 UI 由公共 hud 资源包提供)",
       "headerUuid": "2b268701-3b94-443e-80a2-687dbf156ae7",
       "moduleUuid": "f395d425-7a18-48c3-9179-4b541cc0074f",
       "minEngineVersion": [
@@ -827,38 +699,6 @@
       "type": "behavior"
     },
     {
-      "id": "newyearpig_hud",
-      "type": "resource",
-      "dir": "NewYearPig-杀年猪/resource-pack",
-      "name": "Bearcade NewYearPig HUD",
-      "description": "Bearcade NewYearPig HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "1e17ec5a-c004-474d-b6cc-a48c7e766e76",
-      "moduleUuid": "ac9512fd-fbc3-489e-9b5a-a434984685bb",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
-      "id": "studio_hud",
-      "type": "resource",
-      "dir": "Studio-工作室/resource-pack",
-      "name": "Bearcade Studio HUD",
-      "description": "Bearcade Studio HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "caaf99d3-515a-445b-a013-305f2c3d5f4a",
-      "moduleUuid": "093a4a6a-c3f9-46a4-9c8b-673c44547b04",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
-    },
-    {
       "id": "trio",
       "dir": "Trio-轮转井字棋",
       "name": "Bearcade Trio",
@@ -890,7 +730,7 @@
       "type": "resource",
       "dir": "Trio-轮转井字棋/resource-pack",
       "name": "Bearcade Trio HUD",
-      "description": "Bearcade 轮转井字棋 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包(含棋子/虚影方块模型与贴图)",
+      "description": "Bearcade 轮转井字棋资源包:棋子/虚影方块模型与贴图(记分板 UI 由公共 hud 资源包提供)",
       "headerUuid": "4be200d1-0e69-4558-b6fc-0218e74c9b86",
       "moduleUuid": "87e9dbff-0a7e-4dfd-8c23-c515fcee774f",
       "minEngineVersion": [
@@ -934,7 +774,7 @@
       "type": "resource",
       "dir": "AllStars-灯塔全明星/resource-pack",
       "name": "Bearcade 灯塔全明星 HUD",
-      "description": "Bearcade 灯塔全明星 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
+      "description": "Bearcade 灯塔全明星资源包:春叶/道具实体模型、贴图、粒子与动画(对局 HUD 由 TextPrimitive 自绘,不依赖 hud 包)",
       "headerUuid": "48b50900-694e-4983-af5a-1dd65f77167d",
       "moduleUuid": "28abec3a-ccdf-489c-8ef1-37ee38de593d",
       "minEngineVersion": [
@@ -971,22 +811,6 @@
         "core"
       ],
       "type": "behavior"
-    },
-    {
-      "id": "territory_war_hud",
-      "type": "resource",
-      "dir": "TerritoryWar-领地战争/resource-pack",
-      "name": "Bearcade 领地战争 HUD",
-      "description": "Bearcade 领地战争 HUD:与对应行为包一对一分布的 JSON UI 记分板资源包",
-      "headerUuid": "015eb116-94b6-47eb-bb1e-3a4691cece5b",
-      "moduleUuid": "0c12223b-46a8-4920-9b9a-a42b6e2d2528",
-      "minEngineVersion": [
-        1,
-        26,
-        40
-      ],
-      "dependencies": [],
-      "packDependencies": []
     }
   ]
 }
