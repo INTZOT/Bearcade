@@ -1,2 +1,5 @@
 # 统一行尾:仓库内一律 LF,Windows 检出时自动转 CRLF
 * text=auto
+
+# build 工具(资源包构建)以 LF 写出 JSON,检出也保持 LF,避免每次 build 后产生幻影差异
+AllStars-灯塔全明星/** text=auto eol=lf
