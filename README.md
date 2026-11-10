@@ -42,19 +42,19 @@
 
 ```bash
 npm install          # 安装类型定义与构建工具
-npm run create       #自动化创建新小游戏
+npm run create       # 自动化创建新小游戏
 npm run typecheck    # TypeScript 类型检查
 npm run check        # 校验 config/packs.json 与各包源码的 packId 一致性
 npm run build        # 生成各包 manifest 并打包脚本
-npm run deploy       # 按一对一分包部署:指定行为包会自动带上配对 *_hud 资源包(Windows 默认路径;其他平台设置 MC_DEV_PACKS / MC_DEV_RESOURCE_PACKS)
-npm run package      # 产出 dist/packages/*.mcpack(含各小游戏一对一配对的 *_hud 资源包)与 bearcade.mcaddon
+npm run deploy       # 按一对一分包部署:公共 hud 资源包恒随行,指定行为包会自动带上配对 *_hud 资源包(Windows 默认路径;其他平台设置 MC_DEV_PACKS / MC_DEV_RESOURCE_PACKS)
+npm run package      # 产出 dist/packages/*.mcpack(含公共 hud 资源包与各游戏配对 *_hud)与 bearcade.mcaddon
 npm run distribute   # 生成可分发的开发套件 dist/BearcadeDevKit-<版本>.zip
-npm run watch        # 监听 config/、shared/ 与各包 src/ui,变更后自动重建(开发时)
+npm run watch        # 监听 config/、shared/、hud/ 与各包 src/ui,变更后自动重建(开发时)
 ```
 
 部署后进入世界执行 `/reload`,Core 加载时内容日志会出现 `[Bearcade Core] 已加载`;玩家在大厅使用钟物品打开菜单。
 
-> 记分板 HUD 采用 JSON UI:资源包内嵌在对应行为包目录的 `resource-pack/` 子目录中,构建/部署时再还原为 `Xxx-资源包` 一对一安装包;`npm run deploy` 与 `bearcade.mcaddon` 会自动带上。
+> 记分板 HUD 采用 JSON UI,并作为**独立公共资源包 `hud`** 分发(源码根目录 `hud/`):产出独立 `hud.mcpack` 并并入 `bearcade.mcaddon`,`npm run deploy` 恒定随行部署;世界须启用该包,缺包时 title 回退原版居中样式、玩法不受损。
 
 > 各包目录下的 `manifest.json` 与 `scripts/` 均为构建产物,不入库;克隆仓库后先执行 `npm install && npm run build` 生成。
 
@@ -65,7 +65,8 @@ Bearcade/
 ├── Core-核心/              # 全局调控包(大厅、DDUI 菜单、入房校验、状态汇聚)
 ├── Gomoku-五子棋/          # 五子棋小游戏(首个完整可运行的小游戏)
 ├── Template-小游戏模板/    # 小游戏模板包(复制即可开发新游戏)
-├── <游戏>/resource-pack/  # 内嵌的配对资源包(JSON UI/贴图/模型),构建时拆分为 <游戏>-资源包
+├── <游戏>/resource-pack/  # 内嵌的配对资源包(仅含客户端资产的游戏有),构建时拆分为 <游戏>-资源包
+├── hud/                    # 公共 HUD 资源包(JSON UI 记分板,全部小游戏共用,独立 hud.mcpack 分发)
 ├── shared/minigame-core/   # 共享小游戏运行时(维度/复制/状态机/上报,构建期内联进各包)
 ├── docs/                   # ScriptAPI 类型定义、官方文档快照与实战参考(lessons.md)
 ├── docs/addon-content.md   # 自定义物品/方块/实体开发规范
@@ -215,9 +216,9 @@ Core 校验 `packId`(manifest header UUID)与 `game` 匹配,并结合 `sourceTyp
 | Trio-轮转井字棋 | `Trio-轮转井字棋/` | 轮转井字棋(可运行):3×3 三连取胜、每方最多 3 子且最老一子轮转虚化、三局两胜、每步 45 秒超时随机落子,2 房/2 人,`/bearcade:trio_buildmap` 建图 |
 | TerritoryWar-领地战争 | `TerritoryWar-领地战争/` | 领地战争(可运行):41×41 领地网格、拖尾迹回自己领土圈地(洪水填充判封闭区)、踩断别人尾迹击杀并清空其领土、复活重开、限时/无尽两种模式按领土占比排名,2 房/8 人,`/bearcade:territory_war_buildmap` 建图 |
 | Toolkit-开发者工具 | `Toolkit-开发者工具/` | 纯工具包(不注册游戏):悬浮公告管理 `/btd`、手持物品属性编辑 `/cis`(均限管理员) |
-| `<游戏>/resource-pack/` | 行为包目录内的资源包子目录 | 资源包(JSON UI):打包时拆分为 `<游戏>-资源包`,与行为包一对一安装;含 `ui/`、`textures/`、`models/` 等 |
+| `<游戏>/resource-pack/` | 行为包目录内的资源包子目录 | 资源包:仅**有专属客户端资产**(贴图/模型等)的小游戏才有,打包时拆分为 `<游戏>-资源包`,与行为包一对一安装;JSON UI 记分板统一由公共 `hud` 资源包提供(见下) |
 
-> 记分板方案:所有小游戏已不再占用全服唯一的 Sidebar 显示槽。需要记分板的小游戏把分数写入每房间独立 objective,由 `shared/minigame-core/scoreboardHud.ts` 转成 rawtext `{score:...}` 注入每位玩家的 title;这些游戏的配对资源包(源码位于 `resource-pack/ui/`)再把 title 通道重排版为屏幕右侧垂直居中的记分板,因此多房间/多游戏同时运行互不覆盖。**当前接入该方案**:BridgeWar、Collapse、Ctf、FrozenFloor、Gomoku、GuessNBuild、HungerGame、LabEscape、Mahjong、NewYearPig、PigCatcher、SND5、Studio、Template、TerritoryWar、Trio;Go / CChess / Werewolf 用 actionbar 呈现信息,pillars 不使用 title 通道(无配对 HUD 资源包),Knockback 无记分板 HUD。
+> 记分板方案:所有小游戏已不再占用全服唯一的 Sidebar 显示槽。需要记分板的小游戏把分数写入每房间独立 objective,由 `shared/minigame-core/scoreboardHud.ts` 转成 rawtext `{score:...}` 注入每位玩家的 title;**独立公共资源包 `hud`**(根目录 `hud/ui/`,完整原版 hud_screen 副本 + 仅改 `hud_title_text`)把 title 通道重排版为屏幕右侧垂直居中的记分板,因此多房间/多游戏同时运行互不覆盖。世界须启用 hud 包,缺包时 title 回退原版居中大标题;游戏包内不要再放 `ui/hud_screen.json`(与公共包同名控件按包优先级属性合并,行为不可靠,`npm run check` 会拦下)。**当前接入该方案**:BridgeWar、Collapse、Ctf、FrozenFloor、Gomoku、GuessNBuild、HungerGame、LabEscape、Mahjong、NewYearPig、PigCatcher、SND5、Studio、Template、TerritoryWar、Trio;AllStars 对局 HUD 由 TextPrimitive 自绘、不占用 title 通道;Go / CChess / Werewolf 用 actionbar 呈现信息,pillars 不使用 title 通道,Knockback 不依赖 hud 包。
 
 ## 开发新小游戏
 

@@ -225,7 +225,7 @@
 
 - **数据层**:仍使用每房间独立 scoreboard objective(真实玩家用玩家身份,队伍/计时用假玩家名),但**不挂 Sidebar**。
 - **传输层**:`player.onScreenDisplay.setTitle({ rawtext: [..., { score: { name, objective } }, ...] })`。rawtext score 是按玩家解析的,title 又是每玩家实例,因此每个玩家看到的是自己房间的分数,多房间天然隔离。
-- **表现层**:与行为包同目录的 `resource-pack/ui/hud_screen.json` 覆写原版 `hud_title_text`,把居中大标题重排版为屏幕**右侧垂直居中**的紧凑信息面板;label 继续绑定引擎变量 `#hud_title_text_string`,不引入自定义 binding。
+- **表现层**:独立公共资源包 `hud`(源码根目录 `hud/ui/hud_screen.json`)覆写原版 `hud_title_text`,把居中大标题重排版为屏幕**右侧垂直居中**的紧凑信息面板;label 继续绑定引擎变量 `#hud_title_text_string`,不引入自定义 binding。
 - 公共实现集中在 `shared/minigame-core/scoreboardHud.ts`:`ensureObjective` / `setObjectiveScore` / `releaseObjective` / `scoreToken` / `hudMessage` / `setHudTitle` / `clearHudTitle`。
 
 ### 10.3 避坑
@@ -234,7 +234,8 @@
 - 假玩家分数不要每次 `setScore(字符串)`:按 `getParticipants()` 找 `ScoreboardIdentity` 并缓存;objective 移除时清理缓存。
 - title 刷新用 `fadeInDuration: 0 / fadeOutDuration: 0`,stay 用 80 tick 左右,按 10~20 tick 刷新即可,不需要每 tick 重设。
 - 资源包 manifest 的 module type 是 `"resources"`,**没有 entry**;行为包才有 `scripts/main.js` 入口。构建脚本必须按 `pack.type` 分流。
-- 资源包与行为包**一对一分包,但源码不拆两个顶层目录**:每个小游戏目录内放 `resource-pack/`(如 `Gomoku-五子棋/resource-pack`),build/package 生成独立 `<gameid>_hud.mcpack`,deploy 还原为 `Gomoku-五子棋-资源包`;不要做全局 HUD 资源包;deploy/package 都要按配对关系处理(指定行为包自动带 `_hud` 资源包)。
+- 资源包与行为包**一对一分包,但源码不拆两个顶层目录**:有专属客户端资产(贴图/模型)的小游戏目录内放 `resource-pack/`(如 `Gomoku-五子棋/resource-pack`),build/package 生成独立 `<gameid>_hud.mcpack`,deploy 还原为 `Gomoku-五子棋-资源包`;deploy/package 都要按配对关系处理(指定行为包自动带 `_hud` 资源包)。
+- **记分板 HUD 是独立公共资源包 `hud`**(2026-11-09 第二轮调整,**推翻本轮早先"不要做全局 HUD 资源包"的结论**):全部接入游戏的 `hud_screen.json` 逐字节相同,注入式合并只会复制出 N 份相同产物;改为根目录 `hud/` 本身就是一个 `type:"resource"` 包(源码 `hud/ui/`,manifest 由 build 生成),package 产出独立 `hud.mcpack` 并并入 `bearcade.mcaddon`,deploy 恒定随行(漏部署即 UI 缺失)。收益:一处改版全体生效、安装集不再含 N 份 4000 行副本、顺带删除了 12 个只剩 manifest 的空 `_hud` 占位包。注意:①世界/服务器必须启用 hud 包,缺包时 title 回退原版居中大标题、玩法不受损;②**游戏包内不要再放 `ui/hud_screen.json`**——与公共包同名控件会按包优先级属性合并,行为不可靠,自定义记分板请直接改公共母本;③母本在"完整原版副本"策略内裁掉了 WYSIWYG 触屏布局自定义、Editor 渲染器、Education 专属控件与已无引用的 title 渐隐动画,**裁剪前必须全文 grep 引用**(如 `keyboard_tooltip_helper` 被 `mixed_tooltip_helper` 引用链使用,不能裁);"与原版相同就删"= 退回小文件覆写 = 踩下一条的坑,不可取。
 - 资源包部署目录是 `development_resource_packs`(与 `development_behavior_packs` 相邻),不要混放。
 - **已实测(1.26.42)**:同名控件是按属性合并而不是整控件替换,小文件只写 `hud_title_text` 会导致 `Unknown property [orientation]` 等错误、内容不显示;本项目已改为**完整复制原版 `ui/hud_screen.json` 后只改 `hud_title_text` 定义**,不要再退回小文件覆写。
 - JSON UI 文件允许 `//` 注释;校验时要用 json5/jsonc,不能直接 `json.load`。

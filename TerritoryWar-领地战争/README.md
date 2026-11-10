@@ -67,7 +67,7 @@ Bearcade 小游戏包:基于《围城大作战》(Surround.io)的**圈地扩张*
 
 ## HUD
 
-每房间独立 objective `bearcade:territory_war_<房间号>`,经 `shared/minigame-core/scoreboardHud` 把各玩家领土占比以 rawtext `score` token 注入每位玩家的 title,由配对资源包(`resource-pack/ui/hud_screen.json`,`hud_title_text` 重排版)显示为屏幕右侧面板:
+每房间独立 objective `bearcade:territory_war_<房间号>`,经 `shared/minigame-core/scoreboardHud` 把各玩家领土占比以 rawtext `score` token 注入每位玩家的 title,由独立公共资源包 `hud`(`hud/ui/hud_screen.json`,`hud_title_text` 重排版;须启用)显示为屏幕右侧面板:
 
 ```text
 领地战争
