@@ -1,0 +1,208 @@
+// ============================================================
+// 原生事件适配层(架构文档 engine/event_bridge 的收缩形态)
+// 引擎层职责由 shared/minigame-core + Core 承担(意见②),本文件只做
+// 三件事:原版伤害拦截、输入事件路由(SkillSystem/SupplySystem)、
+// 会话 tick 循环驱动。
+//
+// restricted-execution 规则:before 事件里只同步取消/改内存,
+// 一切原生调用(传送/表单/生成实体)经 system.run 延后。
+// ============================================================
+import { GameMode, Player, system, world } from "@minecraft/server";
+import { sessions, type MatchSession } from "./framework/session";
+import { skillItemBindings } from "./framework/skill/system";
+import { SUMMON_TAG } from "./framework/summon";
+import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
+import { tickSnd5Sessions } from "./game";
+
+let initialized = false;
+
+/** 会话 tick 循环节奏(5 tick):状态/技能/占点/HUD 的最大公约粒度 */
+const SESSION_TICK_INTERVAL = 5;
+
+/**
+ * 初始化 SND5 事件监听与 tick 循环(main.ts worldLoad 时调用一次)。
+ * @param getRuntime 供 tick 循环校验房间对局状态
+ */
+export function initSnd5Gameplay(getRuntime: () => MinigameRuntime): void {
+  if (initialized) return;
+  initialized = true;
+
+  registerDamageInterception();
+  registerInputRouting();
+  registerSummonHitRouting();
+  registerSupplyInteraction();
+  registerLifecycleGuards();
+
+  // 会话 tick 循环:单一 interval 迭代全部会话(禁每会话一个 interval)
+  system.runInterval(() => {
+    tickSnd5Sessions(getRuntime);
+  }, SESSION_TICK_INTERVAL);
+}
+
+// ── 会话定位 ──────────────────────────────────────────────────
+
+function sessionOfPlayer(playerId: string): MatchSession | undefined {
+  for (const session of sessions.values()) {
+    if (session.players.has(playerId)) return session;
+  }
+  return undefined;
+}
+
+function sessionOfDimension(dimensionId: string): MatchSession | undefined {
+  for (const session of sessions.values()) {
+    if (session.dimension.id === dimensionId) return session;
+  }
+  return undefined;
+}
+
+// ── 1. 原版伤害拦截(CombatPipeline 收口的前置条件) ─────────────
+
+function registerDamageInterception(): void {
+  world.beforeEvents.entityHurt.subscribe((event) => {
+    const hurt = event.hurtEntity;
+    // 只拦玩家:创生物(魔瘴之泉 60HP 等)走原版实体血量
+    if (!(hurt instanceof Player)) return;
+    const session = sessionOfPlayer(hurt.id);
+    if (!session) return;
+    // SND5 数值全部由 CombatPipeline 写入;原版伤害一律取消。
+    // restricted-execution 下此处只允许同步取消。
+    event.cancel = true;
+  });
+}
+
+// ── 2. 输入事件路由 ───────────────────────────────────────────
+
+function registerInputRouting(): void {
+  // 近战攻击:原版伤害已被取消,近战数值由内容层武器结算翻译
+  world.afterEvents.entityHitEntity.subscribe((event) => {
+    const attacker = event.damagingEntity;
+    if (!(attacker instanceof Player)) return;
+    const session = sessionOfPlayer(attacker.id);
+    if (!session || session.isDead(attacker.id)) return;
+    const victim = event.hitEntity;
+    if (!(victim instanceof Player)) return; // 攻击创生物走原版实体血量
+    if (sessionOfPlayer(victim.id) !== session) return;
+    system.run(() => {
+      try {
+        session.injects.weaponAttack?.(attacker.id, victim.id, attacker.isSneaking);
+      } catch (error) {
+        console.warn("[SND5] 武器结算异常", error);
+      }
+    });
+  });
+
+  // 右键使用 → 技能入口(itemTypeId → skillId 由内容层绑定)
+  world.afterEvents.itemUse.subscribe((event) => {
+    const skillId = skillItemBindings.get(event.itemStack.typeId);
+    if (!skillId) return;
+    const player = event.source;
+    const session = sessionOfPlayer(player.id);
+    if (!session) return;
+    system.run(() => session.skills.requestCast(player, skillId));
+  });
+
+  // 开始使用(itemStartUse)→ 蓄力/吟唱开始
+  world.afterEvents.itemStartUse.subscribe((event) => {
+    const skillId = skillItemBindings.get(event.itemStack.typeId);
+    if (!skillId) return;
+    const player = event.source;
+    const session = sessionOfPlayer(player.id);
+    if (!session) return;
+    system.run(() => session.skills.beginUse(player, skillId));
+  });
+
+  // 松手(itemReleaseUse)→ 蓄力释放 / 吟唱停止
+  world.afterEvents.itemReleaseUse.subscribe((event) => {
+    const player = event.source;
+    const session = sessionOfPlayer(player.id);
+    if (!session) return;
+    system.run(() => session.skills.releaseUse(player));
+  });
+
+  // 使用完成(itemCompleteUse)→ 蓄满自动释放
+  world.afterEvents.itemCompleteUse.subscribe((event) => {
+    const skillId = skillItemBindings.get(event.itemStack.typeId);
+    if (!skillId) return;
+    const player = event.source;
+    const session = sessionOfPlayer(player.id);
+    if (!session) return;
+    system.run(() => session.skills.completeUse(player, skillId));
+  });
+}
+
+// ── 3. 投掷物命中转发 ─────────────────────────────────────────
+
+function registerSummonHitRouting(): void {
+  world.afterEvents.projectileHitEntity.subscribe((event) => {
+    const projectile = event.projectile;
+    if (!projectile.hasTag(SUMMON_TAG)) return;
+    const session = sessionOfDimension(projectile.dimension.id);
+    if (!session) return;
+    const hitEntity = event.getEntityHit()?.entity;
+    if (!hitEntity) return;
+    system.run(() => session.summons.handleProjectileHitEntity(projectile.id, hitEntity.id));
+  });
+
+  world.afterEvents.projectileHitBlock.subscribe((event) => {
+    const projectile = event.projectile;
+    if (!projectile.hasTag(SUMMON_TAG)) return;
+    const session = sessionOfDimension(projectile.dimension.id);
+    if (!session) return;
+    const location = event.location;
+    system.run(() => {
+      session.summons.handleProjectileHitBlock(projectile.id, {
+        x: location.x,
+        y: location.y,
+        z: location.z,
+      });
+    });
+  });
+}
+
+// ── 4. 补给站交互 ─────────────────────────────────────────────
+
+function registerSupplyInteraction(): void {
+  world.afterEvents.playerInteractWithBlock.subscribe((event) => {
+    const player = event.player;
+    const session = sessionOfPlayer(player.id);
+    if (!session) return;
+    const block = event.block;
+    const station = session.supply.findStation(block.dimension.id, {
+      x: block.location.x,
+      y: block.location.y,
+      z: block.location.z,
+    });
+    if (!station) return;
+    system.run(() => {
+      void session.supply.tryUse(player, station.id);
+    });
+  });
+}
+
+// ── 5. 生命周期兜底 ───────────────────────────────────────────
+
+function registerLifecycleGuards(): void {
+  // 离线即清(断线 = 退出,无热重连;syncPlayers 兜底,此处即时清理)
+  world.afterEvents.playerLeave.subscribe((event) => {
+    for (const session of sessions.values()) {
+      if (session.players.has(event.playerId)) session.removePlayer(event.playerId);
+    }
+  });
+
+  // 防御:SND5 死亡应全部为脚本死亡(原版伤害已拦截);
+  // 原版死亡出现时(掉虚空/指令)立即拉起脚本死亡流程
+  world.afterEvents.entityDie.subscribe((event) => {
+    const dead = event.deadEntity;
+    if (!(dead instanceof Player)) return;
+    const session = sessionOfPlayer(dead.id);
+    if (!session) return;
+    system.run(() => {
+      try {
+        dead.setGameMode(GameMode.Spectator);
+      } catch {
+        // 忽略
+      }
+      session.handleDeath(dead.id, undefined, "vanilla");
+    });
+  });
+}

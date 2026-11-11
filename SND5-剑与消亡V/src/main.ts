@@ -1,6 +1,7 @@
 import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { makeSnd5Hooks } from "./game";
+import { initSnd5Gameplay } from "./listeners";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -52,4 +53,6 @@ system.beforeEvents.startup.subscribe((event) => {
 world.afterEvents.worldLoad.subscribe(() => {
   runtime.initWorld();
   runtime.initEvents();
+  // SND5 玩法层:原生事件适配(伤害拦截/输入路由)+ 会话 tick 循环
+  initSnd5Gameplay(() => runtime);
 });
