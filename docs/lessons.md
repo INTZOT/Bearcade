@@ -25,6 +25,11 @@
 - **原因**:`chatSend` before 回调受限,直接结算不可行;且回合开始未重置防重入标记,导致连续触发。
 - **解决**:before 内同步置 `phase` 锁,`system.run` 延迟结算;每回合开始重置 `settling` 标记。
 
+### 1.5 投掷物命中事件里的 `projectile` 可能已失效(2026-11-11,SND5 球状闪电实测)
+- **现象**:战士球状闪电(雪球承载)撞到方块触发 `projectileHitBlock` 时,处理器里 `event.projectile.hasTag(...)` 抛 `InvalidEntityError: Failed to call function 'hasTag' due to Entity being invalid (has the Entity been removed?)`。
+- **原因**:雪球/箭等原版投掷物在命中瞬间就被引擎移除,after 事件派发时包装实体已失效。官方文档明确:**实体失效后只有 `Entity.id` / `Entity.typeId` 仍可读取**,`dimension` / `location` / `hasTag` / `getComponent` 等一律抛 `InvalidEntityError`。
+- **解决**:① 维度用事件自带的 `event.dimension`(不要读 `projectile.dimension`);② 用 `projectile.id` 反查自己的创生物注册表,不要把 `hasTag` 当归属判断;③ 命中回调**同步**派发,并给"实体已失效、命中事件可能晚一拍到达"的投掷物实例一段宽限期(20 tick)再清理——否则会话 tick 先清掉实例,命中回调会找不到它、技能效果静默丢失。参考 `SND5-剑与消亡V/src/listeners.ts` 的 `registerSummonHitRouting` 与 `framework/summon.ts`。
+
 ## 2. 维度、结构与常加载
 
 ### 2.1 结构引擎上限 64×384×64

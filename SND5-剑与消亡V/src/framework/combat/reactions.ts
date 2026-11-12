@@ -15,6 +15,8 @@ import type { DamagePayload } from "./types";
 
 export interface ReactionBuildContext {
   session: MatchSession;
+  /** 本次伤害的来源(链式反应/连锁伤害沿用同一来源计分与归属) */
+  sourceId?: string;
   targetId: string;
   /** 携带的、触发反应的状态实例 */
   instance: StatusInstance;

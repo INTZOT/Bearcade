@@ -8,7 +8,8 @@ import type { Player, Vector3 } from "@minecraft/server";
 import type { MatchSession } from "../session";
 import type { Primitives } from "./primitives";
 
-export type SkillSlot = "innate_1" | "innate_2" | "codex_1" | "codex_2";
+/** passive 槽位:固有Ⅲ类被动,不走施法流程,由 PassiveManager 挂载 */
+export type SkillSlot = "innate_1" | "innate_2" | "codex_1" | "codex_2" | "passive";
 
 export type CastMode = "instant" | "charge" | "windup" | "channel";
 
@@ -92,7 +93,8 @@ export interface SkillDefinition {
   failureHint?: Partial<Record<CastFailReason, string>>;
 
   // ── 施法体 ──────────────────────────────────────────────────
-  cast(ctx: CastContext): CastResult;
+  /** 施法体;被动(slot="passive")不施放,可省略 */
+  cast?(ctx: CastContext): CastResult;
   /** 潜行变体(不突进/换效果/切定律);未定义时回退 cast */
   castSneaking?(ctx: CastContext): CastResult;
 

@@ -10,9 +10,13 @@
 import { GameMode, Player, system, world } from "@minecraft/server";
 import { sessions, type MatchSession } from "./framework/session";
 import { skillItemBindings } from "./framework/skill/system";
-import { SUMMON_TAG } from "./framework/summon";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { tickSnd5Sessions } from "./game";
+import {
+  handleSelectorUse,
+  initProfessionSelection,
+  SELECTOR_ITEM_TYPE,
+} from "./content";
 
 let initialized = false;
 
@@ -32,6 +36,8 @@ export function initSnd5Gameplay(getRuntime: () => MinigameRuntime): void {
   registerSummonHitRouting();
   registerSupplyInteraction();
   registerLifecycleGuards();
+  // 准备阶段职业选择(入房发放选择道具)
+  initProfessionSelection(getRuntime);
 
   // 会话 tick 循环:单一 interval 迭代全部会话(禁每会话一个 interval)
   system.runInterval(() => {
@@ -84,15 +90,19 @@ function registerInputRouting(): void {
     if (sessionOfPlayer(victim.id) !== session) return;
     system.run(() => {
       try {
-        session.injects.weaponAttack?.(attacker.id, victim.id, attacker.isSneaking);
+        session.injects.weaponAttack?.(session, attacker.id, victim.id, attacker.isSneaking);
       } catch (error) {
         console.warn("[SND5] 武器结算异常", error);
       }
     });
   });
 
-  // 右键使用 → 技能入口(itemTypeId → skillId 由内容层绑定)
+  // 右键使用 → 职业选择道具 / 技能入口(itemTypeId → skillId 由内容层绑定)
   world.afterEvents.itemUse.subscribe((event) => {
+    if (event.itemStack.typeId === SELECTOR_ITEM_TYPE) {
+      system.run(() => handleSelectorUse(event.source));
+      return;
+    }
     const skillId = skillItemBindings.get(event.itemStack.typeId);
     if (!skillId) return;
     const player = event.source;
@@ -132,30 +142,28 @@ function registerInputRouting(): void {
 
 // ── 3. 投掷物命中转发 ─────────────────────────────────────────
 
+/**
+ * 注册投掷物命中事件,将原生事件转发给会话内的 SummonSystem 处理。
+ */
 function registerSummonHitRouting(): void {
   world.afterEvents.projectileHitEntity.subscribe((event) => {
-    const projectile = event.projectile;
-    if (!projectile.hasTag(SUMMON_TAG)) return;
-    const session = sessionOfDimension(projectile.dimension.id);
+    const session = sessionOfDimension(event.dimension.id);
     if (!session) return;
-    const hitEntity = event.getEntityHit()?.entity;
-    if (!hitEntity) return;
-    system.run(() => session.summons.handleProjectileHitEntity(projectile.id, hitEntity.id));
+    const projectileId = event.projectile.id;
+    if (!projectileId || !session.summons.has(projectileId)) return;
+    let hitEntityId: string | undefined;
+    hitEntityId = event.getEntityHit().entity?.id;
+    if (!hitEntityId) return;
+    session.summons.handleProjectileHitEntity(projectileId, hitEntityId);
   });
 
   world.afterEvents.projectileHitBlock.subscribe((event) => {
-    const projectile = event.projectile;
-    if (!projectile.hasTag(SUMMON_TAG)) return;
-    const session = sessionOfDimension(projectile.dimension.id);
+    const session = sessionOfDimension(event.dimension.id);
     if (!session) return;
-    const location = event.location;
-    system.run(() => {
-      session.summons.handleProjectileHitBlock(projectile.id, {
-        x: location.x,
-        y: location.y,
-        z: location.z,
-      });
-    });
+    const projectileId = event.projectile.id;
+    if (!projectileId || !session.summons.has(projectileId)) return;
+    const { x, y, z } = event.location;
+    session.summons.handleProjectileHitBlock(projectileId, { x, y, z });
   });
 }
 

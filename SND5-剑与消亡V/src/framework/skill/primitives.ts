@@ -18,6 +18,13 @@ import { normalizeVector } from "../types";
 /** 区域/扇形伤害的目标过滤器(基于会话玩家状态) */
 export type AreaDamageFilter = (state: PlayerState) => boolean;
 
+/** 范围伤害结果:命中数/实际造成生命伤害合计/受击目标(供附加状态) */
+export interface AreaDamageOutcome {
+  hits: number;
+  damage: number;
+  targets: string[];
+}
+
 export class Primitives {
   constructor(private readonly session: MatchSession) {}
 
@@ -34,14 +41,18 @@ export class Primitives {
     radius: number,
     payload: DamagePayload,
     filter?: AreaDamageFilter,
-  ): number {
-    let hits = 0;
+  ): AreaDamageOutcome {
+    const outcome: AreaDamageOutcome = { hits: 0, damage: 0, targets: [] };
     for (const state of this.playersInRadius(center, radius)) {
       if (filter && !filter(state)) continue;
-      this.session.combat.dealDamage(sourceId, state.id, payload);
-      hits += 1;
+      const result = this.session.combat.dealDamage(sourceId, state.id, payload);
+      if (result) {
+        outcome.hits += 1;
+        outcome.damage += result.hp;
+        outcome.targets.push(state.id);
+      }
     }
-    return hits;
+    return outcome;
   }
 
   /** 扇形范围伤害(角度以 direction 为中线,angleDegrees 为全角,水平面判定) */
@@ -53,9 +64,9 @@ export class Primitives {
     angleDegrees: number,
     payload: DamagePayload,
     filter?: AreaDamageFilter,
-  ): number {
+  ): AreaDamageOutcome {
+    const outcome: AreaDamageOutcome = { hits: 0, damage: 0, targets: [] };
     const dirXZ = normalizeVector({ x: direction.x, y: 0, z: direction.z });
-    let hits = 0;
     for (const state of this.playersInRadius(center, radius)) {
       if (filter && !filter(state)) continue;
       const toTarget = normalizeVector({
@@ -66,11 +77,15 @@ export class Primitives {
       const dot = dirXZ.x * toTarget.x + dirXZ.z * toTarget.z;
       const halfAngle = (angleDegrees / 2) * (Math.PI / 180);
       if (Math.acos(Math.max(-1, Math.min(1, dot))) <= halfAngle) {
-        this.session.combat.dealDamage(sourceId, state.id, payload);
-        hits += 1;
+        const result = this.session.combat.dealDamage(sourceId, state.id, payload);
+        if (result) {
+          outcome.hits += 1;
+          outcome.damage += result.hp;
+          outcome.targets.push(state.id);
+        }
       }
     }
-    return hits;
+    return outcome;
   }
 
   // ── 状态 ─────────────────────────────────────────────────────

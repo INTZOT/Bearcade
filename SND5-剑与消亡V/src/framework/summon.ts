@@ -132,6 +132,13 @@ export class SummonSystem {
     return destroyed;
   }
 
+  /**
+   * 是否为本会话的投掷物/创生物
+   */
+  has(entityId: string): boolean {
+    return this.active.has(entityId);
+  }
+
   getByOwner(ownerId: string): SummonInstance[] {
     return [...this.active.values()].filter((inst) => inst.ownerId === ownerId);
   }

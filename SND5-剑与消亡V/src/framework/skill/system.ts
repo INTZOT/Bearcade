@@ -49,6 +49,8 @@ export class SkillSystem {
   private readonly activeCasts = new Map<string, ActiveCast>();
   /** Map<playerId, Partial<Record<slot, skillId>>> */
   private readonly loadouts = new Map<string, Record<string, string>>();
+  /** 同 tick 去重:部分原版物品 itemUse / itemStartUse 会同时到达 */
+  private readonly lastInstantCast = new Map<string, { skillId: string; tick: number }>();
   private lastSweepTick = 0;
   private readonly busOffs: Array<() => void> = [];
 
@@ -112,7 +114,12 @@ export class SkillSystem {
     }
   }
 
-  /** 开始使用(itemStartUse):蓄力/吟唱开始 */
+  /**
+   * 开始使用(itemStartUse):蓄力/前摇/吟唱开始。
+   * instant 技能在这里也分发一次,但与 itemUse 的重复由 castInstant 的
+   * 同 tick 去重兜住 —— 部分原版物品会同时触发两类事件,不同物品又可能
+   * 只有其中一类(占位阶段无法逐个实测),两条路都留才稳妥。
+   */
   beginUse(player: Player, skillId: string): void {
     const def = this.session.content.skills.get(skillId);
     if (!def) return;
@@ -123,8 +130,11 @@ export class SkillSystem {
       case "channel":
         this.beginChannel(player, def);
         break;
+      case "windup":
+        this.beginTimedCast(player, def, "windup");
+        break;
       default:
-        this.requestCast(player, skillId);
+        this.castInstant(player, def);
         break;
     }
   }
@@ -242,19 +252,32 @@ export class SkillSystem {
     return true;
   }
 
-  private refundPrededucted(ctx: CastContext, refundManaOverride?: number): void {
+  /**
+   * 退还预扣资源。
+   * @param options.mana 只退部分魔力(突进未命中);缺省全退
+   * @param options.stacks 是否退还堆叠;成功结算的部分退款传 false(堆叠照常消耗)
+   */
+  private refundPrededucted(ctx: CastContext, options?: { mana?: number; stacks?: boolean }): void {
     if (ctx.predeductedMana > 0) {
-      const refund = refundManaOverride ?? ctx.predeductedMana;
+      const refund = options?.mana ?? ctx.predeductedMana;
       this.session.attributes.restoreMana(ctx.casterId, Math.min(ctx.predeductedMana, refund));
+      ctx.predeductedMana = 0;
     }
-    if (ctx.predeductedStacks) this.stacks.refund(skillKey(ctx.casterId, ctx.skillId));
-    ctx.predeductedMana = 0;
-    ctx.predeductedStacks = false;
+    if ((options?.stacks ?? true) && ctx.predeductedStacks) {
+      this.stacks.refund(skillKey(ctx.casterId, ctx.skillId));
+      ctx.predeductedStacks = false;
+    }
   }
 
   // ── 执行与结算(五阶段之 4/5) ─────────────────────────────────
 
   private castInstant(player: Player, def: SkillDefinition): void {
+    // 同 tick 去重:itemUse 与 itemStartUse 都路由到 instant 技能时只放一次
+    const now = system.currentTick;
+    const last = this.lastInstantCast.get(player.id);
+    if (last && last.skillId === def.id && last.tick === now) return;
+    this.lastInstantCast.set(player.id, { skillId: def.id, tick: now });
+
     const ctx = this.buildContext(player, def);
     const fail = this.validate(player.id, def, ctx);
     if (fail) {
@@ -331,6 +354,12 @@ export class SkillSystem {
   /** 统一执行施法体(潜行变体在入口分发,技能内部不写 if) */
   private executeCast(def: SkillDefinition, ctx: CastContext): void {
     const handler = ctx.isSneaking && def.castSneaking ? def.castSneaking : def.cast;
+    if (!handler) {
+      // 无施法体(被动误入施法流程等):退款并失败
+      this.refundPrededucted(ctx);
+      this.failCast(ctx.player, def, "failed");
+      return;
+    }
     let result: CastResult;
     try {
       result = handler.call(def, ctx);
@@ -340,7 +369,7 @@ export class SkillSystem {
     }
     const outcome = normalizeCastResult(result);
     if (!outcome.ok) {
-      this.refundPrededucted(ctx, outcome.refundMana);
+      this.refundPrededucted(ctx);
       this.failCast(ctx.player, def, "failed");
       return;
     }
@@ -360,6 +389,11 @@ export class SkillSystem {
     const stackEntry = this.stacks.get(key);
     const exhausted = !stackEntry || stackEntry.current <= 0;
     if (outcome.suppressCooldown) return; // 冷却由技能稍后 requestCooldown 显式申请
+
+    // 部分退款(战士突进未命中):只退魔力,堆叠已消耗、冷却照常结算
+    if (outcome.refundMana) {
+      this.refundPrededucted(ctx, { mana: outcome.refundMana, stacks: false });
+    }
 
     const ticks =
       outcome.cooldownTicks ??
@@ -534,7 +568,8 @@ export class SkillSystem {
       const stacks = this.stacks.get(skillKey(playerId, skillId))?.current ?? (def.maxStacks ?? 1);
       const state =
         remaining > 0 ? `§e${Math.ceil(remaining / 20)}s` : stacks > 0 ? "§a就绪" : "§7耗尽";
-      lines.push(`§f${def.displayName}§7[${slot}] ${state}`);
+      const stacksText = (def.maxStacks ?? 1) > 1 && stacks > 0 ? `§7×${stacks}` : "";
+      lines.push(`§f${def.displayName}${stacksText}§7[${SLOT_LABELS[slot] ?? slot}] ${state}`);
     }
     return lines;
   }
@@ -551,6 +586,7 @@ export class SkillSystem {
     this.passiveCooldowns.resetForPlayer(playerId);
     this.stacks.clearForPlayer(playerId);
     this.privateStores.delete(playerId);
+    this.lastInstantCast.delete(playerId);
   }
 
   dispose(): void {
@@ -563,6 +599,7 @@ export class SkillSystem {
     this.passiveCooldowns.dispose();
     this.stacks.dispose();
     this.privateStores.clear();
+    this.lastInstantCast.clear();
   }
 
   // ── 内部 ─────────────────────────────────────────────────────
@@ -629,4 +666,12 @@ const FAILURE_HINTS: Record<CastFailReason, string> = {
   status_required: "缺少前置状态",
   status_forbidden: "当前状态无法施放",
   failed: "施法失败",
+};
+
+/** HUD 槽位缩写(内容层槽位键 → 玩家可读标签) */
+const SLOT_LABELS: Record<string, string> = {
+  innate_1: "固有Ⅰ",
+  innate_2: "固有Ⅱ",
+  codex_1: "秘典Ⅰ",
+  codex_2: "秘典Ⅱ",
 };

@@ -1,16 +1,14 @@
 // ============================================================
 // SND5 游戏装配层
 // MinigameHooks 接线(引擎层契约,见 development.md §3/§4)+
-// 默认队伍/重生点注入 + 内容注册束组装。
-//
-// 内容层(content/)当前为空骨架:职业/技能/状态定义就绪后,
-// 在 buildContentBundle() 里换入真实注册表与数据即可,
-// 框架层不需要任何改动(意见①②③的验收标准)。
+// 会话注入实现:队伍/职业装载/套装发放/武器结算路由。
+// 内容层经 src/content 统一入口 import 即注册。
 // ============================================================
-import { system, type Player } from "@minecraft/server";
+import { ItemStack, system, type Player } from "@minecraft/server";
 import type { MinigameHooks } from "../../shared/minigame-core/types";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { clearHudTitle } from "../../shared/minigame-core/scoreboardHud";
+import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
 import {
   MatchSession,
   sessions,
@@ -25,10 +23,15 @@ import {
   type TeamId,
   type TeamProvider,
 } from "./framework";
+import {
+  getSelectedProfessionId,
+  professionRegistry,
+  type ProfessionDefinition,
+} from "./content";
 import { loadSnd5Config } from "./runtime-config";
 import { START_POSITIONS } from "./config";
 
-// ── 默认队伍提供器(内容层就绪后替换为职业队伍逻辑) ──────────────
+// ── 默认队伍提供器 ────
 
 const TEAM_IDS: readonly TeamId[] = ["red", "blue"];
 
@@ -37,7 +40,6 @@ class DefaultTeamProvider implements TeamProvider {
 
   readonly teamIds = TEAM_IDS;
 
-  /** 对局开始前均衡分配(洗牌对半分;BridgeWar assignTeams 先例) */
   assignAll(players: Player[]): void {
     this.assignment.clear();
     const shuffled = [...players];
@@ -59,7 +61,41 @@ class DefaultTeamProvider implements TeamProvider {
   }
 }
 
-// ── 内容注册束(内容层就绪后在此换入真实数据) ────────────────────
+// ── 职业解析(准备阶段选择 → 开局装载) ─────────────────────────
+
+/** 已选职业;未选/失效兜底默认战士 */
+function resolveProfession(playerId: string): ProfessionDefinition {
+  const selectedId = getSelectedProfessionId(playerId);
+  const selected = selectedId ? professionRegistry.get(selectedId) : undefined;
+  if (selected?.available) return selected;
+  return professionRegistry.require("snd5:warrior");
+}
+
+/** 开局发放职业套装(占位物品):清背包 → 武器/技能物品 → 命名牌前缀 */
+function grantProfessionKit(player: Player, prof: ProfessionDefinition): void {
+  const container = player.getComponent("minecraft:inventory")?.container;
+  if (!container) return;
+  try {
+    const weapon = new ItemStack(prof.weapon.itemTypeId, 1);
+    weapon.nameTag = prof.weapon.name;
+    if (prof.weapon.lore.length > 0) weapon.setLore(prof.weapon.lore);
+    container.setItem(0, weapon);
+    prof.skills.forEach((entry, index) => {
+      const skillDef = skillRegistry.get(entry.skillId);
+      const item = new ItemStack(entry.itemTypeId, 1);
+      item.nameTag = `§e${skillDef?.displayName ?? entry.slot}§r`;
+      const slotLabel = entry.slot === "innate_1" ? "固有Ⅰ" : "固有Ⅱ";
+      item.setLore([`§7${slotLabel} · 右键施放`]);
+      container.setItem(index + 1, item);
+    });
+    player.nameTag = `§6[${prof.displayName}]§r ${player.name}`;
+    player.onScreenDisplay.setActionBar(`§a你已化身 ${prof.displayName}!`);
+  } catch (error) {
+    console.warn("[SND5] 职业套装发放失败", error);
+  }
+}
+
+// ── 内容注册束(占点/补给/计分规则待场地建好后填入) ──────────────
 
 function buildContentBundle(): Snd5ContentBundle {
   return {
@@ -79,13 +115,13 @@ function buildContentBundle(): Snd5ContentBundle {
   };
 }
 
-// ── 会话注入(默认实现;内容层就绪后替换) ────────────────────────
+// ── 会话注入
 
 interface Snd5Injects extends SessionInjects {
   assignTeams(players: Player[]): void;
 }
 
-function buildInjects(_runtime: MinigameRuntime, _roomId: number): Snd5Injects {
+function buildInjects(_runtime: MinigameRuntime, roomId: number): Snd5Injects {
   const teamProvider = new DefaultTeamProvider();
   return {
     teams: teamProvider,
@@ -96,8 +132,51 @@ function buildInjects(_runtime: MinigameRuntime, _roomId: number): Snd5Injects {
       const index = teamId === "blue" ? 1 : 0;
       return START_POSITIONS[index] ?? START_POSITIONS[0];
     },
-    // TODO(内容层): 职业装载(loadoutFor)+ 武器结算(weaponAttack)+
-    //   职业选择 UI(准备阶段)。未提供时使用默认面板(100/50/100)。
+
+    // 职业装载:面板 + 技能装备 + 被动挂载(会话 applyLoadout 消费)
+    loadoutFor: (playerId) => {
+      const prof = resolveProfession(playerId);
+      return {
+        professionId: prof.id,
+        base: prof.base,
+        skills: Object.fromEntries(prof.skills.map((entry) => [entry.slot, entry.skillId])),
+        passiveIds: prof.passiveIds,
+      };
+    },
+
+    // 会话开始:清背包(含山羊角)→ 按职业发放套装
+    onSessionStart: (session) => {
+      for (const state of session.players.values()) {
+        const player = state.player;
+        if (!player.isValid) continue;
+        clearAllPlayerItems(player);
+        const prof = professionRegistry.get(state.professionId ?? "");
+        if (!prof) continue;
+        grantProfessionKit(player, prof);
+      }
+      session.announce("§7提示: 潜行+攻击为重击;准备阶段右键山羊角选择职业");
+    },
+
+    // 重生:全量重发套装(架构 §6.3「复活时同样全量重发」)
+    onPlayerRespawn: (playerId) => {
+      const state = sessions.get(roomId)?.players.get(playerId);
+      if (!state?.player.isValid) return;
+      const prof =
+        professionRegistry.get(state.professionId ?? "") ?? resolveProfession(playerId);
+      clearAllPlayerItems(state.player);
+      grantProfessionKit(state.player, prof);
+    },
+
+    // 近战武器结算 → 按职业路由(轻击/重击数值由职业定义计算)
+    weaponAttack: (session, attackerId, victimId, isSneaking) => {
+      const attacker = session.players.get(attackerId);
+      if (!attacker) return;
+      const prof = professionRegistry.get(attacker.professionId ?? "");
+      prof?.handleAttack?.(session, attackerId, victimId, isSneaking);
+    },
+
+    // HUD 职业名
+    professionNameOf: (professionId) => professionRegistry.get(professionId)?.displayName,
   };
 }
 

@@ -66,11 +66,18 @@ export interface SessionInjects {
   onPlayerDeath?(playerId: string, killerId?: string): void;
   /** 玩家重生(重新发放武器/消耗品,内容层实现) */
   onPlayerRespawn?(playerId: string): void;
+  /** 职业显示名(HUD 用;按 professionId 查询,内容层职业注册表提供) */
+  professionNameOf?(professionId: string): string | undefined;
   /**
-   * 近战武器结算:轻击/重击数值与破甲由内容层计算。
+   * 近战武器结算:轻击/重击数值与附加效果由内容层按职业计算。
    * 原版近战伤害已在 entityHurt 前事件统一取消,不实现该钩子则近战无伤害。
    */
-  weaponAttack?(attackerId: string, victimId: string, isSneaking: boolean): void;
+  weaponAttack?(
+    session: MatchSession,
+    attackerId: string,
+    victimId: string,
+    isSneaking: boolean,
+  ): void;
 }
 
 /** 运行时可调数值(/bearcade:config 热调参,持久化到 bearcade:config_snd5) */

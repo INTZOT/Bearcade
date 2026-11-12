@@ -213,6 +213,7 @@ export class CombatPipeline {
       try {
         outcome = reaction.build({
           session: this.session,
+          sourceId,
           targetId,
           instance,
           basePayload,

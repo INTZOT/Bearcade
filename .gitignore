@@ -3,6 +3,7 @@ dist/
 *.mcpack
 *.mcaddon
 .env
+.vscode/
 
 # 第三方官方文档快照(约 9.4MB,不入库;需要时手动下载)
 docs/bedrock-creator-docs.md

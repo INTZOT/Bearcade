@@ -53,17 +53,19 @@ export class HudBridge {
     const parts: RawMessage[] = [];
 
     // 比分行
+    const myTeam = this.session.teams.getTeam(player.id);
     const scoreParts: string[] = [];
     for (const teamId of this.session.teams.teamIds) {
       const score = this.session.score.getTeamScore(teamId);
+      const selfMark = teamId === myTeam ? "§7(你)§r" : "";
       scoreParts.push(
-        `${this.session.teams.teamDisplayName(teamId)} §f${score}`,
+        `${this.session.teams.teamDisplayName(teamId)}${selfMark} §f${score}`,
       );
     }
     const target = this.session.config.scoreTarget;
     parts.push({ text: `§6${scoreParts.join(" §7:§f ")}§7 / 目标 ${target}§r` });
 
-    // 三资源行(临时护甲以 (+N) 追加)
+    // 三资源行(职业名前缀;临时护甲以 (+N) 追加)
     const state = this.session.attributes.get(player.id);
     if (state) {
       const tempArmor = this.session.attributes.getTempArmor(player.id);
@@ -71,9 +73,13 @@ export class HudBridge {
       const hp = Math.max(0, Math.floor(state.current.hp));
       const armor = Math.max(0, Math.floor(state.current.armor));
       const mana = Math.floor(state.current.mana);
+      const profName = this.session.injects.professionNameOf?.(
+        this.session.players.get(player.id)?.professionId ?? "",
+      );
+      const profText = profName ? `§6[${profName}]§r ` : "";
       parts.push({ text: "\n" });
       parts.push({
-        text: `§c❤ ${hp}/${state.base.hp}§r §9甲 ${armor}/${state.base.armor}${tempText}§r §b魔 ${mana}/${state.base.mana}§r`,
+        text: `${profText}§c❤ ${hp}/${state.base.hp}§r §9甲 ${armor}/${state.base.armor}${tempText}§r §b魔 ${mana}/${state.base.mana}§r`,
       });
     }
 
