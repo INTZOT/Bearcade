@@ -10,6 +10,7 @@
 import type { EntityHealthComponent, Player } from "@minecraft/server";
 import type { MatchSession } from "./session";
 import type { ResourceTriple } from "./types";
+import { applyHurtFeedback } from "./vanilla";
 
 /** 魔力自然回复间隔:每 2 秒(标准规则) */
 const MANA_REGEN_INTERVAL_TICKS = 40;
@@ -119,7 +120,7 @@ export class AttributeSystem {
    */
   applyDamage(
     playerId: string,
-    damage: { hp?: number; armor?: number; trueDamage?: number },
+    damage: { hp?: number; armor?: number; trueDamage?: number; sourceId?: string },
   ): ApplyDamageResult {
     const state = this.require(playerId);
     const actual = { hp: 0, armor: 0, tempArmor: 0 };
@@ -157,8 +158,30 @@ export class AttributeSystem {
       actual.hp += hpLoss;
     }
 
+    // 受击反馈(红闪/音效/动画/击退):在写最终血量前借原版伤害
+    // 事件触发(见 vanilla.ts 三步法);任何实际伤害都反馈,含 DOT
+    if (
+      actual.hp + actual.armor + actual.tempArmor > 0 &&
+      this.session.config.hurtFeedback
+    ) {
+      this.triggerHurtFeedback(playerId, damage.sourceId);
+    }
+
     this.syncToCarrier(playerId);
     return { lethal: state.current.hp <= 0, actual };
+  }
+
+  /**
+   * 受击反馈:解析攻击者(entityAttack 原因才有方向击退),
+   * 死亡/旁观状态不反馈。反馈失败不影响数值结算。
+   */
+  private triggerHurtFeedback(playerId: string, sourceId?: string): void {
+    const playerState = this.session.players.get(playerId);
+    if (!playerState?.alive) return;
+    const attacker = sourceId
+      ? this.session.players.get(sourceId)?.player
+      : undefined;
+    applyHurtFeedback(playerState.player, attacker?.isValid ? attacker : undefined);
   }
 
   // ── 治疗与回复写入( CombatPipeline 专用) ──────────────────────
@@ -280,6 +303,9 @@ export class AttributeSystem {
    * 生命值同步采用比例映射到原版血条(玩家 maxHealth=20),
    * 避免原版上限造成溢出;护甲/魔力为纯脚本值无需同步。
    * SND5 的死亡是脚本层面的死亡:载体永远残血存活,判定归 CombatPipeline。
+   * 即使 SND5 生命已归零也只写 0.5 保底——向载体写 0 会直接触发
+   * 原版死亡(死亡界面/掉落),「已死亡」的表现由 handleDeath 的
+   * 旁观模式切换承担,而不是血条清零。
    */
   private syncToCarrier(playerId: string): void {
     const state = this.states.get(playerId);
@@ -292,10 +318,8 @@ export class AttributeSystem {
     try {
       const max = health.effectiveMax || 20;
       const ratio = Math.max(0, state.current.hp) / Math.max(1, state.base.hp);
-      const display = state.current.hp > 0
-        ? Math.max(CARRIER_MIN_HEALTH, ratio * max)
-        : 0;
-      health.setCurrentValue(Math.min(max, Math.max(health.effectiveMin, display)));
+      const display = Math.max(CARRIER_MIN_HEALTH, ratio * max);
+      health.setCurrentValue(Math.min(max, Math.max(CARRIER_MIN_HEALTH, display)));
     } catch {
       // 载体可能已失效(离开房间等),由 syncPlayers 兜底清理
     }

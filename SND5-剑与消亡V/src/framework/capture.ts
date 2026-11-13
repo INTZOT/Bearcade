@@ -1,11 +1,16 @@
 // ============================================================
-// CaptureSystem —— 占点(修改意见⑤)
-// 不复用 TerritoryWar 的格子所有权(那是「圈地」专用)。
+// CaptureSystem —— 占点(占点模式专用)
 // 采用区域 AABB + 每 tick 计数模式(对齐 PigCatcher/BridgeWar 先例):
-// - 独占据点持续读秒 → 易主,发 point.captured;
-// - 双方在场 = contested,读秒暂停;
-// - 持有方驻留按间隔发 point.hold(驻守得分由计分规则消费);
-// - 可视化(光柱/浮空文字)由内容层订阅事件实现,框架保持纯逻辑。
+//
+// 占领规则(进度按「累计」语义,中断不清零、不衰减):
+// - 中立点:单队独占累计 neutralCaptureSeconds(默认 20s)完成占领;
+// - 敌方已占点:单队独占累计 takeoverCaptureSeconds(默认 40s)完成接管;
+// - 双方同时有人 → 进度暂停;无人驻留 → 进度保持;
+// - 换队进攻 → 进度清零重新累计(防混刷);
+// - 占领后产分与驻守无关(产分逻辑在 ScoreSystem,只看归属)。
+//
+// 可视化(光柱/浮空文字)由内容层订阅 point.captured 实现,
+// 框架保持纯逻辑。
 // ============================================================
 import type { Vec3 } from "../../../shared/minigame-core/types";
 import type { MatchSession } from "./session";
@@ -17,18 +22,18 @@ export interface CapturePointDef {
   /** AABB 两角(自动归一化 min/max) */
   from: Vec3;
   to: Vec3;
-  /** 独占读秒 tick;undefined 走运行时配置 captureDelaySeconds */
-  captureDelayTicks?: number;
-  /** 驻守得分间隔 tick;undefined 走运行时配置(0 = 关闭) */
-  holdScoreIntervalTicks?: number;
+  /** 中立点占领读秒 tick;undefined 走运行时配置 neutralCaptureSeconds */
+  neutralCaptureTicks?: number;
+  /** 敌方点接管读秒 tick;undefined 走运行时配置 takeoverCaptureSeconds */
+  takeoverCaptureTicks?: number;
 }
 
 export interface CapturePointState {
   def: CapturePointDef;
   owner: TeamId | null;
+  /** 正在读秒的进攻方(换队时清零进度) */
   capturingTeam: TeamId | null;
   progressTicks: number;
-  lastHoldTick: number;
 }
 
 export class CaptureSystem {
@@ -44,7 +49,6 @@ export class CaptureSystem {
         owner: null,
         capturingTeam: null,
         progressTicks: 0,
-        lastHoldTick: 0,
       });
     }
   }
@@ -57,49 +61,39 @@ export class CaptureSystem {
     return [...this.points.values()];
   }
 
+  /** 该点当前目标的读秒上限 tick(中立点=占领秒数;敌方点=接管秒数) */
+  captureDelayTicks(point: CapturePointState): number {
+    return point.owner === null
+      ? point.def.neutralCaptureTicks ?? this.session.config.neutralCaptureSeconds * 20
+      : point.def.takeoverCaptureTicks ?? this.session.config.takeoverCaptureSeconds * 20;
+  }
+
   /**
    * 占点推进;deltaTicks 由会话传入(对齐会话 tick 粒度)。
    */
-  tick(nowTick: number, deltaTicks: number): void {
+  tick(_nowTick: number, deltaTicks: number): void {
     for (const point of this.points.values()) {
       const occupancy = this.countOccupants(point.def);
-      const presentTeams = [...occupancy.keys()];
 
-      // 无人驻留:读秒缓慢衰减(半速),不重置
-      if (presentTeams.length === 0) {
-        point.progressTicks = Math.max(0, point.progressTicks - Math.floor(deltaTicks / 2));
-        continue;
-      }
-      // 多方拉锯:contested,读秒暂停
-      if (presentTeams.length > 1) {
-        continue;
-      }
+      // 无人驻留或双方拉锯:进度保持(累计语义),不推进也不衰减
+      if (occupancy.size !== 1) continue;
 
-      const teamId = presentTeams[0];
-      const members = occupancy.get(teamId) ?? [];
+      const [teamId, members] = [...occupancy.entries()][0];
+      if (point.owner === teamId) continue; // 持有方驻守:无推进
 
-      if (point.owner === teamId) {
-        // 驻守得分:按间隔发 point.hold(计分规则表消费)
-        const interval =
-          point.def.holdScoreIntervalTicks ??
-          this.session.config.holdScoreIntervalSeconds * 20;
-        if (interval > 0 && nowTick - point.lastHoldTick >= interval) {
-          point.lastHoldTick = nowTick;
-          this.session.bus.emit("point.hold", { pointId: point.def.id, teamId });
-        }
-        continue;
+      // 换队进攻:进度清零重新累计
+      if (point.capturingTeam !== teamId) {
+        point.capturingTeam = teamId;
+        point.progressTicks = 0;
       }
 
-      // 独占读秒 → 易主
-      point.capturingTeam = teamId;
+      // 双段读秒:中立点快,敌方点慢
+      const delay = this.captureDelayTicks(point);
       point.progressTicks += deltaTicks;
-      const delay =
-        point.def.captureDelayTicks ?? this.session.config.captureDelaySeconds * 20;
       if (point.progressTicks >= delay) {
         point.owner = teamId;
         point.capturingTeam = null;
         point.progressTicks = 0;
-        point.lastHoldTick = nowTick;
         this.session.bus.emit("point.captured", {
           pointId: point.def.id,
           teamId,
@@ -118,7 +112,7 @@ export class CaptureSystem {
 
   // ── 内部 ─────────────────────────────────────────────────────
 
-  /** 统计占点 AABB 内各队存活玩家 */
+  /** 统计占点 AABB 内各队存活玩家(键为队伍,值为该队成员 playerId) */
   private countOccupants(def: CapturePointDef): Map<TeamId, string[]> {
     const result = new Map<TeamId, string[]>();
     const minX = Math.min(def.from.x, def.to.x);

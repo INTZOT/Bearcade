@@ -11,7 +11,6 @@ import type { SkillDefinition } from "./skill/types";
 import type { StatusDefinition } from "./status/types";
 import type { CapturePointDef } from "./capture";
 import type { SupplyStationDef } from "./supply";
-import type { ScoreRuleDef } from "./score";
 import type { MatchSession } from "./session";
 
 /** 伤害元素(内容设计 PDF 第 1 页:无/电/火/水/本源) */
@@ -82,30 +81,38 @@ export interface SessionInjects {
 
 /** 运行时可调数值(/bearcade:config 热调参,持久化到 bearcade:config_snd5) */
 export interface Snd5RuntimeConfig {
-  /** 先达到该分数的队伍获胜(意见⑥:分数制胜负) */
+  /** 先达到该分数的队伍获胜(默认 2000,到分立即结束) */
   scoreTarget: number;
-  /** 对局时长上限(秒),到点按当前分数判定,0 = 不限时 */
+  /** 对局时长上限(秒),到点比总分判定,平分平局;0 = 不限时 */
   matchSeconds: number;
+  /** 任意玩家阵亡时对方队伍得分 */
+  deathScore: number;
+  /**
+   * 占点产分曲线:下标 = 当前占有点数,值 = 每秒得分。
+   * 默认 [0,1,2,4,8,16](5 点封顶,超出按末位)。
+   */
+  holdScoreRates: number[];
+  /** 中立点占领读秒(秒):单队独占累计该时长完成占领 */
+  neutralCaptureSeconds: number;
+  /** 敌方已占点接管读秒(秒):单队独占累计该时长完成接管 */
+  takeoverCaptureSeconds: number;
   /** 死亡后重生等待(秒) */
   respawnSeconds: number;
   /** 每 2 秒自然回复的魔力(标准:1) */
   manaRegenAmount: number;
   /** 每人使用资源补给站的冷却(秒,标准:20) */
   supplyCooldownSeconds: number;
-  /** 占点读秒(秒):独占据点持续该时长后易主 */
-  captureDelaySeconds: number;
-  /** 驻守得分间隔(秒),0 = 关闭驻守得分 */
-  holdScoreIntervalSeconds: number;
+  /** 受击反馈(红闪/音效/动画/方向击退),关闭后伤害无原版表现 */
+  hurtFeedback: boolean;
 }
 
 /**
  * 内容层注册束:会话构造时传入。
- * 技能/状态用 Registry 注册模式(意见③);计分/占点/补给是数据数组。
+ * 技能/状态用 Registry 注册模式(意见③);占点/补给是数据数组。
  */
 export interface Snd5ContentBundle {
   skills: Registry<SkillDefinition>;
   statuses: Registry<StatusDefinition>;
-  scoreRules?: readonly ScoreRuleDef[];
   capturePoints?: readonly CapturePointDef[];
   supplyStations?: readonly SupplyStationDef[];
 }

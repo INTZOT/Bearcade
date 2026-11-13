@@ -10,6 +10,7 @@
 import { GameMode, Player, system, world } from "@minecraft/server";
 import { sessions, type MatchSession } from "./framework/session";
 import { skillItemBindings } from "./framework/skill/system";
+import { isFeedbackBypass } from "./framework/vanilla";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { tickSnd5Sessions } from "./game";
 import {
@@ -68,7 +69,13 @@ function registerDamageInterception(): void {
     const hurt = event.hurtEntity;
     // 只拦玩家:创生物(魔瘴之泉 60HP 等)走原版实体血量
     if (!(hurt instanceof Player)) return;
-    const session = sessionOfPlayer(hurt.id);
+    // 受击反馈伤害(vanilla.ts 三步法):放行以触发原版红闪/音效/
+    // 动画/击退;载体已临时抬满,该伤害绝不致死
+    if (isFeedbackBypass()) return;
+    // 按会话成员或房间维度匹配:倒计时/结算期玩家已在房间维度,
+    // 但会话尚未创建(onGameStart 才建),这段窗口同样要免伤,
+    // 否则会被原版伤害打死。
+    const session = sessionOfPlayer(hurt.id) ?? sessionOfDimension(hurt.dimension.id);
     if (!session) return;
     // SND5 数值全部由 CombatPipeline 写入;原版伤害一律取消。
     // restricted-execution 下此处只允许同步取消。
@@ -197,18 +204,19 @@ function registerLifecycleGuards(): void {
     }
   });
 
-  // 防御:SND5 死亡应全部为脚本死亡(原版伤害已拦截);
-  // 原版死亡出现时(掉虚空/指令)立即拉起脚本死亡流程
+  // 防御:SND5 死亡应全部为脚本死亡(原版伤害已拦截,载体血量有
+  // 0.5 保底);原版死亡出现时(/kill、不可取消的伤害源)立即拉起
+  // 脚本死亡流程,兜底按房间维度匹配以覆盖倒计时窗口。
   world.afterEvents.entityDie.subscribe((event) => {
     const dead = event.deadEntity;
     if (!(dead instanceof Player)) return;
-    const session = sessionOfPlayer(dead.id);
+    const session = sessionOfPlayer(dead.id) ?? sessionOfDimension(dead.dimension.id);
     if (!session) return;
     system.run(() => {
       try {
         dead.setGameMode(GameMode.Spectator);
       } catch {
-        // 忽略
+        // 死亡等待重生界面中可能无法切换,忽略
       }
       session.handleDeath(dead.id, undefined, "vanilla");
     });

@@ -71,7 +71,6 @@ export { SummonSystem, SUMMON_TAG } from "./summon";
 export type { ProjectileOptions, SummonInstance, SummonOptions } from "./summon";
 
 export { ScoreSystem } from "./score";
-export type { ScoreRuleDef } from "./score";
 export { CaptureSystem } from "./capture";
 export type { CapturePointDef, CapturePointState } from "./capture";
 export { SupplySystem } from "./supply";
@@ -80,3 +79,6 @@ export type { SupplyItemDef, SupplyStationDef } from "./supply";
 export { HudBridge } from "./hud";
 export { MatchSession, sessions } from "./session";
 export type { PlayerState } from "./session";
+
+/** 引擎层薄适配:原版受击表现桥接(框架内部使用) */
+export { applyHurtFeedback, isFeedbackBypass } from "./vanilla";

@@ -149,10 +149,6 @@ export interface PointCapturedEvent {
   teamId: TeamId;
   byPlayerIds: string[];
 }
-export interface PointHoldEvent {
-  pointId: string;
-  teamId: TeamId;
-}
 export interface ScoreChangedEvent {
   teamId: TeamId;
   score: number;
@@ -191,7 +187,6 @@ export interface Snd5EventMap {
   "summon.hitEntity": SummonHitEntityEvent;
   "summon.hitBlock": SummonHitBlockEvent;
   "point.captured": PointCapturedEvent;
-  "point.hold": PointHoldEvent;
   "score.changed": ScoreChangedEvent;
   "match.end": MatchEndEvent;
 }

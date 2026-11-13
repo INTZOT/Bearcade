@@ -43,7 +43,7 @@ export class CombatPipeline {
     // 真实伤害:不经过任何修饰与反应,直接写入账本
     const trueDamage = Math.max(0, payload.trueDamage ?? 0);
     if (trueDamage > 0 && (payload.hp ?? 0) === 0 && (payload.armor ?? 0) === 0) {
-      const applied = attributes.applyDamage(targetId, { trueDamage });
+      const applied = attributes.applyDamage(targetId, { trueDamage, sourceId });
       this.recordDamage(targetId, sourceId);
       this.emitDamaged(sourceId, targetId, applied, payload, tags, applied.lethal);
       this.finishLethal(sourceId, targetId, applied.lethal, tags, payload.element);
@@ -86,6 +86,7 @@ export class CombatPipeline {
       hp: hpFinal,
       armor: armorFinal,
       trueDamage: Math.max(0, payload.trueDamage ?? 0),
+      sourceId,
     });
 
     // 反应解析:主伤害结算后进行;reaction 标签不再递归
@@ -207,6 +208,11 @@ export class CombatPipeline {
     depth: number,
   ): void {
     for (const instance of [...this.session.status.getAll(targetId)]) {
+      // 主伤害致死时停止结算该目标的后续反应:
+      // 递归反应伤害可能在 alive 标志翻转前先触发 handleDeath(清状态),
+      // 之后继续施加反应状态会把状态挂到尸体上(clearAll 后复活,重生残留)。
+      if (this.session.isDead(targetId)) return;
+
       const reaction = reactionTable.lookup(instance.id, basePayload.element);
       if (!reaction) continue;
       let outcome: ReactionOutcome | undefined;
@@ -277,6 +283,11 @@ export class CombatPipeline {
     element: DamageElement,
   ): void {
     if (!lethal) return;
+    // 幂等保护:反应递归可能在 alive 标志翻转前对本已 hp=0 的目标再判致死,
+    // 已进入死亡流程时直接跳过,防止 entity.killed / damage.lethal 双发
+    // 双发会导致击杀类被动重复触发,如战士雷魂回血翻倍。
+    if (this.session.isDead(targetId)) return;
+
     let intercepted = false;
     this.session.bus.emit("damage.lethal", {
       targetId,

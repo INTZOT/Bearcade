@@ -8,7 +8,7 @@ export const PACK_ID = "64212de9-a02f-4723-ae4e-6ceeb933d681";
 export const IPC_CHANNEL = "bearcade:ipc";
 export const LOBBY_DIMENSION_ID = "minecraft:overworld";
 export const ROOM_COUNT = 2;
-export const MAX_PLAYERS = 2;
+export const MAX_PLAYERS = 32;
 export const MIN_PLAYERS = 1;
 // 派对模式可用性:去除最大人数上限后仍可正常运行才设为 true
 export const PARTY_AVAILABLE = false;
@@ -32,4 +32,13 @@ export const TEMPLATE_SPAWN = { x: 0, y: 100, z: 0 };
 export const START_POSITIONS = [
   { x: 0, y: 65, z: -1 },
   { x: 0, y: 65, z: 1 },
+];
+
+// ===== 占点区域(5 点:西/北/中/南/东) =====
+export const SND5_CAPTURE_POINTS = [
+  { id: "snd5:point_west", displayName: "西", from: { x: -7, y: 64, z: -2 }, to: { x: -4, y: 68, z: 2 } },
+  { id: "snd5:point_north", displayName: "北", from: { x: -2, y: 64, z: -7 }, to: { x: 2, y: 68, z: -4 } },
+  { id: "snd5:point_center", displayName: "中", from: { x: -2, y: 64, z: -2 }, to: { x: 2, y: 68, z: 2 } },
+  { id: "snd5:point_south", displayName: "南", from: { x: -2, y: 64, z: 4 }, to: { x: 2, y: 68, z: 7 } },
+  { id: "snd5:point_east", displayName: "东", from: { x: 4, y: 64, z: -2 }, to: { x: 7, y: 68, z: 2 } },
 ];

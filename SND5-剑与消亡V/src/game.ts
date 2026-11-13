@@ -10,12 +10,11 @@ import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { clearHudTitle } from "../../shared/minigame-core/scoreboardHud";
 import { clearAllPlayerItems } from "../../shared/minigame-core/playerItems";
 import {
+  CapturePointDef,
   MatchSession,
   sessions,
   skillRegistry,
   statusRegistry,
-  type CapturePointDef,
-  type ScoreRuleDef,
   type SessionInjects,
   type Snd5ContentBundle,
   type Snd5RuntimeConfig,
@@ -29,7 +28,7 @@ import {
   type ProfessionDefinition,
 } from "./content";
 import { loadSnd5Config } from "./runtime-config";
-import { START_POSITIONS } from "./config";
+import { SND5_CAPTURE_POINTS, START_POSITIONS } from "./config";
 
 // ── 默认队伍提供器 ────
 
@@ -101,15 +100,8 @@ function buildContentBundle(): Snd5ContentBundle {
   return {
     skills: skillRegistry,
     statuses: statusRegistry,
-    // TODO(内容层): 计分规则表(意见⑦,战地/战争领主风格),示例:
-    // scoreRules: [
-    //   { id: "snd5:kill", event: "entity.killed", amount: 100, actorField: "killerId" },
-    //   { id: "snd5:capture", event: "point.captured", amount: 200, actorField: "teamId" },
-    // ],
-    scoreRules: [] as ScoreRuleDef[],
-    // TODO(内容层): 占点区域(场地建好后填坐标),示例:
-    // capturePoints: [{ id: "snd5:point_a", displayName: "A", from: {...}, to: {...} }],
-    capturePoints: [] as CapturePointDef[],
+    // 占点区域坐标见 config.ts(5 点占位,场地建好后微调)
+    capturePoints: SND5_CAPTURE_POINTS as CapturePointDef[],
     // TODO(内容层): 补给站(模板场地内 7 个:5 内圈 + 2 外围)
     supplyStations: [] as SupplyStationDef[],
   };

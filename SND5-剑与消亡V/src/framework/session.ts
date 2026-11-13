@@ -16,6 +16,7 @@ import { CaptureSystem } from "./capture";
 import { CombatPipeline } from "./combat/pipeline";
 import { EventBus, extractInvolvedIds } from "./events";
 import { HudBridge } from "./hud";
+import { CaptureVisualizer } from "./captureVisual";
 import { PassiveManager } from "./skill/passives";
 import { Primitives } from "./skill/primitives";
 import { SkillSystem } from "./skill/system";
@@ -64,6 +65,7 @@ export class MatchSession {
   readonly summons: SummonSystem;
   readonly score: ScoreSystem;
   readonly capture: CaptureSystem;
+  readonly captureVisual: CaptureVisualizer;
   readonly supply: SupplySystem;
   readonly hud: HudBridge;
 
@@ -97,8 +99,9 @@ export class MatchSession {
     this.passives = new PassiveManager(this);
     this.skills = new SkillSystem(this);
     this.summons = new SummonSystem(this);
-    this.score = new ScoreSystem(this, content.scoreRules ?? []);
+    this.score = new ScoreSystem(this);
     this.capture = new CaptureSystem(this, content.capturePoints ?? []);
+    this.captureVisual = new CaptureVisualizer(this);
     this.supply = new SupplySystem(this, content.supplyStations ?? []);
     this.hud = new HudBridge(this);
 
@@ -171,6 +174,7 @@ export class MatchSession {
     }
     this.injects.onSessionStart?.(this);
     this.bus.emit("match.start", { playerIds: [...this.players.keys()] });
+    this.captureVisual.start(); // 占点浮空字 + 粒子环
     this.hud.renderAll();
   }
 
@@ -193,14 +197,19 @@ export class MatchSession {
     this.skills.tick(nowTick);
     this.summons.tick(nowTick);
     this.capture.tick(nowTick, STATUS_TICK_INTERVAL);
+    this.score.tick(nowTick); // 占点产分(内部按秒结算)
 
-    // 对局计时兜底:到点按当前分数判定
+    // 对局计时兜底:到点比总分,平分平局
     if (this.config.matchSeconds > 0 && nowTick - this.startedAtTick >= this.config.matchSeconds * 20) {
-      const leader = this.score.leader();
-      this.endMatch(leader?.teamId, "match_timeout");
+      const { leader, tie } = this.score.standings();
+      this.endMatch(
+        tie ? undefined : leader,
+        tie ? "match_timeout_draw" : "match_timeout",
+      );
       return;
     }
 
+    this.captureVisual.tick(nowTick);
     this.hud.tick(nowTick);
   }
 
@@ -227,7 +236,7 @@ export class MatchSession {
     this.bus.emit("player.death", { playerId, killerId, cause });
   }
 
-  /** 重生:面板归满 → 生存模式 → 落位重生点;物品重发由内容层完成 */
+  /** 重生:清状态(防御)→ 面板归满 → 生存模式 → 落位重生点;物品重发由内容层完成 */
   respawn(playerId: string): void {
     const state = this.players.get(playerId);
     if (!state || state.alive || this.ended) return;
@@ -237,6 +246,9 @@ export class MatchSession {
     }
     state.alive = true;
     state.respawnAtTick = undefined;
+    // 防御:死亡窗口内仍可能有延迟回调/反应给尸体挂状态
+    // (handleDeath 已清过一次,这里兜底保证重生净身)
+    this.status.clearAll(playerId, false);
     this.applyLoadout(state);
     try {
       state.player.setGameMode(GameMode.Survival);
@@ -255,13 +267,13 @@ export class MatchSession {
     const winnerName = winnerTeamId ? this.injects.teams.teamDisplayName(winnerTeamId) : undefined;
     this.runtime.announce(
       this.roomId,
-      winnerName ? `§6${winnerName}§r 获胜!` : "§7对局结束",
+      winnerName ? `§6${winnerName}§r 获胜!` : "§7平局",
     );
     for (const state of this.players.values()) {
       clearHudTitle(state.player);
     }
     // 唯一的结束出口:runtime 状态机 → 结算回大厅 → 整房模板重建
-    this.runtime.endGame(this.roomId, reason, winnerName ? `${winnerName} 获胜` : undefined);
+    this.runtime.endGame(this.roomId, reason, winnerName ? `${winnerName} 获胜` : "平局");
   }
 
   removePlayer(playerId: string): void {
@@ -288,6 +300,7 @@ export class MatchSession {
     this.combat.dispose();
     this.score.dispose();
     this.capture.dispose();
+    this.captureVisual.dispose();
     this.supply.dispose();
     this.hud.dispose();
     for (const state of this.players.values()) {

@@ -1,54 +1,64 @@
 // ============================================================
-// ScoreSystem —— 分数制胜负(修改意见⑥⑦)
+// ScoreSystem —— 分数制胜负(占点模式专用)
 // 分数存储在会话内存(不进记分板 objective,Bearcade 契约:
 // Core 只收对局状态不收比分);判胜达标后收敛到
 // runtime.endGame() → 结算回大厅 → 整房模板重建。
 //
-// 加分规则 = 事件驱动的计分源表(战地/战争领主风格):
-// 击杀/助攻/占点/驻守/治疗都是内容层数据(ScoreRuleDef),
-// 本系统只负责订阅事件 → 换算队伍 → 累加 → 判胜。
+// 两条内置计分规则(重构自通用规则表——当前玩法只有这两条,
+// 具体化比泛化表格更直白):
+// 1. 占点持续得分(主要来源):每秒按各队当前占有点数给分,
+//    产分曲线 [0,1,2,4,8,16]/s(占下后离人也持续产分,直到被接管);
+// 2. 阵亡计分:任意玩家死亡(击杀/环境/自伤一律),对方队伍 +5。
+//
+// 胜负:先到 scoreTarget(默认 2000)立即获胜;
+// matchSeconds(默认 20 分钟)到点比总分,高者胜,完全相同平局。
 // ============================================================
 import type { MatchSession } from "./session";
-import type { Snd5EventMap, Snd5EventName } from "./events";
 import type { TeamId } from "./types";
-
-/**
- * 计分规则(内容层数据):
- * - event:订阅的事件名(Snd5EventMap key);
- * - actorField:事件载荷中取哪个 id 换算队伍(击杀用 "killerId");
- * - scope:team = 团队分;personal = 个人分;
- * - once:只计一次(首杀)。
- */
-export interface ScoreRuleDef {
-  id: string;
-  event: Snd5EventName;
-  amount: number;
-  actorField?: string;
-  scope?: "team" | "personal";
-  once?: boolean;
-}
 
 export class ScoreSystem {
   private readonly teamScores = new Map<TeamId, number>();
   private readonly personalScores = new Map<string, number>();
-  private readonly firedOnce = new Set<string>();
   private readonly unsubscribes: Array<() => void> = [];
+  private lastIncomeTick = 0;
 
-  constructor(
-    private readonly session: MatchSession,
-    rules: readonly ScoreRuleDef[],
-  ) {
-    for (const rule of rules) {
-      this.unsubscribes.push(
-        this.session.bus.on(rule.event as Snd5EventName, (payload) => {
-          this.applyRule(rule, payload as Snd5EventMap[Snd5EventName]);
-        }),
-      );
-    }
-    // 占点/驻守等事件驱动计分天然生效;对局结束时停表
+  constructor(private readonly session: MatchSession) {
+    // 规则 2:阵亡计分 —— 载荷的 playerId 是死者,给对方队伍加分
     this.unsubscribes.push(
-      this.session.bus.on("match.end", () => this.unsubscribes.forEach((off) => off())),
+      this.session.bus.on("player.death", ({ playerId }) => {
+        const victimTeam = this.session.teams.getTeam(playerId);
+        if (!victimTeam) return;
+        const enemyTeam = this.session.teams.teamIds.find((id) => id !== victimTeam);
+        if (enemyTeam) {
+          this.addTeamScore(enemyTeam, this.session.config.deathScore, "death");
+        }
+      }),
     );
+  }
+
+  /**
+   * 规则 1:占点持续得分 —— 会话每 tick 调用,内部按秒结算。
+   * 产分只看「当前占有点数」,与是否有人驻守无关(占下即产分)。
+   */
+  tick(nowTick: number): void {
+    if (nowTick - this.lastIncomeTick < 20) return;
+    this.lastIncomeTick = nowTick;
+    const rates = this.session.config.holdScoreRates;
+    const points = this.session.capture.states();
+    for (const teamId of this.session.teams.teamIds) {
+      const owned = points.filter((point) => point.owner === teamId).length;
+      const rate = rates[Math.min(owned, rates.length - 1)] ?? 0;
+      if (rate > 0) this.addTeamScore(teamId, rate, "domination");
+    }
+  }
+
+  /** 某队当前每秒产分(HUD 显示用) */
+  getIncomeRate(teamId: TeamId): number {
+    const rates = this.session.config.holdScoreRates;
+    const owned = this.session.capture
+      .states()
+      .filter((point) => point.owner === teamId).length;
+    return rates[Math.min(owned, rates.length - 1)] ?? 0;
   }
 
   /** 团队加分;达标触发 endMatch(reason = score_target) */
@@ -88,13 +98,22 @@ export class ScoreSystem {
     return new Map(this.teamScores);
   }
 
-  /** 当前领先队伍(计时到点判胜用) */
-  leader(): { teamId: TeamId; score: number } | undefined {
-    let best: { teamId: TeamId; score: number } | undefined;
+  /**
+   * 计时到点判定:返回最高分队伍与是否并列。
+   * 完全相同 → tie = true,leader 无意义(平局)。
+   */
+  standings(): { leader?: TeamId; tie: boolean } {
+    let bestScore = -1;
+    let leaders: TeamId[] = [];
     for (const [teamId, score] of this.teamScores) {
-      if (!best || score > best.score) best = { teamId, score };
+      if (score > bestScore) {
+        bestScore = score;
+        leaders = [teamId];
+      } else if (score === bestScore) {
+        leaders.push(teamId);
+      }
     }
-    return best;
+    return { leader: leaders[0], tie: leaders.length !== 1 };
   }
 
   dispose(): void {
@@ -102,27 +121,5 @@ export class ScoreSystem {
     this.unsubscribes.length = 0;
     this.teamScores.clear();
     this.personalScores.clear();
-    this.firedOnce.clear();
-  }
-
-  // ── 内部 ─────────────────────────────────────────────────────
-
-  private applyRule(rule: ScoreRuleDef, payload: unknown): void {
-    if (rule.once) {
-      const firedKey = `${rule.id}:${this.session.roomId}`;
-      if (this.firedOnce.has(firedKey)) return;
-      this.firedOnce.add(firedKey);
-    }
-    const actorField = rule.actorField ?? "playerId";
-    const actorId = (payload as Record<string, unknown>)[actorField];
-    if (typeof actorId !== "string") return;
-
-    if ((rule.scope ?? "team") === "personal") {
-      this.addPersonalScore(actorId, rule.amount, rule.id);
-      return;
-    }
-    const teamId = this.session.teams.getTeam(actorId);
-    if (!teamId) return;
-    this.addTeamScore(teamId, rule.amount, rule.id);
   }
 }
