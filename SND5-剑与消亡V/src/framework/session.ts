@@ -76,6 +76,8 @@ export class MatchSession {
   private readonly busOffs: Array<() => void> = [];
   private startedAtTick = 0;
   private ended = false;
+  /** 已销毁(防重入);与 ended 分离:endMatch 先置 ended=true,dispose 仍须执行清理 */
+  private disposed = false;
 
   constructor(
     runtime: MinigameRuntime,
@@ -298,8 +300,9 @@ export class MatchSession {
   }
 
   dispose(): void {
-    if (this.ended) return;
-    this.ended = true;
+    if (this.disposed) return;
+    this.disposed = true;
+    this.ended = true; // tick/重生/handleDeath 等守卫同步停摆
     for (const off of this.busOffs) off();
     this.busOffs.length = 0;
     for (const timer of this.timers) timer.cancelled = true;
