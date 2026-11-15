@@ -5,13 +5,16 @@
 // ============================================================
 import "./professions";
 import "./skills/warrior";
+import "./skills/support";
 import "./statuses/warrior";
+import "./statuses/support";
 import "./codex";
 import "./consumables";
 
 export { professionRegistry } from "./professions/registry";
 export type { ProfessionDefinition, ProfessionSkillEntry } from "./professions/registry";
 export { warriorProfession } from "./professions/warrior";
+export { supportProfession } from "./professions/support";
 export {
   getSelectedCodex,
   getSelectedProfessionId,

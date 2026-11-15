@@ -5,11 +5,16 @@
 // 内容层技能文件禁止 import @minecraft/server,只能用 ctx.primitives。
 // ============================================================
 import type { Player, Vector3 } from "@minecraft/server";
+import type { IndicatorOptions, IndicatorSpec } from "../indicator";
 import type { MatchSession } from "../session";
 import type { Primitives } from "./primitives";
 
-/** passive 槽位:固有Ⅲ类被动,不走施法流程,由 PassiveManager 挂载 */
-export type SkillSlot = "innate_1" | "innate_2" | "codex_1" | "codex_2" | "passive";
+/**
+ * passive 槽位:固有Ⅲ类被动,不走施法流程,由 PassiveManager 挂载。
+ * weapon_heavy 伪槽位:重击蓄力占位(use_duration 物品缺失前的统一方案,
+ * 走完整 charge 施法流程,但不在 HUD 冷却摘要中展示)。
+ */
+export type SkillSlot = "innate_1" | "innate_2" | "codex_1" | "codex_2" | "passive" | "weapon_heavy";
 
 export type CastMode = "instant" | "charge" | "windup" | "channel";
 
@@ -83,6 +88,16 @@ export interface SkillDefinition {
   windupTicks?: number;
   /** 蓄力/前摇期间受伤是否打断(默认 true;打断退还预扣) */
   interruptible?: boolean;
+  /**
+   * 施法指示器(内容设计「指示器」):charge/windup/channel 期间由
+   * IndicatorSystem 自动显示并每会话 tick 重算 —— 跟随位置/视角/蓄力值,
+   * 结算/打断/死亡即回收;返回 undefined 表示本拍隐藏。
+   * instant 技能无施法过程,落点闪烁用 primitives.showIndicator。
+   * 潜行变体差异直接读 ctx.isSneaking(晨露 +3 格、水的两面性 6→8 格)。
+   */
+  indicator?(ctx: CastContext): IndicatorSpec | IndicatorSpec[] | undefined;
+  /** 施法指示器的可见性/粒子覆写(默认仅施法者可见 + endrod) */
+  indicatorOptions?: IndicatorOptions;
 
   // ── 前置条件 ────────────────────────────────────────────────
   requiresSneak?: boolean;
@@ -144,7 +159,11 @@ export interface CastContext {
   skillId: string;
   def: SkillDefinition;
   slot: string;
-  /** 施法瞬间潜行状态(潜行变体分发依据) */
+  /**
+   * 潜行状态(潜行变体分发依据)。instant 在施法瞬间捕获;
+   * charge/windup/channel 由 SkillSystem 每 tick 刷新 —— 按"结算时点"
+   * 判定(蓄力松手/前摇完成时是否潜行,如增益晨露)。
+   */
   isSneaking: boolean;
   /** 施法瞬间视角方向 */
   direction: Vector3;
@@ -152,6 +171,12 @@ export interface CastContext {
   chargeTicks: number;
   chargePercent: number;
   channelTicks: number;
+  /**
+   * 本次施法已进行的真实 tick(charge/windup/channel 由 SkillSystem
+   * 每拍刷新;蓄力时长/前摇进度/圆心移动速率都以此为准 ——
+   * chargeTicks 是回调计数,受会话 5t 网格影响,勿混用)
+   */
+  castElapsedTicks: number;
   // 预扣记录(失败/打断退还)
   predeductedMana: number;
   predeductedStacks: boolean;

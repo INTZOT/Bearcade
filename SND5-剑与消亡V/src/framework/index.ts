@@ -48,6 +48,7 @@ export type {
 export type { ReactionBuildContext, ReactionDefinition, ReactionOutcome } from "./combat/reactions";
 
 export { SkillSystem, skillItemBindings } from "./skill/system";
+export type { ActiveCastView } from "./skill/system";
 export { PassiveManager } from "./skill/passives";
 export { Primitives } from "./skill/primitives";
 export { CooldownStore, StackStore, skillKey } from "./skill/stores";
@@ -66,6 +67,9 @@ export type {
   SkillDefinition,
   SkillSlot,
 } from "./skill/types";
+
+export { IndicatorSystem } from "./indicator";
+export type { IndicatorHandle, IndicatorOptions, IndicatorSpec } from "./indicator";
 
 export { SummonSystem, SUMMON_TAG } from "./summon";
 export type { ProjectileOptions, SummonInstance, SummonOptions } from "./summon";

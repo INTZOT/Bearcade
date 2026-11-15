@@ -3,7 +3,7 @@
 Bearcade 小游戏包(7 职业 PvP:剑与消亡V · 上密会战)。房间/模板/上报/HUD 通道复用 `shared/minigame-core` + `Core-核心`;包内实现**会话化战斗框架层**(`src/framework/`)+ **注册式内容层**(`src/content/`)。
 
 > 设计依据:《SND5 架构设计 v2 · Bearcade 适配版》 + 《SND5 内容设计》PDF。
-> 当前进度:**框架层就绪;内容层已实装「准备阶段职业选择」与「战士」全量内容(武器 + 两个主动 + 被动 + 状态/元素反应)**;对局层(占点/计分/补给)框架就绪但数据待填;场地与自定义物品/实体仍为占位。
+> 当前进度:**框架层就绪;内容层已实装「准备阶段职业选择」「战士」与「增益」全量内容(武器 + 主动/被动 + 状态)与 10 个秘典法术、回复类消耗品**;对局层(占点/计分/补给)框架就绪但数据待填;场地与自定义物品/实体仍为占位。
 
 ## 当前状态
 
@@ -14,12 +14,14 @@ Bearcade 小游戏包(7 职业 PvP:剑与消亡V · 上密会战)。房间/模�
   - `status/` 状态系统(叠层/互斥/进化/modifiers 聚合/收束标志位);
   - `combat/` 六阶段伤害管线(元素 × 状态反应表、真实伤害、致死拦截、击杀归属);
   - `skill/` 技能调度(instant/charge/windup/channel 四种施法模式、四段式冷却、堆叠串联、被动 = 事件订阅者、效果原语 Primitives);
+  - `indicator.ts` 攻击指示器(圆形/扇形/直线三种形状,self/team/all 可见性;`SkillDefinition.indicator` 在蓄力/前摇/吟唱期间自动显示并逐拍跟随,`primitives.showIndicator` 做落点闪烁;逐玩家渲染走 `Player.spawnParticle`,不可用自动回退全员);
   - `summon.ts` 创生物系统(实体承载 + tag 清扫,投掷物命中转发);
   - `score.ts` / `capture.ts` / `supply.ts` 占点计分 / 占点双段读秒 / 补给站 20s 限频 —— 占点产分曲线 [0,1,2,4,8,16]/s(占下即产分,离人不中断),任意阵亡对方 +5,先到 2000 分获胜,20 分钟到点比总分(平分平局);占领:中立点独占累计 20s,敌方点接管累计 40s,双方同点进度暂停;
   - `hud.ts` 右侧面板 HUD(比分/三资源/冷却/占点/状态效果,title 通道渲染;状态行正面绿、负面红、附剩余秒数);
 - 内容层(`src/content/`,**已实装**):
   - **准备阶段职业选择**:进入房间维度发山羊角 → 右键表单选择 → 开局 `loadoutFor` 消费;7 职业中仅战士 `available: true`,其余 6 个为面板占位(选择界面显示「开发中」);
   - **战士**:面板 100/50/100,武器「弧光」轻击/重击,固有Ⅰ 突进、固有Ⅱ 球状闪电、固有Ⅲ 雷魂(被动);
+  - **增益**:面板 140/20/120,武器「水仙之梦」轻击 + spyglass 蓄力重击(weapon_heavy 伪技能,潜行蓄力=晨露对光的独白),固有Ⅰ 涤雨、固有Ⅱ 水仙庇护、固有Ⅲ 水仙之约(被动);状态清流/洁雨/水仙初临/水仙伴生(初临溢出进阶伴生、70 点伤害转魔力、伴生 1 次全额减免);
   - **状态与反应**:重伤、零火、电流涌动、电流迸发,以及「零火 × 电」的连锁反应;
   - 武器与技能**全部用原版物品占位**,见下方《操作与占位映射》;
 - 对局层数据(`buildContentBundle()`):计分规则表 / 占点区域 / 7 个补给站坐标仍为空数组,待场地建好后填(不影响职业选择与战士战斗链路);
@@ -57,6 +59,16 @@ Bearcade 小游戏包(7 职业 PvP:剑与消亡V · 上密会战)。房间/模�
 | 固有Ⅲ 雷魂 | 被动,无物品 | — | — |
 | 职业选择 | 右键 `minecraft:goat_horn` | 准备阶段表单 | 换自定义物品或 Core 菜单入口 |
 
+### 增益占位映射
+
+| 操作 | 当前实现(占位) | 最终设计(内容设计 PDF) | 替换方式 |
+|---|---|---|---|
+| 轻击 | 左键 `minecraft:wooden_sword` | 5 点近战 | 数值已在内容层,无需换实现 |
+| 重击 | `minecraft:spyglass` 按住右键蓄力 0.8s(weapon_heavy 伪技能,自带缩放瞄准) | 蓄力 0.8s → 视准心 r2 圆形 12 点水伤 + 友方清流;潜行=晨露 | 换自定义武器物品(use_duration),蓄力/晨露逻辑无需重写 |
+| 固有Ⅰ 涤雨 | 右键 `minecraft:fishing_rod` | 19s CD / 25 魔力 | 换自定义技能物品 |
+| 固有Ⅱ 水仙庇护 | 按住 `minecraft:shield`(前摇 1.2s 举盾) | 25s CD / 35 魔力 / 前摇 | 换自定义技能物品 |
+| 固有Ⅲ 水仙之约 | 被动,无物品 | — | — |
+
 > 占位物品选用原则:右键能触发使用事件。胡萝卜钓竿/诡异菌钓竿是原版少有的「手持可用」物品,右键不消耗、不放置,适合当技能触发器;山羊角自带音效,兼作操作反馈。普通纸张/木棍右键不触发使用事件,不要拿来占位。
 
 ## 战士实现细节
@@ -81,6 +93,66 @@ Bearcade 小游戏包(7 职业 PvP:剑与消亡V · 上密会战)。房间/模�
 | 电流迸发 `snd5:current_burst` | 8 秒,轻击电附魔 + 附加零火 + 命中回复 3 点生命;期间再次击杀刷新自身 |
 
 > 重击、突进、球状闪电的伤害全部经 `CombatPipeline`,因此受伤/减伤/元素反应/致死拦截/伤害贡献对它们天然生效。
+
+## 增益实现细节
+
+内容文件:[professions/support.ts](src/content/professions/support.ts)、[skills/support.ts](src/content/skills/support.ts)、[statuses/support.ts](src/content/statuses/support.ts)。
+
+| 项 | 实现 |
+|---|---|
+| 基础面板 | 生命 140 / 护甲 20 / 魔力 120 |
+| 武器「水仙之梦」 | 轻击 5 点物理近战;**重击走 `weapon_heavy` 伪技能**(spyglass 按住右键蓄力 0.8s,蓄力期间圆形指示器跟随准星,松手结算) |
+| 重击(普通) | 视准心地面点为圆心,半径 2 格敌方 12 点水伤;圈内友方施加**清流** |
+| 重击(晨露对光的独白) | **潜行蓄力**:半径 +3(5 格)、无法施加清流;总伤 = 12 + 5×正面效果总层数,被命中敌方均摊;按负面总层数回复魔力(每层 1 点,12 秒限一次) |
+| 固有Ⅰ 涤雨 | 25 魔力、CD 19 秒;扣除自身 25% 当前生命(真实伤害),自身洁雨;视准心半径 8 内友方(除自己)刷新主动技 CD,并按人数档位加 10 秒临时护甲(1-2→30 / 3-4→23 / 5+→15);落点圈 team 可见 |
+| 固有Ⅱ 水仙庇护 | 35 魔力、CD 25 秒、前摇 1.2s(圈内指示器 team 可见);自身+半径 7 敌方 6 点水伤;圈内友方(含自己)施加**水仙初临**,生命 <30% 最大值者额外尝试清流 |
+| 固有Ⅲ 水仙之约(被动) | 重击同时命中 ≥3 名友方 → 自身获得水仙初临(5 秒内置冷却;当前 `MAX_PLAYERS=2` 暂无法完整实测) |
+
+状态链:
+
+| 状态 | 规则 |
+|---|---|
+| 清流 `snd5:clear_stream` | 1 秒,减伤 10% + 缓慢回 5 血;**每 3 秒最多被施加 1 次**(状态系统 `reapplyCooldownTicks` 通用能力) |
+| 洁雨 `snd5:pure_rain` | 5 秒,减伤 50%→0% 线性递减(modifiers 按实例函数);每秒回 5 血共 15;**自然到期**对半径 2 敌方溅射 3 点水伤 |
+| 水仙初临 `snd5:narcissus_arrival` | 12 秒;获得时随机清 1 负面,每 1.2 秒回 10 血,每 3 秒随机清 1 负面;累计受伤 >70(实际写入量)→ 清空并 2 秒回 10 魔力;**治疗溢出(含自身回血)即进阶水仙伴生**(`evolve` 挂 `heal.overflow`) |
+| 水仙伴生 `snd5:narcissus_symbiosis` | 20 秒,**不可清除**;1 次 100% 伤害减免(真伤穿透),每秒回 10 血,每 5 秒清全部负面 |
+
+框架侧为增益新增的通用能力(其余职业直接复用):`weapon_heavy` 伪槽位(重击蓄力走完整 charge 流程)、状态 `onDamageTaken` 接线(此前为死代码)、`onAfterDamaged` 实际伤害钩子(后续魔魇降临按点叠层用它)、`reapplyCooldownTicks` 限频施加、`clearDebuffs` 随机净化。
+
+## 攻击指示器接口
+
+实现:[framework/indicator.ts](src/framework/indicator.ts)。内容设计 PDF 中的「指示器」(辅助的偏移圆形、坦克 1~10 格蓄力直线、群法 ¼圆、单法光束等)统一由本接口表达。
+
+**形状**(`IndicatorSpec`,可单个或数组组合):
+
+| kind | 字段 | 对应设计示例 |
+|---|---|---|
+| `circle` | `center` / `radius` | 辅助重击圆形(圆心最远 5 格)、坦克固有Ⅱ三段扩张环(5/7/9) |
+| `sector` | `origin` / `direction` / `radius` / `angleDegrees` | 战士/刺客半圆(180°)、群法 ¼圆(90°) |
+| `line` | `origin` / `direction`(3D) / `length` / `width` | 坦克 1~10 格劈砍、单法宽 1 格光束 |
+
+**两种用法**:
+
+1. **声明式(蓄力/前摇/吟唱)**:`SkillDefinition.indicator(ctx)` —— 施法期间自动显示,每会话 tick(5t)用最新 ctx 重算(跟随位置/视角/蓄力值;`ctx.castElapsedTicks` 为真实经过 tick,蓄力进度/圆心移动速率以它为准),结算/被打断/死亡即回收;返回 `undefined` 表示本拍隐藏;潜行变体差异直接读 `ctx.isSneaking`(晨露 +3 格、水的两面性 6→8 格)。`indicatorOptions` 可覆写可见性/粒子效果。
+2. **命令式(即时落点闪烁)**:`ctx.primitives.showIndicator(ownerId, spec, { durationTicks })`,返回 `{ update, stop }` 句柄;`stopIndicators(ownerId)` 一键清除。
+
+**可见性** `visibility`:`"self"`(默认,仅施法者,`Player.spawnParticle` 逐玩家渲染)/ `"team"` / `"all"`;`Player.spawnParticle` 不可用时自动回退全员渲染并告警。渲染为沿轮廓撒点(vanilla 粒子,默认 `minecraft:endrod`,`effect` 可换自定义粒子),纯表现层,任何失败只降级不影响结算。
+
+示例(控制固有Ⅱ:吟唱中圆心每秒 2 格朝准星移动,半径 6,最远 8 格):
+
+```ts
+indicator(ctx) {
+  const distance = Math.min(8, ctx.castElapsedTicks / 20 * 2);
+  const view = ctx.player.getViewDirection();
+  const hit = ctx.primitives.raycastBlock(ctx.player.location, view, distance + 6);
+  const center: Vec3 = hit
+    ? { x: hit.x, y: hit.y, z: hit.z }
+    : { x: ctx.player.location.x + view.x * distance, y: ctx.player.location.y, z: ctx.player.location.z + view.z * distance };
+  return { kind: "circle", center, radius: 6 };
+},
+```
+
+> 已接入验证:战士突进劈砍(落点扇形闪烁,self)、秘典地震(震圈闪烁,all)、增益 spyglass 蓄力重击(跟随准星的圆形,charge 声明式)、增益涤雨/水仙庇护(team 可见)。
 
 ## 准备阶段职业选择
 
@@ -133,7 +205,7 @@ SND5-剑与消亡V/
 │   ├── runtime-config.ts      # 热调参默认值(分数/重生/补给等)
 │   ├── listeners.ts           # 适配层:原生事件桥 + 会话 tick 驱动
 │   ├── game.ts                # MinigameHooks + SessionInjects 注入实现
-│   ├── framework/             # 战斗框架(Attribute/Status/Combat/Skill/Summon/Score/Capture/Supply/HUD)
+│   ├── framework/             # 战斗框架(Attribute/Status/Combat/Skill/Indicator/Summon/Score/Capture/Supply/HUD)
 │   └── content/               # 内容层(纯定义)
 │       ├── index.ts           # 唯一门面:import 即注册
 │       ├── selection.ts       # 准备阶段职业选择
@@ -142,7 +214,9 @@ SND5-剑与消亡V/
 │       │   ├── index.ts       # 注册入口:战士 + 其余 6 职业占位
 │       │   └── warrior.ts     # 战士:面板/武器/技能物品/近战结算
 │       ├── skills/warrior.ts  # 突进 / 球状闪电 / 雷魂(被动)
-│       └── statuses/warrior.ts # 重伤 / 零火 / 电流涌动 / 电流迸发 + 零火反应
+│       ├── skills/support.ts  # 重击伪技能(晨露) / 涤雨 / 水仙庇护 / 水仙之约
+│       ├── statuses/warrior.ts # 重伤 / 零火 / 电流涌动 / 电流迸发 + 零火反应
+│       └── statuses/support.ts # 清流 / 洁雨 / 水仙初临 / 水仙伴生
 └── README.md
 ```
 

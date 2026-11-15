@@ -9,6 +9,7 @@
 import { world, type Entity, type Player, type Vector3, type VectorXZ } from "@minecraft/server";
 import type { Vec3 } from "../../../../shared/minigame-core/types";
 import type { MatchSession, PlayerState } from "../session";
+import type { IndicatorHandle, IndicatorOptions, IndicatorSpec } from "../indicator";
 import type { DamagePayload } from "../combat/types";
 import type { HealPayload } from "../combat/types";
 import type { AttributeSnapshot } from "../attribute";
@@ -123,6 +124,11 @@ export class Primitives {
 
   getStacks(targetId: string, statusId: string): number {
     return this.session.status.getStacks(targetId, statusId);
+  }
+
+  /** 随机清空目标可清除的负面状态(limit 缺省 = 全部;水仙系列净化) */
+  clearDebuffs(targetId: string, limit?: number): number {
+    return this.session.status.clearDebuffs(targetId, limit);
   }
 
   // ── 资源(治疗走管线,受治疗修正/收束影响) ─────────────────────
@@ -249,6 +255,26 @@ export class Primitives {
     } catch {
       return undefined;
     }
+  }
+
+  // ── 指示器(纯表现;详见 framework/indicator.ts) ───────────────
+
+  /**
+   * 显示攻击指示器(圆形/扇形/直线,可传数组组合):
+   * 蓄力/前摇/吟唱类技能优先用 SkillDefinition.indicator 声明式字段
+   * (自动跟随与回收);本接口用于即时落点闪烁等命令式场景。
+   */
+  showIndicator(
+    ownerId: string,
+    spec: IndicatorSpec | IndicatorSpec[],
+    options?: IndicatorOptions,
+  ): IndicatorHandle {
+    return this.session.indicators.show(ownerId, spec, options);
+  }
+
+  /** 停掉该玩家的全部指示器(进行中的施法指示器下一拍会重建) */
+  stopIndicators(ownerId: string): void {
+    this.session.indicators.stopForPlayer(ownerId);
   }
 
   // ── 时间与调度(会话销毁自动取消,施法者死亡由内容层自行判断) ──

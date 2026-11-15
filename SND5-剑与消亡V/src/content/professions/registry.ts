@@ -8,7 +8,7 @@ import { Registry } from "../../framework";
 import type { MatchSession, ResourceTriple } from "../../framework";
 
 export interface ProfessionSkillEntry {
-  slot: "innate_1" | "innate_2";
+  slot: "innate_1" | "innate_2" | "weapon_heavy";
   skillId: string;
   /** 施放入口的占位物品(原版);同时写入 skillItemBindings */
   itemTypeId: string;

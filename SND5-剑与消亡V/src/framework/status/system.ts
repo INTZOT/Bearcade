@@ -12,8 +12,11 @@ import type { MatchSession } from "../session";
 import {
   NEUTRAL_MODS,
   type AggregatedMods,
+  type AppliedDamageSnapshot,
+  type IncomingDamageSnapshot,
   type StatusContext,
   type StatusDamageContext,
+  type StatusAfterDamageContext,
   type StatusDefinition,
   type StatusInstance,
   type StatusModifiers,
@@ -25,12 +28,50 @@ export const STATUS_TICK_INTERVAL = 5;
 export class StatusEffectSystem {
   /** Map<entityId, Map<statusId, StatusInstance>> */
   private readonly store = new Map<string, Map<string, StatusInstance>>();
+  /** 限频施加:`${targetId}::${statusId}` → 可再次施加的 tick */
+  private readonly reapplyAt = new Map<string, number>();
+  private readonly busOffs: Array<() => void> = [];
   private lastStatusTick = 0;
 
   constructor(
     private readonly session: MatchSession,
     private readonly defs: Registry<StatusDefinition>,
-  ) {}
+  ) {
+    // 接通条件性取消:onDamageTaken(水仙伴生 1 次 100% 减免)。
+    // combat.beforeDamage 在修饰器聚合之前发出,取消即整个伤害不结算
+    // (真实伤害按设计穿透一切,不走此路)。
+    this.busOffs.push(
+      this.session.bus.on("combat.beforeDamage", ({ targetId, payload, cancel }) => {
+        const map = this.store.get(targetId);
+        if (!map || map.size === 0) return;
+        const damage = {
+          hp: payload.hp ?? 0,
+          armor: payload.armor ?? 0,
+          trueDamage: payload.trueDamage ?? 0,
+          element: payload.element,
+        };
+        for (const instance of [...map.values()]) {
+          this.defs.get(instance.id)?.onDamageTaken?.(
+            makeStatusDamageContext(this.session, targetId, instance, damage, cancel),
+          );
+        }
+      }),
+    );
+    // 伤害落地回调:onAfterDamaged(水仙初临累计 70 点)。
+    // entity.damaged 携带账本实际写入量(含被临时护甲吸收的分量)。
+    this.busOffs.push(
+      this.session.bus.on("entity.damaged", ({ targetId, hp, armor, tempArmor, trueDamage, element, lethal }) => {
+        const map = this.store.get(targetId);
+        if (!map || map.size === 0) return;
+        const damage = { hp, armor, tempArmor, trueDamage, element, lethal };
+        for (const instance of [...map.values()]) {
+          this.defs.get(instance.id)?.onAfterDamaged?.(
+            makeStatusAfterDamageContext(this.session, targetId, instance, damage),
+          );
+        }
+      }),
+    );
+  }
 
   // ── 施加 / 移除 ───────────────────────────────────────────────
 
@@ -45,6 +86,17 @@ export class StatusEffectSystem {
       console.warn(`[SND5] 未注册的状态: ${statusId}`);
       return undefined;
     }
+
+    // 限频施加(清流每 3 秒最多 1 次):冷却窗口内新施加与刷新都忽略
+    const reapplyKey = `${targetId}::${statusId}`;
+    const readyAt = def.reapplyCooldownTicks
+      ? this.reapplyAt.get(reapplyKey)
+      : undefined;
+    if (readyAt !== undefined && system.currentTick < readyAt) {
+      const existing = this.store.get(targetId)?.get(statusId);
+      return existing;
+    }
+
     let map = this.store.get(targetId);
     if (!map) {
       map = new Map();
@@ -55,6 +107,7 @@ export class StatusEffectSystem {
     if (existing) {
       if (def.freezeAtMax && existing.stacks >= def.maxStacks) return existing;
       if (def.reapplyable === false) return existing;
+      this.markReapplied(reapplyKey, def);
       if (def.stackMode !== "stack") {
         existing.remainingTicks = options?.durationTicks ?? def.durationTicks;
         def.onRefresh?.(this.context(targetId, existing));
@@ -90,6 +143,7 @@ export class StatusEffectSystem {
       payload: { ...(options?.payload ?? {}) },
     };
     map.set(statusId, instance);
+    this.markReapplied(reapplyKey, def);
     def.onApply?.(this.context(targetId, instance));
     this.session.bus.emit("status.applied", {
       targetId,
@@ -121,6 +175,31 @@ export class StatusEffectSystem {
       if (onlyClearable && this.defs.get(statusId)?.clearable === false) continue;
       this.remove(targetId, statusId, "cleared");
     }
+  }
+
+  /**
+   * 随机清空目标可清除的负面状态(净化类效果)。
+   * @param limit 最多清除个数;缺省 = 全部(水仙伴生每 5 秒)
+   * @returns 实际清除数
+   */
+  clearDebuffs(targetId: string, limit?: number): number {
+    const map = this.store.get(targetId);
+    if (!map || map.size === 0) return 0;
+    const debuffIds = [...map.keys()].filter((statusId) => {
+      const def = this.defs.get(statusId);
+      return def?.kind === "debuff" && def.clearable !== false;
+    });
+    // Fisher-Yates 洗牌后取前 limit 个
+    for (let i = debuffIds.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [debuffIds[i], debuffIds[j]] = [debuffIds[j], debuffIds[i]];
+    }
+    const selected =
+      limit === undefined ? debuffIds : debuffIds.slice(0, Math.max(0, limit));
+    for (const statusId of selected) {
+      this.remove(targetId, statusId, "cleansed");
+    }
+    return selected.length;
   }
 
   // ── 查询门面( CombatPipeline / 技能经此读取,不直接摸 Map) ────
@@ -266,10 +345,20 @@ export class StatusEffectSystem {
   }
 
   dispose(): void {
+    for (const off of this.busOffs) off();
+    this.busOffs.length = 0;
+    this.reapplyAt.clear();
     this.store.clear();
   }
 
   // ── 内部 ─────────────────────────────────────────────────────
+
+  /** 记录限频施加窗口(仅声明了 reapplyCooldownTicks 的状态) */
+  private markReapplied(key: string, def: StatusDefinition): void {
+    if (def.reapplyCooldownTicks && def.reapplyCooldownTicks > 0) {
+      this.reapplyAt.set(key, system.currentTick + def.reapplyCooldownTicks);
+    }
+  }
 
   private context(targetId: string, instance: StatusInstance): StatusContext {
     const session = this.session;
@@ -283,11 +372,12 @@ export class StatusEffectSystem {
   }
 }
 
-/** 供 CombatPipeline 构造 StatusDamageContext */
+/** 供 CombatPipeline / 钩子接线构造 StatusDamageContext */
 export function makeStatusDamageContext(
   session: MatchSession,
   targetId: string,
   instance: StatusInstance,
+  damage: IncomingDamageSnapshot,
   cancel: () => void,
 ): StatusDamageContext {
   return {
@@ -296,6 +386,24 @@ export function makeStatusDamageContext(
     statusId: instance.id,
     instance,
     removeSelf: () => session.status.remove(targetId, instance.id, "self_removed"),
+    damage,
     cancel,
+  };
+}
+
+/** 供 entity.damaged 接线构造 StatusAfterDamageContext */
+export function makeStatusAfterDamageContext(
+  session: MatchSession,
+  targetId: string,
+  instance: StatusInstance,
+  damage: AppliedDamageSnapshot,
+): StatusAfterDamageContext {
+  return {
+    session,
+    targetId,
+    statusId: instance.id,
+    instance,
+    removeSelf: () => session.status.remove(targetId, instance.id, "self_removed"),
+    damage,
   };
 }

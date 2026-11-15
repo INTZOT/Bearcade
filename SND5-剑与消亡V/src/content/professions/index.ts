@@ -5,8 +5,12 @@
 // ============================================================
 import { professionRegistry, type ProfessionDefinition } from "./registry";
 import "./warrior";
+import "./support";
 
-/** 未实装职业占位(面板取自 PDF,选择界面显示「开发中」) */
+/**
+ * 未实装职业占位(面板取自 PDF,选择界面显示「开发中」)。
+ * 增益已实装(professions/support.ts),不在此列。
+ */
 const PLACEHOLDER_PROFESSIONS: ProfessionDefinition[] = [
   {
     id: "snd5:assassin",
@@ -25,16 +29,6 @@ const PLACEHOLDER_PROFESSIONS: ProfessionDefinition[] = [
     base: { hp: 120, armor: 70, mana: 90 },
     available: false,
     weapon: { itemTypeId: "minecraft:iron_sword", name: "阔剑·征服", lore: [] },
-    skills: [],
-    passiveIds: [],
-  },
-  {
-    id: "snd5:support",
-    displayName: "增益",
-    tagline: "水属性 · 治疗 · 净化",
-    base: { hp: 140, armor: 20, mana: 120 },
-    available: false,
-    weapon: { itemTypeId: "minecraft:iron_sword", name: "梭型魔杖·水仙之梦", lore: [] },
     skills: [],
     passiveIds: [],
   },

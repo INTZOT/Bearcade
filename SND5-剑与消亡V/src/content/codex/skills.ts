@@ -159,6 +159,12 @@ skillRegistry.register({
     for (const state of ctx.primitives.playersInRadius(center, QUAKE_RADIUS)) {
       ctx.primitives.launch(state.id, QUAKE_LAUNCH_STRENGTH);
     }
+    // 落点指示(纯表现):震圈闪现约 0.3 秒(全员可见,与爆炸音效一致的全局表现)
+    ctx.primitives.showIndicator(
+      ctx.casterId,
+      { kind: "circle", center, radius: QUAKE_RADIUS },
+      { visibility: "all", durationTicks: 6 },
+    );
     try {
       ctx.session.dimension.playSound("random.explode", center);
     } catch {

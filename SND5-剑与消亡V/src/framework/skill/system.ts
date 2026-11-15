@@ -39,6 +39,14 @@ interface ActiveCast {
   lastActionTick: number;
 }
 
+/** 进行中施法的只读视图(IndicatorSystem 轮询/调试用;调用方不得修改) */
+export interface ActiveCastView {
+  readonly kind: "charge" | "windup" | "channel";
+  readonly def: SkillDefinition;
+  readonly ctx: CastContext;
+  readonly startedTick: number;
+}
+
 export class SkillSystem {
   private readonly cooldowns = new CooldownStore();
   private readonly stacks = new StackStore();
@@ -455,6 +463,10 @@ export class SkillSystem {
   tick(nowTick: number): void {
     // 蓄力/前摇/吟唱推进
     for (const [playerId, cast] of [...this.activeCasts]) {
+      // 真实经过 tick(指示器移动/蓄力进度以这里为准,chargeTicks 是回调计数)
+      cast.ctx.castElapsedTicks = nowTick - cast.startedTick;
+      // 潜行按结算时点判定(蓄力松手/前摇完成时的潜行变体分发依据)
+      if (cast.ctx.player.isValid) cast.ctx.isSneaking = cast.ctx.player.isSneaking;
       if (cast.kind === "charge") this.tickCharge(cast, nowTick);
       else if (cast.kind === "channel") this.tickChannel(cast, nowTick);
       else if (cast.kind === "windup" && nowTick - cast.startedTick >= (cast.def.windupTicks ?? 0)) {
@@ -562,6 +574,11 @@ export class SkillSystem {
 
   // ── 查询/清理 ────────────────────────────────────────────────
 
+  /** 当前全部进行中的施法(指示器轮询/调试用;返回快照副本) */
+  getActiveCasts(): ActiveCastView[] {
+    return [...this.activeCasts.values()];
+  }
+
   privateStore(playerId: string, skillId: string): Map<string, unknown> {
     let bySkill = this.privateStores.get(playerId);
     if (!bySkill) {
@@ -580,11 +597,11 @@ export class SkillSystem {
     this.privateStores.get(playerId)?.delete(skillId);
   }
 
-  /** HUD 冷却摘要:每槽位一行「名称 剩余秒/就绪」;秘典不走冷却行(状态在物品名色标) */
+  /** HUD 冷却摘要:每槽位一行「名称 剩余秒/就绪」;秘典不走冷却行(状态在物品名色标),重击无 CD 也不展示 */
   getCooldownSummary(playerId: string): string[] {
     const lines: string[] = [];
     for (const [slot, skillId] of Object.entries(this.getLoadout(playerId))) {
-      if (slot === "codex_1" || slot === "codex_2") continue;
+      if (slot === "codex_1" || slot === "codex_2" || slot === "weapon_heavy") continue;
       const def = this.session.content.skills.get(skillId);
       if (!def) continue;
       const remaining = this.cooldowns.getRemaining(skillKey(playerId, skillId), system.currentTick);
@@ -640,6 +657,7 @@ export class SkillSystem {
       chargeTicks: 0,
       chargePercent: 0,
       channelTicks: 0,
+      castElapsedTicks: 0,
       predeductedMana: 0,
       predeductedStacks: false,
       store: this.privateStore(player.id, def.id),
@@ -697,4 +715,5 @@ const SLOT_LABELS: Record<string, string> = {
   innate_2: "固有Ⅱ",
   codex_1: "秘典Ⅰ",
   codex_2: "秘典Ⅱ",
+  weapon_heavy: "重击",
 };

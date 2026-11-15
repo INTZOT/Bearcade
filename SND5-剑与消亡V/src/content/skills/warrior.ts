@@ -47,6 +47,18 @@ function leapCleave(session: MatchSession, casterId: string, direction: { x: num
     { hp: LEAP_DAMAGE, element: "electric", tags: ["skill", "sweep"] },
     enemyOf(session, casterId),
   );
+  // 落点指示(纯表现):劈砍扇形闪现约 0.3 秒,仅施法者可见
+  session.primitives.showIndicator(
+    casterId,
+    {
+      kind: "sector",
+      origin: { x: location.x, y: location.y, z: location.z },
+      direction: { x: direction.x, z: direction.z },
+      radius: LEAP_RADIUS,
+      angleDegrees: 180,
+    },
+    { durationTicks: 6 },
+  );
   if (outcome.hits === 0) {
     return { ok: true, refundMana: LEAP_MANA };
   }

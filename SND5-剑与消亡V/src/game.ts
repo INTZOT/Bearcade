@@ -90,8 +90,14 @@ function grantProfessionKit(player: Player, prof: ProfessionDefinition): void {
       const skillDef = skillRegistry.get(entry.skillId);
       const item = new ItemStack(entry.itemTypeId, 1);
       item.nameTag = `§e${skillDef?.displayName ?? entry.slot}§r`;
-      const slotLabel = entry.slot === "innate_1" ? "固有Ⅰ" : "固有Ⅱ";
-      item.setLore([`§7${slotLabel} · 右键施放`]);
+      const slotLabel =
+        entry.slot === "innate_1"
+          ? "固有Ⅰ"
+          : entry.slot === "innate_2"
+            ? "固有Ⅱ"
+            : "重击(蓄力)";
+      const usage = entry.slot === "weapon_heavy" ? "按住右键蓄力,松手施放" : "右键施放";
+      item.setLore([`§7${slotLabel} · ${usage}`]);
       container.setItem(index + 1, item);
     });
     // 秘典槽位(容器槽 5/6 = 热键栏 6/7,对应设计物品栏槽位 6/7):

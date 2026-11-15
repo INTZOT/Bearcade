@@ -17,6 +17,7 @@ import { CombatPipeline } from "./combat/pipeline";
 import { EventBus, extractInvolvedIds } from "./events";
 import { HudBridge } from "./hud";
 import { CaptureVisualizer } from "./captureVisual";
+import { IndicatorSystem } from "./indicator";
 import { PassiveManager } from "./skill/passives";
 import { Primitives } from "./skill/primitives";
 import { SkillSystem } from "./skill/system";
@@ -62,6 +63,7 @@ export class MatchSession {
   readonly combat: CombatPipeline;
   readonly skills: SkillSystem;
   readonly passives: PassiveManager;
+  readonly indicators: IndicatorSystem;
   readonly summons: SummonSystem;
   readonly score: ScoreSystem;
   readonly capture: CaptureSystem;
@@ -98,6 +100,7 @@ export class MatchSession {
     this.combat = new CombatPipeline(this);
     this.passives = new PassiveManager(this);
     this.skills = new SkillSystem(this);
+    this.indicators = new IndicatorSystem(this);
     this.summons = new SummonSystem(this);
     this.score = new ScoreSystem(this);
     this.capture = new CaptureSystem(this, content.capturePoints ?? []);
@@ -195,6 +198,7 @@ export class MatchSession {
     this.status.tick(nowTick);
     this.attributes.tick(nowTick);
     this.skills.tick(nowTick);
+    this.indicators.tick(nowTick); // 施法指示器轮询 + 重绘(依赖 skills.tick 后的最新状态)
     this.summons.tick(nowTick);
     this.supply.tick(nowTick); // 补给站载体巡检(被移除即重新生成)
     this.capture.tick(nowTick, STATUS_TICK_INTERVAL);
@@ -301,6 +305,7 @@ export class MatchSession {
     for (const timer of this.timers) timer.cancelled = true;
     this.timers.length = 0;
     this.skills.dispose();
+    this.indicators.dispose();
     this.passives.dispose();
     this.summons.clearAll();
     this.status.dispose();

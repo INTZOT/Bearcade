@@ -3,6 +3,7 @@
 // 状态是"规则表":只声明"我存在时伤害/治疗如何变化"(modifiers),
 // 不认识伤害数值;条件性取消才用 onDamageTaken 钩子。
 // ============================================================
+import type { DamageElement } from "../types";
 import type { MatchSession } from "../session";
 
 export type StatusKind = "buff" | "debuff" | "neutral";
@@ -58,6 +59,8 @@ export interface StatusDefinition {
   freezeAtMax?: boolean;
   /** 持续期间能否重新施加(魔魇降临 false) */
   reapplyable?: boolean;
+  /** 限频施加:距上次成功施加/刷新不足该 tick 数时 apply 直接忽略(清流 3 秒 1 次) */
+  reapplyCooldownTicks?: number;
   /** 施加本状态时清空这些互斥状态(电离/焙烧/浸润) */
   excludes?: string[];
   /**
@@ -77,6 +80,8 @@ export interface StatusDefinition {
   onRemoved?(ctx: StatusContext): void;
   /** 条件性取消本次伤害(水仙伴生 1 次 100% 减免);ctx.cancel() 取消 */
   onDamageTaken?(ctx: StatusDamageContext): void;
+  /** 伤害落地后回调(实际写入量;水仙初临累计 70 点、魔魇降临按点叠层) */
+  onAfterDamaged?(ctx: StatusAfterDamageContext): void;
 }
 
 /** 状态运行时实例;payload 承载收束记录、护盾已用等私有数据 */
@@ -99,8 +104,33 @@ export interface StatusContext {
   removeSelf(): void;
 }
 
+/** 伤害落地前的传入快照(修饰器/反应计算之前的原始数值) */
+export interface IncomingDamageSnapshot {
+  hp: number;
+  armor: number;
+  trueDamage: number;
+  element: DamageElement;
+}
+
+/** 伤害落地后的实际快照(账本写入量) */
+export interface AppliedDamageSnapshot {
+  hp: number;
+  armor: number;
+  tempArmor: number;
+  trueDamage: number;
+  element: DamageElement;
+  lethal: boolean;
+}
+
 export interface StatusDamageContext extends StatusContext {
+  /** 本次传入伤害快照 */
+  damage: IncomingDamageSnapshot;
   cancel(): void;
+}
+
+export interface StatusAfterDamageContext extends StatusContext {
+  /** 本次实际受到的伤害(含被临时护甲吸收的分量) */
+  damage: AppliedDamageSnapshot;
 }
 
 /** 修饰器聚合结果(CombatPipeline 消费) */
