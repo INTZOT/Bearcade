@@ -39,7 +39,7 @@ const EMBER_ASH_SMOKE_INTERVAL = 5;
 const EMBER_ASH_SMOKE_PARTICLES_PER_PULSE = 3;
 /** 雪球占位弹道速度(格/tick) */
 const EMBER_ASH_SPEED = 0.9;
-/** 投掷物最长飞行时间(超时按最终落点出烟) */
+/** 投掷物最长飞行时间 = 兜底引信时长(超时按弹道最后已知位置出烟) */
 const EMBER_ASH_FLIGHT_TICKS = 60;
 
 /** 落点烟雾(纯视觉:设计未定义烟雾的游戏效果) */
@@ -53,8 +53,9 @@ function spawnSmoke(session: MatchSession, center: Vec3): void {
           y: center.y + 0.2 + Math.random() * 1.5,
           z: center.z + (Math.random() - 0.5) * 2,
         });
-      } catch {
+      } catch(e) {
         // 粒子失败不影响结算
+        console.warn("spawnSmoke particle failed", e);
       }
     }
   });
@@ -69,24 +70,50 @@ skillRegistry.register({
   castMode: "instant",
   failureHint: CODEX_FAILURE_HINT,
 
+  /**
+   * 出烟保证:命中事件(onHitBlock/onHitEntity)优先,实时出烟;
+   * 自备兜底引信 —— 雪球可能在未触发命中事件的情况下消亡
+   * (坠入虚空/飞出常加载区/同 tick 碰撞未发事件/getEntityHit 缺失),
+   * 此时 SummonSystem 走 summon.destroyed 路径,onExpire 不会触发,
+   * 因此引信按弹道最后已知位置(onTick 记录)兜底出烟。
+   */
   cast(ctx) {
     const head = ctx.player.getHeadLocation();
+    const origin: Vec3 = {
+      x: head.x + ctx.direction.x,
+      y: head.y + ctx.direction.y,
+      z: head.z + ctx.direction.z,
+    };
+    // 弹道最后已知位置(onTick 每 tick 记录;粒度受会话 tick 限制约 5 tick)
+    let lastLocation: Vec3 = { ...origin };
+    let smoked = false;
+    const smokeOnce = (location: Vec3) => {
+      if (smoked) return;
+      smoked = true;
+      spawnSmoke(ctx.session, location);
+    };
     const entity = ctx.primitives.spawnProjectile(
       "minecraft:snowball", // 占位:雪球弹道贴近投掷烟雾的手感
-      { x: head.x + ctx.direction.x, y: head.y + ctx.direction.y, z: head.z + ctx.direction.z },
+      origin,
       ctx.direction,
       {
         ownerId: ctx.casterId,
         speedBlocksPerTick: EMBER_ASH_SPEED,
         lifetimeTicks: EMBER_ASH_FLIGHT_TICKS,
+        tickIntervalTicks: 1,
+        onTick: (instance) => {
+          try {
+            const loc = instance.location;
+            lastLocation = { x: loc.x, y: loc.y, z: loc.z };
+          } catch {
+            // 实体不可读(未加载区块等)时沿用上次已知位置
+          }
+        },
         onHitEntity: (targetId) => {
           const target = ctx.primitives.getEntity(targetId);
-          if (target?.isValid) spawnSmoke(ctx.session, target.location);
+          if (target?.isValid) smokeOnce(target.location);
         },
-        onHitBlock: (location) => spawnSmoke(ctx.session, location),
-        onExpire: (instance) => {
-          if (instance.entity.isValid) spawnSmoke(ctx.session, instance.entity.location);
-        },
+        onHitBlock: (location) => smokeOnce(location)
       },
     );
     if (!entity) return false;
