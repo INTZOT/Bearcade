@@ -15,20 +15,25 @@ import {
   sessions,
   skillRegistry,
   statusRegistry,
+  SupplyStationDef,
   type SessionInjects,
   type Snd5ContentBundle,
   type Snd5RuntimeConfig,
-  type SupplyStationDef,
   type TeamId,
   type TeamProvider,
 } from "./framework";
 import {
+  CODEX_SPELLS,
+  codexItemLore,
+  codexItemNameTag,
+  getSelectedCodex,
   getSelectedProfessionId,
   professionRegistry,
+  type CodexSpellMeta,
   type ProfessionDefinition,
 } from "./content";
 import { loadSnd5Config } from "./runtime-config";
-import { SND5_CAPTURE_POINTS, START_POSITIONS } from "./config";
+import { SND5_CAPTURE_POINTS, SND5_SUPPLY_STATIONS, START_POSITIONS } from "./config";
 
 // ── 默认队伍提供器 ────
 
@@ -70,7 +75,7 @@ function resolveProfession(playerId: string): ProfessionDefinition {
   return professionRegistry.require("snd5:warrior");
 }
 
-/** 开局发放职业套装(占位物品):清背包 → 武器/技能物品 → 命名牌前缀 */
+/** 开局发放职业套装(占位物品):清背包 → 武器/技能物品 → 秘典物品 → 命名牌前缀 */
 function grantProfessionKit(player: Player, prof: ProfessionDefinition): void {
   const container = player.getComponent("minecraft:inventory")?.container;
   if (!container) return;
@@ -87,10 +92,68 @@ function grantProfessionKit(player: Player, prof: ProfessionDefinition): void {
       item.setLore([`§7${slotLabel} · 右键施放`]);
       container.setItem(index + 1, item);
     });
+    // 秘典槽位(容器槽 5/6 = 热键栏 6/7,对应设计物品栏槽位 6/7):
+    // 准备阶段已选择的法术;未选择则槽位空
+    const codex = getSelectedCodex(player.id);
+    const codexEntries: Array<readonly ["codex_1" | "codex_2", string | undefined]> = [
+      ["codex_1", codex?.codex1],
+      ["codex_2", codex?.codex2],
+    ];
+    for (const [slot, skillId] of codexEntries) {
+      if (!skillId) continue;
+      const meta = codexMetaOf(skillId);
+      if (!meta) continue;
+      container.setItem(slot === "codex_1" ? 5 : 6, makeCodexItemStack(meta, false));
+    }
     player.nameTag = `§6[${prof.displayName}]§r ${player.name}`;
     player.onScreenDisplay.setActionBar(`§a你已化身 ${prof.displayName}!`);
   } catch (error) {
     console.warn("[SND5] 职业套装发放失败", error);
+  }
+}
+
+// ── 秘典物品外观(占位物品/nameTag 约定见 content/codex/spells.ts) ──
+
+/** 按技能 id 查秘典元数据 */
+function codexMetaOf(skillId: string): CodexSpellMeta | undefined {
+  return CODEX_SPELLS.find((spell) => spell.skillId === skillId);
+}
+
+/** 构建秘典物品(可用态/耗尽态) */
+function makeCodexItemStack(meta: CodexSpellMeta, exhausted: boolean): ItemStack {
+  const item = new ItemStack(meta.itemTypeId, 1);
+  item.nameTag = codexItemNameTag(meta.displayName, exhausted);
+  item.setLore(codexItemLore(meta.tier, exhausted));
+  return item;
+}
+
+/** 在背包中定位秘典物品(可用态/耗尽态两种 nameTag 都匹配) */
+function findCodexItemSlot(player: Player, skillId: string): number | undefined {
+  const meta = codexMetaOf(skillId);
+  if (!meta) return undefined;
+  const container = player.getComponent("minecraft:inventory")?.container;
+  if (!container) return undefined;
+  const names = [
+    codexItemNameTag(meta.displayName, false),
+    codexItemNameTag(meta.displayName, true),
+  ];
+  for (let slot = 0; slot < container.size; slot++) {
+    if (names.includes(container.getItem(slot)?.nameTag ?? "")) return slot;
+  }
+  return undefined;
+}
+
+/** 重写秘典物品状态(使用后变灰 / 补给站充能恢复) */
+function setCodexItemState(player: Player, skillId: string, exhausted: boolean): void {
+  const meta = codexMetaOf(skillId);
+  if (!meta) return;
+  const slot = findCodexItemSlot(player, skillId);
+  if (slot === undefined) return;
+  const container = player.getComponent("minecraft:inventory")?.container;
+  try {
+    container?.setItem(slot, makeCodexItemStack(meta, exhausted));
+  } catch (error) {
+    console.warn("[SND5] 秘典物品状态更新失败", error);
   }
 }
 
@@ -102,8 +165,9 @@ function buildContentBundle(): Snd5ContentBundle {
     statuses: statusRegistry,
     // 占点区域坐标见 config.ts(5 点占位,场地建好后微调)
     capturePoints: SND5_CAPTURE_POINTS as CapturePointDef[],
-    // TODO(内容层): 补给站(模板场地内 7 个:5 内圈 + 2 外围)
-    supplyStations: [] as SupplyStationDef[],
+    // 补给站坐标见 config.ts(7 个占位:5 内圈 + 2 外围,场地建好后微调);
+    // 站点条目含血药/甲修/魔瓶与秘典Ⅰ/Ⅱ 充能条目
+    supplyStations: SND5_SUPPLY_STATIONS as SupplyStationDef[],
   };
 }
 
@@ -125,13 +189,20 @@ function buildInjects(_runtime: MinigameRuntime, roomId: number): Snd5Injects {
       return START_POSITIONS[index] ?? START_POSITIONS[0];
     },
 
-    // 职业装载:面板 + 技能装备 + 被动挂载(会话 applyLoadout 消费)
+    // 职业装载:面板 + 技能装备 + 秘典槽位 + 被动挂载(会话 applyLoadout 消费)
     loadoutFor: (playerId) => {
       const prof = resolveProfession(playerId);
+      const skills: Record<string, string> = Object.fromEntries(
+        prof.skills.map((entry) => [entry.slot, entry.skillId]),
+      );
+      // 秘典槽位:准备阶段选择的法术(未选择/已失效则槽位空)
+      const codex = getSelectedCodex(playerId);
+      if (codex?.codex1 && skillRegistry.has(codex.codex1)) skills.codex_1 = codex.codex1;
+      if (codex?.codex2 && skillRegistry.has(codex.codex2)) skills.codex_2 = codex.codex2;
       return {
         professionId: prof.id,
         base: prof.base,
-        skills: Object.fromEntries(prof.skills.map((entry) => [entry.slot, entry.skillId])),
+        skills,
         passiveIds: prof.passiveIds,
       };
     },
@@ -157,6 +228,11 @@ function buildInjects(_runtime: MinigameRuntime, roomId: number): Snd5Injects {
         professionRegistry.get(state.professionId ?? "") ?? resolveProfession(playerId);
       clearAllPlayerItems(state.player);
       grantProfessionKit(state.player, prof);
+    },
+
+    // 秘典充能恢复:补给站消耗后把背包物品重写为可用态
+    codexItemRestore: (player, _slot, skillId) => {
+      setCodexItemState(player, skillId, false);
     },
 
     // 近战武器结算 → 按职业路由(轻击/重击数值由职业定义计算)
@@ -201,6 +277,14 @@ export function makeSnd5Hooks(getRuntime: () => MinigameRuntime): MinigameHooks 
       injects.assignTeams(players);
       const session = new MatchSession(runtime, roomId, injects, config, buildContentBundle());
       sessions.set(roomId, session);
+      // 秘典使用成功 → 物品转入耗尽态(名称变灰;补给站充能/重生重发时恢复)
+      session.bus.on("skill.cast", ({ casterId, skillId, slot, outcome }) => {
+        if (!outcome.ok) return;
+        if (slot !== "codex_1" && slot !== "codex_2") return;
+        const state = session.players.get(casterId);
+        if (!state?.player.isValid) return;
+        setCodexItemState(state.player, skillId, true);
+      });
       try {
         session.start(players);
       } catch (error) {

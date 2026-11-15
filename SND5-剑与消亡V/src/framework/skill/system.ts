@@ -81,6 +81,10 @@ export class SkillSystem {
     }
     if (skillId) loadout[slot] = skillId;
     else delete loadout[slot];
+    // 秘典在开局/重生时随物品重发,禁用(耗尽)状态一并复位
+    if (skillId && (slot === "codex_1" || slot === "codex_2")) {
+      this.refillStacks(playerId, skillId);
+    }
   }
 
   getEquipped(playerId: string, slot: string): SkillDefinition | undefined {
@@ -428,6 +432,24 @@ export class SkillSystem {
     return this.cooldowns.isReady(skillKey(playerId, skillId), system.currentTick);
   }
 
+  /**
+   * 秘典禁用判定:堆叠实例存在且已归零(无实例 = 尚未使用,视为可用)。
+   * 秘典 suppressCooldown 无冷却,耗尽后只能由补给站/重生复位。
+   */
+  isExhausted(playerId: string, skillId: string): boolean {
+    const entry = this.stacks.get(skillKey(playerId, skillId));
+    return !!entry && entry.current <= 0;
+  }
+
+  /** 充能:堆叠回满(补给站补充 / 开局重生重发物品时复位禁用态) */
+  refillStacks(playerId: string, skillId: string): void {
+    const def = this.session.content.skills.get(skillId);
+    if (!def) return;
+    const key = skillKey(playerId, skillId);
+    this.stacks.initIfAbsent(key, def.maxStacks ?? 1, def.stackRecoveryTicks ?? undefined, system.currentTick);
+    this.stacks.refill(key);
+  }
+
   // ── 周期推进 ─────────────────────────────────────────────────
 
   tick(nowTick: number): void {
@@ -558,10 +580,11 @@ export class SkillSystem {
     this.privateStores.get(playerId)?.delete(skillId);
   }
 
-  /** HUD 冷却摘要:每槽位一行「名称 剩余秒/就绪」 */
+  /** HUD 冷却摘要:每槽位一行「名称 剩余秒/就绪」;秘典不走冷却行(状态在物品名色标) */
   getCooldownSummary(playerId: string): string[] {
     const lines: string[] = [];
     for (const [slot, skillId] of Object.entries(this.getLoadout(playerId))) {
+      if (slot === "codex_1" || slot === "codex_2") continue;
       const def = this.session.content.skills.get(skillId);
       if (!def) continue;
       const remaining = this.cooldowns.getRemaining(skillKey(playerId, skillId), system.currentTick);

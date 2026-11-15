@@ -236,7 +236,7 @@ export class MatchSession {
     this.bus.emit("player.death", { playerId, killerId, cause });
   }
 
-  /** 重生:清状态(防御)→ 面板归满 → 生存模式 → 落位重生点;物品重发由内容层完成 */
+  /** 重生:清状态(防御)→ 面板归满 → 生存模式 → 落位部署点/重生点;物品重发由内容层完成 */
   respawn(playerId: string): void {
     const state = this.players.get(playerId);
     if (!state || state.alive || this.ended) return;
@@ -252,7 +252,13 @@ export class MatchSession {
     this.applyLoadout(state);
     try {
       state.player.setGameMode(GameMode.Survival);
-      this.runtime.teleportPlayer(this.roomId, state.player, this.injects.getRespawnLocation(playerId));
+      // 部署点优先(秘典信标:本队、限用次数由 summon 消耗),无则回默认重生点
+      const deployLocation = this.summons.consumeDeployPoint(state.teamId);
+      this.runtime.teleportPlayer(
+        this.roomId,
+        state.player,
+        deployLocation ?? this.injects.getRespawnLocation(playerId),
+      );
     } catch {
       // 忽略
     }

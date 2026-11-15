@@ -2,6 +2,7 @@
 // 剑与消亡V(SND5)小游戏配置
 // 玩法细节待定,房间数/人数/坐标在玩法确认与场地建好后填写。
 // ============================================================
+
 export const GAME_ID = "snd5";
 export const DISPLAY_NAME = "剑与消亡V";
 export const PACK_ID = "64212de9-a02f-4723-ae4e-6ceeb933d681";
@@ -41,4 +42,28 @@ export const SND5_CAPTURE_POINTS = [
   { id: "snd5:point_center", displayName: "中", from: { x: -2, y: 64, z: -2 }, to: { x: 2, y: 68, z: 2 } },
   { id: "snd5:point_south", displayName: "南", from: { x: -2, y: 64, z: 4 }, to: { x: 2, y: 68, z: 7 } },
   { id: "snd5:point_east", displayName: "东", from: { x: 4, y: 64, z: -2 }, to: { x: 7, y: 68, z: 2 } },
+];
+
+// ===== 资源补给站(7 个:5 内圈各贴一个占点 + 2 个地图外围) =====
+// 坐标为占位,场地建好后微调;载体为盔甲架占位实体,生成于 location,
+// 需落在实体方块上防跌落;站点不耗库存,只有每人 20s 限频。
+// 血药/甲修/魔瓶为占位物品(其使用结算是后续任务);
+// 秘典Ⅰ/Ⅱ 为充能条目:仅对已耗尽的秘典生效,重置禁用态。
+const SND5_SUPPLY_ITEMS = [
+  { itemTypeId: "minecraft:sweet_berries", displayName: "血药", maxCarry: 2, amountPerGrant: 1 },
+  { itemTypeId: "minecraft:iron_ingot", displayName: "甲修", maxCarry: 8, amountPerGrant: 1 },
+  { itemTypeId: "minecraft:lapis_lazuli", displayName: "魔瓶", maxCarry: 4, amountPerGrant: 1 },
+  // itemTypeId 仅为结构占位,充能分支不发放物品(按玩家已装备法术重置)
+  { itemTypeId: "minecraft:book", displayName: "秘典Ⅰ", maxCarry: 1, amountPerGrant: 1, codexSlot: "codex_1" },
+  { itemTypeId: "minecraft:book", displayName: "秘典Ⅱ", maxCarry: 1, amountPerGrant: 1, codexSlot: "codex_2" },
+];
+
+export const SND5_SUPPLY_STATIONS = [
+  { id: "snd5:supply_west", displayName: "补给站·西", location: { x: -5, y: 64, z: 0 }, items: SND5_SUPPLY_ITEMS },
+  { id: "snd5:supply_north", displayName: "补给站·北", location: { x: 0, y: 64, z: -5 }, items: SND5_SUPPLY_ITEMS },
+  { id: "snd5:supply_center", displayName: "补给站·中", location: { x: 0, y: 64, z: 0 }, items: SND5_SUPPLY_ITEMS },
+  { id: "snd5:supply_south", displayName: "补给站·南", location: { x: 0, y: 64, z: 5 }, items: SND5_SUPPLY_ITEMS },
+  { id: "snd5:supply_east", displayName: "补给站·东", location: { x: 5, y: 64, z: 0 }, items: SND5_SUPPLY_ITEMS },
+  { id: "snd5:supply_outpost_ne", displayName: "补给站·东北外围", location: { x: 7, y: 64, z: -7 }, items: SND5_SUPPLY_ITEMS },
+  { id: "snd5:supply_outpost_sw", displayName: "补给站·西南外围", location: { x: -7, y: 64, z: 7 }, items: SND5_SUPPLY_ITEMS },
 ];

@@ -7,13 +7,14 @@
 // restricted-execution 规则:before 事件里只同步取消/改内存,
 // 一切原生调用(传送/表单/生成实体)经 system.run 延后。
 // ============================================================
-import { GameMode, Player, system, world } from "@minecraft/server";
+import { GameMode, Player, system, world, type ItemStack } from "@minecraft/server";
 import { sessions, type MatchSession } from "./framework/session";
 import { skillItemBindings } from "./framework/skill/system";
 import { isFeedbackBypass } from "./framework/vanilla";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { tickSnd5Sessions } from "./game";
 import {
+  codexItemNameTags,
   handleSelectorUse,
   initProfessionSelection,
   SELECTOR_ITEM_TYPE,
@@ -62,6 +63,20 @@ function sessionOfDimension(dimensionId: string): MatchSession | undefined {
   return undefined;
 }
 
+/**
+ * 物品 → skillId:先按 nameTag 匹配秘典物品(可用态/耗尽态两种名称
+ * 都已注册),未命中回退 typeId 绑定(固有技能)。
+ * 秘典占位物品与战士技能复用同一原版 typeId,名称匹配必须先行。
+ */
+function resolveSkillIdFromItem(itemStack: ItemStack): string | undefined {
+  const nameTag = itemStack.nameTag;
+  if (nameTag) {
+    const byName = codexItemNameTags.get(nameTag);
+    if (byName) return byName;
+  }
+  return skillItemBindings.get(itemStack.typeId);
+}
+
 // ── 1. 原版伤害拦截(CombatPipeline 收口的前置条件) ─────────────
 
 function registerDamageInterception(): void {
@@ -104,13 +119,13 @@ function registerInputRouting(): void {
     });
   });
 
-  // 右键使用 → 职业选择道具 / 技能入口(itemTypeId → skillId 由内容层绑定)
+  // 右键使用 → 职业选择道具 / 技能入口(nameTag/typeId → skillId 由内容层绑定)
   world.afterEvents.itemUse.subscribe((event) => {
     if (event.itemStack.typeId === SELECTOR_ITEM_TYPE) {
       system.run(() => handleSelectorUse(event.source));
       return;
     }
-    const skillId = skillItemBindings.get(event.itemStack.typeId);
+    const skillId = resolveSkillIdFromItem(event.itemStack);
     if (!skillId) return;
     const player = event.source;
     const session = sessionOfPlayer(player.id);
@@ -120,7 +135,7 @@ function registerInputRouting(): void {
 
   // 开始使用(itemStartUse)→ 蓄力/吟唱开始
   world.afterEvents.itemStartUse.subscribe((event) => {
-    const skillId = skillItemBindings.get(event.itemStack.typeId);
+    const skillId = resolveSkillIdFromItem(event.itemStack);
     if (!skillId) return;
     const player = event.source;
     const session = sessionOfPlayer(player.id);
@@ -138,7 +153,7 @@ function registerInputRouting(): void {
 
   // 使用完成(itemCompleteUse)→ 蓄满自动释放
   world.afterEvents.itemCompleteUse.subscribe((event) => {
-    const skillId = skillItemBindings.get(event.itemStack.typeId);
+    const skillId = resolveSkillIdFromItem(event.itemStack);
     if (!skillId) return;
     const player = event.source;
     const session = sessionOfPlayer(player.id);

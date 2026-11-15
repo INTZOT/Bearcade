@@ -17,6 +17,8 @@ export interface StatusModifiers {
   damageDealtMul?: number;
   /** 造成伤害固定增减(浊露 16 层 -5) */
   damageDealtFlat?: number;
+  /** 造成护甲伤害倍率(碎甲秘典 1.5;只放大护甲分量,生命分量不变) */
+  armorDealtMul?: number;
   /** 减伤倍率(清流 0.9;洁雨随时间递减用函数) */
   damageReductionMul?: number;
   /** 固定减伤(磐石:每层 1 点,先百分比后固定值) */
@@ -107,6 +109,7 @@ export interface AggregatedMods {
   takenFlat: number;
   dealtMul: number;
   dealtFlat: number;
+  armorDealtMul: number;
   reductionMul: number;
   reductionFlat: number;
   healingMul: number;
@@ -118,6 +121,7 @@ export const NEUTRAL_MODS: AggregatedMods = {
   takenFlat: 0,
   dealtMul: 1,
   dealtFlat: 0,
+  armorDealtMul: 1,
   reductionMul: 1,
   reductionFlat: 0,
   healingMul: 1,

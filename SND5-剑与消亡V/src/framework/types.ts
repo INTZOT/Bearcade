@@ -5,6 +5,7 @@
 // - 内容层只通过 ctx.primitives / session 门面访问框架能力;
 // - 系统间反向影响一律走事件总线(见 events.ts)。
 // ============================================================
+import type { Player } from "@minecraft/server";
 import type { Vec3 } from "../../../shared/minigame-core/types";
 import type { Registry } from "./registry";
 import type { SkillDefinition } from "./skill/types";
@@ -65,6 +66,11 @@ export interface SessionInjects {
   onPlayerDeath?(playerId: string, killerId?: string): void;
   /** 玩家重生(重新发放武器/消耗品,内容层实现) */
   onPlayerRespawn?(playerId: string): void;
+  /**
+   * 秘典补给恢复:补给站为耗尽的秘典充能后,把背包内物品重写为可用态。
+   * 具体物品外观约定(占位物品/nameTag)由装配层实现,框架只负责调度。
+   */
+  codexItemRestore?(player: Player, slot: "codex_1" | "codex_2", skillId: string): void;
   /** 职业显示名(HUD 用;按 professionId 查询,内容层职业注册表提供) */
   professionNameOf?(professionId: string): string | undefined;
   /**

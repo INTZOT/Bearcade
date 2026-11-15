@@ -20,6 +20,11 @@ export interface SupplyItemDef {
   maxCarry: number;
   /** 单次补给数量 */
   amountPerGrant: number;
+  /**
+   * 秘典槽位充能条目:填写后本条目不发放新物品,而是给对应秘典槽位的
+   * 已耗尽法术充能(复位堆叠 + 物品恢复可用态,经 injects.codexItemRestore)。
+   */
+  codexSlot?: "codex_1" | "codex_2";
 }
 
 export interface SupplyStationDef {
@@ -82,6 +87,10 @@ export class SupplySystem {
       );
     const items = station.items;
     for (const item of items) {
+      if (item.codexSlot) {
+        form.button(this.codexButtonLabel(player, item));
+        continue;
+      }
       const carried = this.countCarried(player, item.itemTypeId);
       form.button(`${item.displayName} §7(${carried}/${item.maxCarry})`);
     }
@@ -91,6 +100,12 @@ export class SupplySystem {
 
     const item = items[response.selection];
     if (!item) return;
+
+    // 秘典条目:不走发放,走「耗尽 → 充能」流程
+    if (item.codexSlot) {
+      this.rechargeCodex(player, item);
+      return;
+    }
 
     const carried = this.countCarried(player, item.itemTypeId);
     if (carried >= item.maxCarry) {
@@ -116,6 +131,35 @@ export class SupplySystem {
   }
 
   // ── 内部 ─────────────────────────────────────────────────────
+
+  /** 秘典条目按钮文案:显示当前装备的法术与可用状态 */
+  private codexButtonLabel(player: Player, item: SupplyItemDef): string {
+    const def = item.codexSlot
+      ? this.session.skills.getEquipped(player.id, item.codexSlot)
+      : undefined;
+    if (!def) return `${item.displayName} §8(未装备)`;
+    const stateText = this.session.skills.isExhausted(player.id, def.id) ? "§c已耗尽" : "§7可用";
+    return `${item.displayName}·${def.displayName} ${stateText}`;
+  }
+
+  /** 秘典充能:仅对耗尽的秘典生效;未装备/仍可用仅提示,不消耗 20s 限频 */
+  private rechargeCodex(player: Player, item: SupplyItemDef): void {
+    const slot = item.codexSlot;
+    if (!slot) return;
+    const def = this.session.skills.getEquipped(player.id, slot);
+    if (!def) {
+      this.session.hud.toast(player, `§7未装备${item.displayName}(准备阶段右键山羊角选择)`);
+      return;
+    }
+    if (!this.session.skills.isExhausted(player.id, def.id)) {
+      this.session.hud.toast(player, `§7${def.displayName}仍可用,无需补充`);
+      return;
+    }
+    this.session.skills.refillStacks(player.id, def.id);
+    this.session.injects.codexItemRestore?.(player, slot, def.id);
+    this.lastUsed.set(player.id, system.currentTick);
+    this.session.hud.toast(player, `§a已补充 ${def.displayName}`);
+  }
 
   /** 统计背包内某物品数量 */
   private countCarried(player: Player, itemTypeId: string): number {

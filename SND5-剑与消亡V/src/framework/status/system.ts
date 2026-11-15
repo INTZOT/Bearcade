@@ -185,6 +185,7 @@ export class StatusEffectSystem {
       if (mods.damageTakenFlat) result.takenFlat += mods.damageTakenFlat;
       if (mods.damageDealtMul) result.dealtMul *= mods.damageDealtMul;
       if (mods.damageDealtFlat) result.dealtFlat += mods.damageDealtFlat;
+      if (mods.armorDealtMul) result.armorDealtMul *= mods.armorDealtMul;
       if (mods.damageReductionMul) result.reductionMul *= mods.damageReductionMul;
       if (mods.damageReductionFlat) result.reductionFlat += mods.damageReductionFlat;
       if (mods.healingTakenMul) result.healingMul *= mods.healingTakenMul;

@@ -11,11 +11,13 @@
 import { system, type Dimension, type Entity, type Vector3 } from "@minecraft/server";
 import type { Vec3 } from "../../../shared/minigame-core/types";
 import type { MatchSession } from "./session";
-import { normalizeVector } from "./types";
+import { normalizeVector, type TeamId } from "./types";
 
 export const SUMMON_TAG = "snd5:summon";
 export const OWNER_PROP = "snd5:owner";
 export const TYPE_PROP = "snd5:type";
+/** 部署点剩余部署次数(秘典信标;重生时消耗) */
+export const DEPLOY_USES_PROP = "snd5:uses";
 
 export interface SummonInstance {
   entity: Entity;
@@ -41,6 +43,8 @@ export interface SummonOptions {
   lifetimeTicks?: number;
   /** onTick 调用间隔(默认 5) */
   tickIntervalTicks?: number;
+  /** 部署点可用次数(秘典信标);写入实体动态属性,重生流程经 consumeDeployPoint 消耗 */
+  deployUses?: number;
   onTick?(entity: Entity, instance: SummonInstance): void;
   onExpire?(instance: SummonInstance): void;
 }
@@ -130,6 +134,24 @@ export class SummonSystem {
       destroyed += 1;
     }
     return destroyed;
+  }
+
+  /**
+   * 消耗本队一个可用部署点(秘典信标):找到即扣 1 次数并返回其位置。
+   * 无可用部署点返回 undefined,由调用方回退到默认重生点。
+   */
+  consumeDeployPoint(teamId: TeamId): Vec3 | undefined {
+    for (const instance of this.active.values()) {
+      if (!instance.entity.isValid) continue;
+      const ownerTeam = this.session.teams.getTeam(instance.ownerId ?? "");
+      if (ownerTeam !== teamId) continue;
+      const uses = instance.entity.getDynamicProperty(DEPLOY_USES_PROP);
+      if (typeof uses !== "number" || uses <= 0) continue;
+      instance.entity.setDynamicProperty(DEPLOY_USES_PROP, uses - 1);
+      const loc = instance.entity.location;
+      return { x: loc.x, y: loc.y, z: loc.z };
+    }
+    return undefined;
   }
 
   /**
@@ -233,6 +255,9 @@ export class SummonSystem {
       entity.addTag(SUMMON_TAG);
       if (options.ownerId) entity.setDynamicProperty(OWNER_PROP, options.ownerId);
       entity.setDynamicProperty(TYPE_PROP, typeId);
+      if (options.deployUses !== undefined) {
+        entity.setDynamicProperty(DEPLOY_USES_PROP, options.deployUses);
+      }
 
       if (projectile) {
         const dir = normalizeVector(projectile.direction);
