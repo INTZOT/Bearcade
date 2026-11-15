@@ -203,7 +203,11 @@ skillRegistry.register({
   failureHint: CODEX_FAILURE_HINT,
 
   cast(ctx) {
-    ctx.primitives.dash(ctx.casterId, ctx.direction, BLITZ_DASH_RANGE);
+    ctx.primitives.dash(
+      ctx.casterId,
+      { x: ctx.direction.x, y: 0, z: ctx.direction.z },
+      BLITZ_DASH_RANGE,
+    );
     return codexOutcome(ctx, STATUS_BLITZ);
   },
 });
