@@ -15,10 +15,11 @@ import {
   sessions,
   skillRegistry,
   statusRegistry,
-  SupplyStationDef,
   type SessionInjects,
   type Snd5ContentBundle,
   type Snd5RuntimeConfig,
+  type SupplyItemDef,
+  type SupplyStationDef,
   type TeamId,
   type TeamProvider,
 } from "./framework";
@@ -26,6 +27,7 @@ import {
   CODEX_SPELLS,
   codexItemLore,
   codexItemNameTag,
+  CONSUMABLE_DEFINITIONS,
   getSelectedCodex,
   getSelectedProfessionId,
   professionRegistry,
@@ -33,7 +35,7 @@ import {
   type ProfessionDefinition,
 } from "./content";
 import { loadSnd5Config } from "./runtime-config";
-import { SND5_CAPTURE_POINTS, SND5_SUPPLY_STATIONS, START_POSITIONS } from "./config";
+import { SND5_CAPTURE_POINTS, SND5_SUPPLY_STATION_POINTS, START_POSITIONS } from "./config";
 
 // ── 默认队伍提供器 ────
 
@@ -159,6 +161,23 @@ function setCodexItemState(player: Player, skillId: string, exhausted: boolean):
 
 // ── 内容注册束(占点/补给/计分规则待场地建好后填入) ──────────────
 
+/** 组装补给站条目:消耗品直接取自 content/consumables.ts(避免双份数据漂移) */
+function buildSupplyStations(): SupplyStationDef[] {
+  const consumableItems: SupplyItemDef[] = CONSUMABLE_DEFINITIONS.map((def) => ({
+    itemTypeId: def.itemTypeId,
+    displayName: def.displayName,
+    maxCarry: def.maxCarry,
+    amountPerGrant: 1,
+  }));
+  // itemTypeId 仅为结构占位,充能分支不发放物品(按玩家已装备法术重置)
+  const codexItems: SupplyItemDef[] = [
+    { itemTypeId: "minecraft:book", displayName: "秘典Ⅰ", maxCarry: 1, amountPerGrant: 1, codexSlot: "codex_1" },
+    { itemTypeId: "minecraft:book", displayName: "秘典Ⅱ", maxCarry: 1, amountPerGrant: 1, codexSlot: "codex_2" },
+  ];
+  const items = [...consumableItems, ...codexItems];
+  return SND5_SUPPLY_STATION_POINTS.map((point) => ({ ...point, items }));
+}
+
 function buildContentBundle(): Snd5ContentBundle {
   return {
     skills: skillRegistry,
@@ -166,8 +185,8 @@ function buildContentBundle(): Snd5ContentBundle {
     // 占点区域坐标见 config.ts(5 点占位,场地建好后微调)
     capturePoints: SND5_CAPTURE_POINTS as CapturePointDef[],
     // 补给站坐标见 config.ts(7 个占位:5 内圈 + 2 外围,场地建好后微调);
-    // 站点条目含血药/甲修/魔瓶与秘典Ⅰ/Ⅱ 充能条目
-    supplyStations: SND5_SUPPLY_STATIONS as SupplyStationDef[],
+    // 站点条目 = 血药/甲修/魔瓶(消耗品定义组装) + 秘典Ⅰ/Ⅱ 充能条目
+    supplyStations: buildSupplyStations(),
   };
 }
 

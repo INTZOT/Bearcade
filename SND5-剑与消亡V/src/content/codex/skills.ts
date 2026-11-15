@@ -117,6 +117,8 @@ skillRegistry.register({
       },
     );
     if (!entity) return false;
+    // 兜底引信:命中事件未触发时按最后已知位置出烟(与投掷物到期同刻);
+    ctx.primitives.schedule(EMBER_ASH_FLIGHT_TICKS, () => smokeOnce(lastLocation));
     return codexOutcome(ctx, STATUS_EMBER_ASH);
   },
 });

@@ -47,23 +47,14 @@ export const SND5_CAPTURE_POINTS = [
 // ===== 资源补给站(7 个:5 内圈各贴一个占点 + 2 个地图外围) =====
 // 坐标为占位,场地建好后微调;载体为盔甲架占位实体,生成于 location,
 // 需落在实体方块上防跌落;站点不耗库存,只有每人 20s 限频。
-// 血药/甲修/魔瓶为占位物品(其使用结算是后续任务);
-// 秘典Ⅰ/Ⅱ 为充能条目:仅对已耗尽的秘典生效,重置禁用态。
-const SND5_SUPPLY_ITEMS = [
-  { itemTypeId: "minecraft:sweet_berries", displayName: "血药", maxCarry: 2, amountPerGrant: 1 },
-  { itemTypeId: "minecraft:iron_ingot", displayName: "甲修", maxCarry: 8, amountPerGrant: 1 },
-  { itemTypeId: "minecraft:lapis_lazuli", displayName: "魔瓶", maxCarry: 4, amountPerGrant: 1 },
-  // itemTypeId 仅为结构占位,充能分支不发放物品(按玩家已装备法术重置)
-  { itemTypeId: "minecraft:book", displayName: "秘典Ⅰ", maxCarry: 1, amountPerGrant: 1, codexSlot: "codex_1" },
-  { itemTypeId: "minecraft:book", displayName: "秘典Ⅱ", maxCarry: 1, amountPerGrant: 1, codexSlot: "codex_2" },
-];
-
-export const SND5_SUPPLY_STATIONS = [
-  { id: "snd5:supply_west", displayName: "补给站·西", location: { x: -5, y: 64, z: 0 }, items: SND5_SUPPLY_ITEMS },
-  { id: "snd5:supply_north", displayName: "补给站·北", location: { x: 0, y: 64, z: -5 }, items: SND5_SUPPLY_ITEMS },
-  { id: "snd5:supply_center", displayName: "补给站·中", location: { x: 0, y: 64, z: 0 }, items: SND5_SUPPLY_ITEMS },
-  { id: "snd5:supply_south", displayName: "补给站·南", location: { x: 0, y: 64, z: 5 }, items: SND5_SUPPLY_ITEMS },
-  { id: "snd5:supply_east", displayName: "补给站·东", location: { x: 5, y: 64, z: 0 }, items: SND5_SUPPLY_ITEMS },
-  { id: "snd5:supply_outpost_ne", displayName: "补给站·东北外围", location: { x: 7, y: 64, z: -7 }, items: SND5_SUPPLY_ITEMS },
-  { id: "snd5:supply_outpost_sw", displayName: "补给站·西南外围", location: { x: -7, y: 64, z: 7 }, items: SND5_SUPPLY_ITEMS },
+// 补给内容(消耗品 + 秘典充能条目)由 game.ts 从 content/consumables.ts
+// 组装,不在本文件维护,避免与消耗品定义(物品/携带上限)漂移。
+export const SND5_SUPPLY_STATION_POINTS = [
+  { id: "snd5:supply_west", displayName: "补给站·西", location: { x: -5, y: 64, z: 0 } },
+  { id: "snd5:supply_north", displayName: "补给站·北", location: { x: 0, y: 64, z: -5 } },
+  { id: "snd5:supply_center", displayName: "补给站·中", location: { x: 0, y: 64, z: 0 } },
+  { id: "snd5:supply_south", displayName: "补给站·南", location: { x: 0, y: 64, z: 5 } },
+  { id: "snd5:supply_east", displayName: "补给站·东", location: { x: 5, y: 64, z: 0 } },
+  { id: "snd5:supply_outpost_ne", displayName: "补给站·东北外围", location: { x: 7, y: 64, z: -7 } },
+  { id: "snd5:supply_outpost_sw", displayName: "补给站·西南外围", location: { x: -7, y: 64, z: 7 } },
 ];

@@ -16,6 +16,8 @@ import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { tickSnd5Sessions } from "./game";
 import {
   codexItemNameTags,
+  consumableItemBindings,
+  handleConsumableComplete,
   handleSelectorUse,
   initProfessionSelection,
   SELECTOR_ITEM_TYPE,
@@ -157,13 +159,19 @@ function registerInputRouting(): void {
     system.run(() => session.skills.releaseUse(player));
   });
 
-  // 使用完成(itemCompleteUse)→ 蓄满自动释放
+  // 使用完成(itemCompleteUse)→ 回复类消耗品结算 / 蓄满自动释放
   world.afterEvents.itemCompleteUse.subscribe((event) => {
-    const skillId = resolveSkillIdFromItem(event.itemStack);
-    if (!skillId) return;
     const player = event.source;
     const session = sessionOfPlayer(player.id);
     if (!session) return;
+    // 回复类消耗品:物品使用完毕触发回复(原版自然消耗,中断不生效)
+    const consumable = consumableItemBindings.get(event.itemStack.typeId);
+    if (consumable) {
+      system.run(() => handleConsumableComplete(session, player.id, consumable));
+      return;
+    }
+    const skillId = resolveSkillIdFromItem(event.itemStack);
+    if (!skillId) return;
     system.run(() => session.skills.completeUse(player, skillId));
   });
 }

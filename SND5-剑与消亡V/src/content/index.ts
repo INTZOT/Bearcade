@@ -7,6 +7,7 @@ import "./professions";
 import "./skills/warrior";
 import "./statuses/warrior";
 import "./codex";
+import "./consumables";
 
 export { professionRegistry } from "./professions/registry";
 export type { ProfessionDefinition, ProfessionSkillEntry } from "./professions/registry";
@@ -20,3 +21,5 @@ export {
 } from "./selection";
 export { CODEX_SPELLS, codexItemLore, codexItemNameTag, codexItemNameTags } from "./codex";
 export type { CodexSpellMeta, CodexTier } from "./codex";
+export { CONSUMABLE_DEFINITIONS, consumableItemBindings, handleConsumableComplete } from "./consumables";
+export type { ConsumableDefinition } from "./consumables";
