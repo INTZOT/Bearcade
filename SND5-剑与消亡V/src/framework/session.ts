@@ -196,6 +196,7 @@ export class MatchSession {
     this.attributes.tick(nowTick);
     this.skills.tick(nowTick);
     this.summons.tick(nowTick);
+    this.supply.tick(nowTick); // 补给站载体巡检(被移除即重新生成)
     this.capture.tick(nowTick, STATUS_TICK_INTERVAL);
     this.score.tick(nowTick); // 占点产分(内部按秒结算)
 

@@ -1,17 +1,28 @@
 // ============================================================
 // SupplySystem —— 资源补给站(修改意见④)
-// 决策:补给站是模板内的固定方块(7 个:5 内圈 + 2 外围),
-// 整房重建天然恢复 —— 站点不消耗库存,只有玩家 20 秒限频,
-// 不存在 Studio「货架补货」问题。
-// - 交互:listeners 从 playerInteractWithBlock 按距离匹配站点转发;
+// 决策:站点不消耗库存,只有玩家 20 秒限频,
+// 7 个站点(5 内圈 + 2 外围);整房重建后由新会话重新生成载体。
+// - 载体:盔甲架占位实体(后续替换自定义实体),经 SummonSystem 生成
+//   (挂 snd5:summon tag 随会话回收)+ STATION_TAG 标识 + 站点 id 动态属性;
+// - 交互:右键载体实体 → before 事件取消盔甲架原版装备界面 →
+//   按 snd5:station 动态属性查站点 → 打开补给表单;
+// - 防破坏:载体免伤(entityHurt 取消);tick 每 2 秒巡检,
+//   被移除(如 /kill)的载体自动重新生成;
 // - 限频:每人 20 秒一次,内存冷却(不用方块/物品的 minecraft:cooldown);
 // - 携带上限:血药 2 / 甲修 8 / 魔瓶 4 / 秘典各 1(PDF 第 4 页);
 // - 回复类道具的使用结算走 CombatPipeline(受治疗修正/收束影响)。
 // ============================================================
-import { ItemStack, system, type Player } from "@minecraft/server";
+import { ItemStack, system, world, type Player } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 import type { Vec3 } from "../../../shared/minigame-core/types";
 import type { MatchSession } from "./session";
+
+/** 站点载体实体类型(占位:盔甲架) */
+const STATION_CARRIER_TYPE = "minecraft:armor_stand";
+/** 站点载体标识 tag(listeners 交互识别/免伤用) */
+export const STATION_TAG = "snd5:supply_station";
+/** 站点载体上的站点 id 动态属性(交互路由用) */
+export const STATION_ID_PROP = "snd5:station";
 
 export interface SupplyItemDef {
   itemTypeId: string;
@@ -30,10 +41,8 @@ export interface SupplyItemDef {
 export interface SupplyStationDef {
   id: string;
   displayName: string;
-  /** 站点方块位置(模板场地内) */
+  /** 站点载体实体位置(模板场地内,需落在实体方块上防跌落) */
   location: Vec3;
-  /** 交互判定半径(格),默认 2 */
-  radius?: number;
   items: SupplyItemDef[];
 }
 
@@ -41,25 +50,27 @@ export class SupplySystem {
   private readonly stations = new Map<string, SupplyStationDef>();
   /** Map<playerId, 上次成功使用的 tick> */
   private readonly lastUsed = new Map<string, number>();
+  /** Map<stationId, 载体实体 id>(巡检重生成用) */
+  private readonly stationEntities = new Map<string, string>();
+  private lastIntegrityTick = 0;
 
   constructor(
     private readonly session: MatchSession,
     defs: readonly SupplyStationDef[],
   ) {
     for (const def of defs) this.stations.set(def.id, def);
+    for (const station of this.stations.values()) this.spawnStationEntity(station);
   }
 
-  /** 按距离匹配玩家交互的站点(玩家位置落在站点半径内) */
-  findStation(dimensionId: string, location: Vec3): SupplyStationDef | undefined {
-    if (dimensionId !== this.session.dimension.id) return undefined;
+  /** 周期巡检:载体实体被移除(如 /kill)时重新生成 */
+  tick(nowTick: number): void {
+    if (nowTick - this.lastIntegrityTick < 40) return;
+    this.lastIntegrityTick = nowTick;
     for (const station of this.stations.values()) {
-      const radius = station.radius ?? 2;
-      const dx = location.x + 0.5 - station.location.x;
-      const dy = location.y + 0.5 - station.location.y;
-      const dz = location.z + 0.5 - station.location.z;
-      if (dx * dx + dy * dy + dz * dz <= radius * radius) return station;
+      const entityId = this.stationEntities.get(station.id);
+      if (entityId && this.isEntityValid(entityId)) continue;
+      this.spawnStationEntity(station);
     }
-    return undefined;
   }
 
   isOnCooldown(playerId: string): number {
@@ -128,9 +139,32 @@ export class SupplySystem {
   dispose(): void {
     this.stations.clear();
     this.lastUsed.clear();
+    this.stationEntities.clear();
   }
 
   // ── 内部 ─────────────────────────────────────────────────────
+
+  /** 生成站点载体(盔甲架占位;可交互/免伤标识由 listeners 识别) */
+  private spawnStationEntity(station: SupplyStationDef): void {
+    const entity = this.session.summons.spawnSummon(STATION_CARRIER_TYPE, station.location);
+    if (!entity) return;
+    try {
+      entity.nameTag = `§e§l${station.displayName}§r`;
+      entity.addTag(STATION_TAG);
+      entity.setDynamicProperty(STATION_ID_PROP, station.id);
+    } catch {
+      // 标识写入失败不影响载体存在
+    }
+    this.stationEntities.set(station.id, entity.id);
+  }
+
+  private isEntityValid(entityId: string): boolean {
+    try {
+      return world.getEntity(entityId)?.isValid ?? false;
+    } catch {
+      return false;
+    }
+  }
 
   /** 秘典条目按钮文案:显示当前装备的法术与可用状态 */
   private codexButtonLabel(player: Player, item: SupplyItemDef): string {

@@ -10,6 +10,7 @@
 import { GameMode, Player, system, world, type ItemStack } from "@minecraft/server";
 import { sessions, type MatchSession } from "./framework/session";
 import { skillItemBindings } from "./framework/skill/system";
+import { STATION_ID_PROP, STATION_TAG } from "./framework/supply";
 import { isFeedbackBypass } from "./framework/vanilla";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { tickSnd5Sessions } from "./game";
@@ -82,6 +83,11 @@ function resolveSkillIdFromItem(itemStack: ItemStack): string | undefined {
 function registerDamageInterception(): void {
   world.beforeEvents.entityHurt.subscribe((event) => {
     const hurt = event.hurtEntity;
+    // 补给站载体(盔甲架占位)免伤:防被击杀破坏
+    if (hurt.hasTag(STATION_TAG)) {
+      event.cancel = true;
+      return;
+    }
     // 只拦玩家:创生物(魔瘴之泉 60HP 等)走原版实体血量
     if (!(hurt instanceof Player)) return;
     // 受击反馈伤害(vanilla.ts 三步法):放行以触发原版红闪/音效/
@@ -189,22 +195,22 @@ function registerSummonHitRouting(): void {
   });
 }
 
-// ── 4. 补给站交互 ─────────────────────────────────────────────
+// ── 4. 补给站交互(载体实体:盔甲架占位) ────────────────────────
 
 function registerSupplyInteraction(): void {
-  world.afterEvents.playerInteractWithBlock.subscribe((event) => {
+  // 右键载体实体:before 事件取消盔甲架原版装备界面,
+  // 按 snd5:station 动态属性路由到对应站点打开补给表单。
+  world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
+    if (!event.target.hasTag(STATION_TAG)) return;
+    event.cancel = true;
     const player = event.player;
-    const session = sessionOfPlayer(player.id);
-    if (!session) return;
-    const block = event.block;
-    const station = session.supply.findStation(block.dimension.id, {
-      x: block.location.x,
-      y: block.location.y,
-      z: block.location.z,
-    });
-    if (!station) return;
+    const target = event.target;
     system.run(() => {
-      void session.supply.tryUse(player, station.id);
+      const session = sessionOfPlayer(player.id);
+      if (!session || !target.isValid) return;
+      const stationId = target.getDynamicProperty(STATION_ID_PROP);
+      if (typeof stationId !== "string") return;
+      void session.supply.tryUse(player, stationId);
     });
   });
 }
