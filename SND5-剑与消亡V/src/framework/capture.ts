@@ -2,11 +2,14 @@
 // CaptureSystem —— 占点(占点模式专用)
 // 采用区域 AABB + 每 tick 计数模式(对齐 PigCatcher/BridgeWar 先例):
 //
-// 占领规则(进度按「累计」语义,中断不清零、不衰减):
+// 占领规则(拉锯式进度,进度条绑定当前进攻方 capturingTeam):
 // - 中立点:单队独占累计 neutralCaptureSeconds(默认 20s)完成占领;
 // - 敌方已占点:单队独占累计 takeoverCaptureSeconds(默认 40s)完成接管;
-// - 双方同时有人 → 进度暂停;无人驻留 → 进度保持;
-// - 换队进攻 → 进度清零重新累计(防混刷);
+// - 换队进攻:不立即清零,先按同等速率回退前一进攻方的累计进度,
+//   回退至 0 后新进攻方才从 0 开始累计自己的进度(拉锯战);
+// - 持有方驻守:按同等速率回退敌方累计(归 0 后无进度可建,不可自占);
+// - 无人驻留:当前累计按同等速率回退(离开即失势,防攒进度),归 0 清进攻方标记;
+// - 双方同时有人 → 僵持,进度保持;
 // - 占领后产分与驻守无关(产分逻辑在 ScoreSystem,只看归属)。
 //
 // 可视化(光柱/浮空文字)由内容层订阅 point.captured 实现,
@@ -31,7 +34,7 @@ export interface CapturePointDef {
 export interface CapturePointState {
   def: CapturePointDef;
   owner: TeamId | null;
-  /** 正在读秒的进攻方(换队时清零进度) */
+  /** 当前持有进度条的进攻方(拉锯中被回推至 0 时易主) */
   capturingTeam: TeamId | null;
   progressTicks: number;
 }
@@ -75,16 +78,30 @@ export class CaptureSystem {
     for (const point of this.points.values()) {
       const occupancy = this.countOccupants(point.def);
 
-      // 无人驻留或双方拉锯:进度保持(累计语义),不推进也不衰减
+      // 无人驻留:当前累计按同等速率回退(离开即失势),归 0 清进攻方标记
+      if (occupancy.size === 0) {
+        this.drainProgress(point, deltaTicks);
+        continue;
+      }
+
+      // 双方同时在场:僵持,进度保持
       if (occupancy.size !== 1) continue;
 
       const [teamId, members] = [...occupancy.entries()][0];
-      if (point.owner === teamId) continue; // 持有方驻守:无推进
 
-      // 换队进攻:进度清零重新累计
+      // 持有方驻守(拉锯回推):按同等速率回退敌方累计(不可自占)
+      if (point.owner === teamId) {
+        this.drainProgress(point, deltaTicks);
+        continue;
+      }
+
+      // 换队进攻(拉锯):不立即清零,先按同等速率回退前一进攻方的累计;
+      // 回退至 0 后本队从 0 开始累计自己的进度
       if (point.capturingTeam !== teamId) {
-        point.capturingTeam = teamId;
+        point.progressTicks -= deltaTicks;
+        if (point.progressTicks > 0) continue; // 仍在回退阶段
         point.progressTicks = 0;
+        point.capturingTeam = teamId;
       }
 
       // 双段读秒:中立点快,敌方点慢
@@ -111,6 +128,13 @@ export class CaptureSystem {
   }
 
   // ── 内部 ─────────────────────────────────────────────────────
+
+  /** 按同等速率回退当前进攻方的累计;归 0 后清除进攻方标记(需从 0 重来) */
+  private drainProgress(point: CapturePointState, deltaTicks: number): void {
+    if (point.capturingTeam === null || point.progressTicks <= 0) return;
+    point.progressTicks = Math.max(0, point.progressTicks - deltaTicks);
+    if (point.progressTicks === 0) point.capturingTeam = null;
+  }
 
   /** 统计占点 AABB 内各队存活玩家(键为队伍,值为该队成员 playerId) */
   private countOccupants(def: CapturePointDef): Map<TeamId, string[]> {
