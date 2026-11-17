@@ -20,6 +20,8 @@ export interface StatusModifiers {
   damageDealtFlat?: number;
   /** 造成护甲伤害倍率(碎甲秘典 1.5;只放大护甲分量,生命分量不变) */
   armorDealtMul?: number;
+  /** 受到护甲伤害倍率(群法定律Ⅲ 焙烧 1.5;只放大护甲分量,生命分量不变) */
+  armorTakenMul?: number;
   /** 减伤倍率(清流 0.9;洁雨随时间递减用函数) */
   damageReductionMul?: number;
   /** 固定减伤(磐石:每层 1 点,先百分比后固定值) */
@@ -102,6 +104,12 @@ export interface StatusContext {
   instance: StatusInstance;
   /** 移除自身(等价 session.status.remove(targetId, statusId)) */
   removeSelf(): void;
+  /**
+   * 本次新施加时因 excludes 被清空的既有状态(仅 onApply 有值)。
+   * 「获得本效果时清空 X 并立即结算」类规则(电离/焙烧/浸润三角、
+   * 日蚀/月冕)据此判断互斥对象是否在场。
+   */
+  excludedPresent?: readonly string[];
 }
 
 /** 伤害落地前的传入快照(修饰器/反应计算之前的原始数值) */
@@ -140,6 +148,7 @@ export interface AggregatedMods {
   dealtMul: number;
   dealtFlat: number;
   armorDealtMul: number;
+  armorTakenMul: number;
   reductionMul: number;
   reductionFlat: number;
   healingMul: number;
@@ -152,6 +161,7 @@ export const NEUTRAL_MODS: AggregatedMods = {
   dealtMul: 1,
   dealtFlat: 0,
   armorDealtMul: 1,
+  armorTakenMul: 1,
   reductionMul: 1,
   reductionFlat: 0,
   healingMul: 1,

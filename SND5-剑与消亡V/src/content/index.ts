@@ -6,8 +6,10 @@
 import "./professions";
 import "./skills/warrior";
 import "./skills/support";
+import "./skills/magus";
 import "./statuses/warrior";
 import "./statuses/support";
+import "./statuses/magus";
 import "./codex";
 import "./consumables";
 
@@ -15,6 +17,7 @@ export { professionRegistry } from "./professions/registry";
 export type { ProfessionDefinition, ProfessionSkillEntry } from "./professions/registry";
 export { warriorProfession } from "./professions/warrior";
 export { supportProfession } from "./professions/support";
+export { magusProfession } from "./professions/magus";
 export {
   getSelectedCodex,
   getSelectedProfessionId,

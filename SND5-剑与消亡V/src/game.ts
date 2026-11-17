@@ -77,8 +77,11 @@ function resolveProfession(playerId: string): ProfessionDefinition {
   return professionRegistry.require("snd5:warrior");
 }
 
-/** 开局发放职业套装(占位物品):清背包 → 武器/技能物品 → 秘典物品 → 命名牌前缀 */
-function grantProfessionKit(player: Player, prof: ProfessionDefinition): void {
+/** 开局发放职业套装:清背包 → 武器/技能物品 → 秘典物品 → 命名牌前缀。
+ * 占位职业用原版物品 + 默认命名;自定义物品职业(群法)的技能物品
+ * 名称由 profession.buildSkillItem 构建(随会话内状态变化,如群法定律)。
+ */
+function grantProfessionKit(session: MatchSession, player: Player, prof: ProfessionDefinition): void {
   const container = player.getComponent("minecraft:inventory")?.container;
   if (!container) return;
   try {
@@ -87,9 +90,12 @@ function grantProfessionKit(player: Player, prof: ProfessionDefinition): void {
     if (prof.weapon.lore.length > 0) weapon.setLore(prof.weapon.lore);
     container.setItem(0, weapon);
     prof.skills.forEach((entry, index) => {
+      // 重击绑定在武器自身(自定义物品职业):武器已发放,不重复发放物品
+      if (entry.slot === "weapon_heavy" && entry.itemTypeId === prof.weapon.itemTypeId) return;
       const skillDef = skillRegistry.get(entry.skillId);
       const item = new ItemStack(entry.itemTypeId, 1);
-      item.nameTag = `§e${skillDef?.displayName ?? entry.slot}§r`;
+      const built = prof.buildSkillItem?.(entry, session, player.id);
+      item.nameTag = built?.name ?? `§e${skillDef?.displayName ?? entry.slot}§r`;
       const slotLabel =
         entry.slot === "innate_1"
           ? "固有Ⅰ"
@@ -97,7 +103,7 @@ function grantProfessionKit(player: Player, prof: ProfessionDefinition): void {
             ? "固有Ⅱ"
             : "重击(蓄力)";
       const usage = entry.slot === "weapon_heavy" ? "按住右键蓄力,松手施放" : "右键施放";
-      item.setLore([`§7${slotLabel} · ${usage}`]);
+      item.setLore(built?.lore ?? [`§7${slotLabel} · ${usage}`]);
       container.setItem(index + 1, item);
     });
     // 秘典槽位(容器槽 5/6 = 热键栏 6/7,对应设计物品栏槽位 6/7):
@@ -240,19 +246,20 @@ function buildInjects(_runtime: MinigameRuntime, roomId: number): Snd5Injects {
         clearAllPlayerItems(player);
         const prof = professionRegistry.get(state.professionId ?? "");
         if (!prof) continue;
-        grantProfessionKit(player, prof);
+        grantProfessionKit(session, player, prof);
       }
       session.announce("§7提示: 潜行+攻击为重击;准备阶段右键山羊角选择职业");
     },
 
     // 重生:全量重发套装(架构 §6.3「复活时同样全量重发」)
     onPlayerRespawn: (playerId) => {
-      const state = sessions.get(roomId)?.players.get(playerId);
+      const session = sessions.get(roomId);
+      const state = session?.players.get(playerId);
       if (!state?.player.isValid) return;
       const prof =
         professionRegistry.get(state.professionId ?? "") ?? resolveProfession(playerId);
       clearAllPlayerItems(state.player);
-      grantProfessionKit(state.player, prof);
+      if (session) grantProfessionKit(session, state.player, prof);
     },
 
     // 秘典充能恢复:补给站消耗后把背包物品重写为可用态

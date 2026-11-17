@@ -127,8 +127,10 @@ export class StatusEffectSystem {
       return existing;
     }
 
-    // 1. 互斥:先清空互斥状态
+    // 1. 互斥:先清空互斥状态(记录在场者,供「获得时立即结算」类 onApply 判断)
+    const excludedPresent: string[] = [];
     for (const excluded of def.excludes ?? []) {
+      if (map.has(excluded)) excludedPresent.push(excluded);
       this.remove(targetId, excluded, "excluded");
     }
 
@@ -144,7 +146,7 @@ export class StatusEffectSystem {
     };
     map.set(statusId, instance);
     this.markReapplied(reapplyKey, def);
-    def.onApply?.(this.context(targetId, instance));
+    def.onApply?.(this.context(targetId, instance, excludedPresent));
     this.session.bus.emit("status.applied", {
       targetId,
       statusId,
@@ -265,6 +267,7 @@ export class StatusEffectSystem {
       if (mods.damageDealtMul) result.dealtMul *= mods.damageDealtMul;
       if (mods.damageDealtFlat) result.dealtFlat += mods.damageDealtFlat;
       if (mods.armorDealtMul) result.armorDealtMul *= mods.armorDealtMul;
+      if (mods.armorTakenMul) result.armorTakenMul *= mods.armorTakenMul;
       if (mods.damageReductionMul) result.reductionMul *= mods.damageReductionMul;
       if (mods.damageReductionFlat) result.reductionFlat += mods.damageReductionFlat;
       if (mods.healingTakenMul) result.healingMul *= mods.healingTakenMul;
@@ -360,7 +363,11 @@ export class StatusEffectSystem {
     }
   }
 
-  private context(targetId: string, instance: StatusInstance): StatusContext {
+  private context(
+    targetId: string,
+    instance: StatusInstance,
+    excludedPresent?: readonly string[],
+  ): StatusContext {
     const session = this.session;
     return {
       session,
@@ -368,6 +375,7 @@ export class StatusEffectSystem {
       statusId: instance.id,
       instance,
       removeSelf: () => this.remove(targetId, instance.id, "self_removed"),
+      ...(excludedPresent ? { excludedPresent } : {}),
     };
   }
 }

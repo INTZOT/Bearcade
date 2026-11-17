@@ -49,6 +49,13 @@ export type { ReactionBuildContext, ReactionDefinition, ReactionOutcome } from "
 
 export { SkillSystem, skillItemBindings } from "./skill/system";
 export type { ActiveCastView } from "./skill/system";
+export {
+  customItemBindings,
+  customItemSkillId,
+  isCustomSkillItem,
+  registerSnd5ItemComponents,
+} from "./skill/customItems";
+export type { CustomSkillItemBinding } from "./skill/customItems";
 export { PassiveManager } from "./skill/passives";
 export { Primitives } from "./skill/primitives";
 export { CooldownStore, StackStore, skillKey } from "./skill/stores";

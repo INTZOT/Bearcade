@@ -79,11 +79,17 @@ export class CombatPipeline {
       baseArmor += state.base.armor * payload.armorPercent;
     }
     const hpFinal = this.computeFinal(baseHp, targetMods, sourceMods);
-    // 护甲分量额外乘来源侧 armorDealtMul(碎甲秘典:对甲伤害提升 50%;仅放大护甲)
-    const armorFinal = this.computeFinal(baseArmor, targetMods, {
-      ...sourceMods,
-      dealtMul: sourceMods.dealtMul * sourceMods.armorDealtMul,
-    });
+    // 护甲分量额外乘来源侧 armorDealtMul(碎甲秘典:对甲伤害提升 50%)
+    // 与目标侧 armorTakenMul(群法定律Ⅲ 焙烧:受到的护甲伤害提高 50%);
+    // 二者都只放大护甲分量,生命分量不变
+    const armorFinal = this.computeFinal(
+      baseArmor,
+      { ...targetMods, takenMul: targetMods.takenMul * targetMods.armorTakenMul },
+      {
+        ...sourceMods,
+        dealtMul: sourceMods.dealtMul * sourceMods.armorDealtMul,
+      },
+    );
 
     // [5] 写入 AttributeSystem(真实伤害部分在账本内独立穿透,不走修饰)
     const applied = attributes.applyDamage(targetId, {

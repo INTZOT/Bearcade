@@ -162,6 +162,33 @@ export class Primitives {
     });
   }
 
+  // ── 原版效果(迅捷/隐身/减速/失明等表现类;数值机制不走这里) ──
+
+  applyEffect(
+    targetId: string,
+    effectTypeId: string,
+    durationTicks: number,
+    options?: { amplifier?: number },
+  ): void {
+    const player = this.getPlayer(targetId);
+    if (!player?.isValid) return;
+    try {
+      player.addEffect(effectTypeId, durationTicks, { amplifier: options?.amplifier ?? 0 });
+    } catch {
+      // 效果类型不存在或玩家失效,忽略
+    }
+  }
+
+  removeEffect(targetId: string, effectTypeId: string): void {
+    const player = this.getPlayer(targetId);
+    if (!player?.isValid) return;
+    try {
+      player.removeEffect(effectTypeId);
+    } catch {
+      // 忽略
+    }
+  }
+
   // ── 位移 ─────────────────────────────────────────────────────
 
   dash(playerId: string, direction: Vector3, distanceBlocks: number): void {

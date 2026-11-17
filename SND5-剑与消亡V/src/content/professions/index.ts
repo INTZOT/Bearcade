@@ -1,15 +1,16 @@
 // ============================================================
-// 职业注册入口:战士 + 其余 6 职业占位
-// ESM import 提升保证战士先注册(选择界面排序靠前可读性更好,
+// 职业注册入口:战士/增益/群法 + 其余 4 职业占位
+// ESM import 提升保证先注册的职业排序靠前(可读性更好,
 // PDF 顺序为 刺客/战士/坦克/增益/控制/群法/单法,占位阶段以可用性区分)。
 // ============================================================
 import { professionRegistry, type ProfessionDefinition } from "./registry";
 import "./warrior";
 import "./support";
+import "./magus";
 
 /**
  * 未实装职业占位(面板取自 PDF,选择界面显示「开发中」)。
- * 增益已实装(professions/support.ts),不在此列。
+ * 增益(professions/support.ts)与群法(professions/magus.ts)已实装,不在此列。
  */
 const PLACEHOLDER_PROFESSIONS: ProfessionDefinition[] = [
   {
@@ -39,16 +40,6 @@ const PLACEHOLDER_PROFESSIONS: ProfessionDefinition[] = [
     base: { hp: 70, armor: 70, mana: 140 },
     available: false,
     weapon: { itemTypeId: "minecraft:iron_sword", name: "筒型魔杖·不等式", lore: [] },
-    skills: [],
-    passiveIds: [],
-  },
-  {
-    id: "snd5:magus",
-    displayName: "群法",
-    tagline: "多属性 · 自循环 · AOE",
-    base: { hp: 100, armor: 15, mana: 160 },
-    available: false,
-    weapon: { itemTypeId: "minecraft:iron_sword", name: "球型魔杖·周期", lore: [] },
     skills: [],
     passiveIds: [],
   },

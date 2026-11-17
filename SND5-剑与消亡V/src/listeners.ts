@@ -10,6 +10,8 @@
 import { GameMode, Player, system, world, type ItemStack } from "@minecraft/server";
 import { sessions, type MatchSession } from "./framework/session";
 import { skillItemBindings } from "./framework/skill/system";
+import { customItemSkillId, isCustomSkillItem } from "./framework/skill/customItems";
+import { skillRegistry } from "./framework/registry";
 import { STATION_ID_PROP, STATION_TAG } from "./framework/supply";
 import { isFeedbackBypass } from "./framework/vanilla";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
@@ -67,11 +69,14 @@ function sessionOfDimension(dimensionId: string): MatchSession | undefined {
 }
 
 /**
- * 物品 → skillId:先按 nameTag 匹配秘典物品(可用态/耗尽态两种名称
+ * 物品 → skillId:自定义技能物品按 typeId 绑定表直查(组件回调的
+ * 双保险路径用);先按 nameTag 匹配秘典物品(可用态/耗尽态两种名称
  * 都已注册),未命中回退 typeId 绑定(固有技能)。
  * 秘典占位物品与战士技能复用同一原版 typeId,名称匹配必须先行。
  */
 function resolveSkillIdFromItem(itemStack: ItemStack): string | undefined {
+  const custom = customItemSkillId(itemStack.typeId);
+  if (custom) return custom;
   const nameTag = itemStack.nameTag;
   if (nameTag) {
     const byName = codexItemNameTags.get(nameTag);
@@ -128,11 +133,14 @@ function registerInputRouting(): void {
   });
 
   // 右键使用 → 职业选择道具 / 技能入口(nameTag/typeId → skillId 由内容层绑定)
+  // 自定义技能物品不在此路由:组件 onUse 已处理(即时施放/潜行效用动作),
+  // 这里放行会与组件回调双触发
   world.afterEvents.itemUse.subscribe((event) => {
     if (event.itemStack.typeId === SELECTOR_ITEM_TYPE) {
       system.run(() => handleSelectorUse(event.source));
       return;
     }
+    if (isCustomSkillItem(event.itemStack.typeId)) return;
     const skillId = resolveSkillIdFromItem(event.itemStack);
     if (!skillId) return;
     const player = event.source;
@@ -141,8 +149,15 @@ function registerInputRouting(): void {
     system.run(() => session.skills.requestCast(player, skillId));
   });
 
-  // 开始使用(itemStartUse)→ 蓄力/吟唱开始
+  // 开始使用(itemStartUse)→ 蓄力/吟唱开始。
+  // 自定义物品的即时技能跳过(组件 onUse 已路由,避免双触发);
+  // 蓄力/前摇/吟唱类没有对应组件回调,仍由本事件进入(武器弓式蓄力)。
   world.afterEvents.itemStartUse.subscribe((event) => {
+    if (isCustomSkillItem(event.itemStack.typeId)) {
+      const skillId = customItemSkillId(event.itemStack.typeId);
+      const def = skillId ? skillRegistry.get(skillId) : undefined;
+      if ((def?.castMode ?? "instant") === "instant") return;
+    }
     const skillId = resolveSkillIdFromItem(event.itemStack);
     if (!skillId) return;
     const player = event.source;
