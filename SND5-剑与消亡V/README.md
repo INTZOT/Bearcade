@@ -3,7 +3,7 @@
 Bearcade 小游戏包(7 职业 PvP:剑与消亡V · 上密会战)。房间/模板/上报/HUD 通道复用 `shared/minigame-core` + `Core-核心`;包内实现**会话化战斗框架层**(`src/framework/`)+ **注册式内容层**(`src/content/`)。
 
 > 设计依据:《SND5 架构设计 v2 · Bearcade 适配版》 + 《SND5 内容设计》PDF。
-> 当前进度:**框架层就绪;内容层已实装「准备阶段职业选择」「战士」「增益」「群法」全量内容(武器 + 主动/被动 + 状态)与 10 个秘典法术、回复类消耗品**;对局层(占点/计分/补给)框架就绪但数据待填;场地与创生物实体仍为占位。群法是首个使用**自定义物品**(`items/*.json`,原版贴图占位)+ **ItemCustomComponent 释放入口**的职业。
+> 当前进度:**框架层就绪;内容层已实装「准备阶段职业选择」「战士」「增益」「控制」「群法」全量内容(武器 + 主动/被动 + 状态)与 10 个秘典法术、回复类消耗品**;对局层(占点/计分/补给)框架就绪但数据待填;场地与创生物实体仍为占位。群法是首个使用**自定义物品**(`items/*.json`,原版贴图占位)+ **ItemCustomComponent 释放入口**的职业,控制沿用该模式。
 
 ## 当前状态
 
@@ -19,10 +19,11 @@ Bearcade 小游戏包(7 职业 PvP:剑与消亡V · 上密会战)。房间/模�
   - `score.ts` / `capture.ts` / `supply.ts` 占点计分 / 占点双段读秒 / 补给站 20s 限频 —— 占点产分曲线 [0,1,2,4,8,16]/s(占下即产分,离人不中断),任意阵亡对方 +5,先到 2000 分获胜,20 分钟到点比总分(平分平局);占领:中立点独占累计 20s,敌方点接管累计 40s,双方同点进度暂停;
   - `hud.ts` 右侧面板 HUD(比分/三资源/冷却/占点/状态效果,title 通道渲染;状态行正面绿、负面红、附剩余秒数);
 - 内容层(`src/content/`,**已实装**):
-  - **准备阶段职业选择**:进入房间维度发山羊角 → 右键表单选择 → 开局 `loadoutFor` 消费;7 职业中战士/增益/群法 `available: true`,其余 4 个为面板占位(选择界面显示「开发中」);
+  - **准备阶段职业选择**:进入房间维度发山羊角 → 右键表单选择 → 开局 `loadoutFor` 消费;7 职业中战士/增益/控制/群法 `available: true`,其余 3 个为面板占位(选择界面显示「开发中」);
   - **战士**:面板 100/50/100,武器「弧光」轻击/重击,固有Ⅰ 突进、固有Ⅱ 球状闪电、固有Ⅲ 雷魂(被动);
   - **增益**:面板 140/20/120,武器「水仙之梦」轻击 + spyglass 蓄力重击(weapon_heavy 伪技能,潜行蓄力=晨露对光的独白),固有Ⅰ 涤雨、固有Ⅱ 水仙庇护、固有Ⅲ 水仙之约(被动);状态清流/洁雨/水仙初临/水仙伴生(初临溢出进阶伴生、70 点伤害转魔力、伴生 1 次全额减免);
   - **群法**:面板 100/15/160,武器「周期」= 自定义物品(轻击 + 长按右键弓式蓄力重击),固有Ⅰ/Ⅱ 定律技能(自定义物品,潜行右键切定律、**定律类型由物品名显示**),固有Ⅲ 法力血契(被动,魔力不足生命代替);状态魔力残留/魔力凝聚 + 电离/焙烧/浸润互斥三角(获得时按被清空对象立即结算);
+  - **控制**:面板 70/70/140,武器「不等式」= 自定义物品(轻击 + 长按右键蓄力重击,潜行释放回收浊露进阶**水的两面性**),固有Ⅰ 魔瘴之泉(盔甲架占位,托管血量 60)、固有Ⅱ 魔魇降临(首个 **channel 吟唱**技能)、固有Ⅲ 魔魂代偿(被动,致死拦截+魔力转生命);状态浊露(32 层梯度惩罚)/魔魇降临(受伤叠层,50 层掉固体灵魂)/魔魇噬魂;
   - **状态与反应**:重伤、零火、电流涌动、电流迸发,以及「零火 × 电」的连锁反应;
   - 战士/增益的武器与技能**仍用原版物品占位**,见下方《操作与占位映射》;群法已升级为自定义物品(`items/*.json`,贴图用原版材质名占位,无需资源包文件);
 - 对局层数据(`buildContentBundle()`):计分规则表 / 占点区域 / 7 个补给站坐标仍为空数组,待场地建好后填(不影响职业选择与战士战斗链路);
@@ -120,6 +121,31 @@ Bearcade 小游戏包(7 职业 PvP:剑与消亡V · 上密会战)。房间/模�
 
 框架侧为增益新增的通用能力(其余职业直接复用):`weapon_heavy` 伪槽位(重击蓄力走完整 charge 流程)、状态 `onDamageTaken` 接线(此前为死代码)、`onAfterDamaged` 实际伤害钩子(后续魔魇降临按点叠层用它)、`reapplyCooldownTicks` 限频施加、`clearDebuffs` 随机净化。
 
+## 控制实现细节(自定义物品 + 盔甲架占位创生物)
+
+内容文件:[professions/controller.ts](src/content/professions/controller.ts)、[skills/controller.ts](src/content/skills/controller.ts)、[statuses/controller.ts](src/content/statuses/controller.ts);物品定义 [items/](items/)(`snd5:controller_weapon` / `snd5:controller_skill_1` / `snd5:controller_skill_2`,贴图为原版材质名占位:lightning_rod / conduit / wither_rose)。释放入口与群法同一套自定义物品组件框架。
+
+| 项 | 实现 |
+|---|---|
+| 基础面板 | 生命 70 / 护甲 70 / 魔力 140 |
+| 武器「不等式」 | 轻击 5 点物理近战;**重击走 `weapon_heavy` 伪技能**(长按右键蓄力 1.7s,蓄力期间 ¼ 圆指示器跟随视角,潜行显示进阶半径) |
+| 重击(普通) | ¼ 圆 6 格 10 点水伤,**随距离线性衰减**(近端全额 → 半径边缘 50%;PDF 未给曲线,数值集中在 `decayedDamage` 一处) |
+| 重击(水的两面性) | **潜行释放**:回收半径 6 圆内敌方全部**浊露**层数 → ¼ 圆 8 格,伤害 = (10+回收层数) 同曲线衰减;命中携带**魔魇噬魂**的目标附加 5 秒失明;未回收任何层数则按普通重击结算 |
+| 固有Ⅰ 魔瘴之泉 | 15 魔力、CD 8 秒、堆叠 3;原地放置泉水创生物(盔甲架占位,**托管血量 60**,18s)后自身前移 3 格;每 3 秒对 5 格内敌方 4 点水伤 + 1 层浊露 |
+| 固有Ⅱ 魔魇降临 | **channel 吟唱**(长按,每秒耗 2 魔力,松手/枯竭/死亡停止);圆心从自身出发以每秒 2 格朝准星地面点移动(最远 8 格),每秒对圆心半径 6 圆内敌方 2 点水伤 + **尝试**施加魔魇降临(已携带者自动跳过);CD 5 秒 |
+| 固有Ⅲ 魔魂代偿(被动) | 订阅 `damage.lethal` 拦截致命伤害(DOT 致死不拦,架构 §5.4 约定);下一拍消耗全部魔力等量回血(走治疗管线);100 秒冷却 |
+
+状态链:
+
+| 状态 | 规则 |
+|---|---|
+| 浊露 `snd5:turbid_dew` | 24 秒,叠层并刷新;**32 层上限后冻结**(freezeAtMax);每 5 秒 2 点水伤;梯度惩罚:4 层移速 -8%(原版缓慢 I 近似)/ 8 层受伤 +2 / 16 层造成伤害 -5 / **32 层每 5 秒所有主动技能 CD +3 秒**(getRemaining + applyCooldown 延长,只延冷却中的技能) |
+| 魔魇降临 `snd5:nightmare_descent` | 30 秒,**不可重新施加**(reapplyable false);每受 1 点伤害(实际写入量含护甲/真伤分量)+1 层;2 秒不增长则每秒 -4 层;**50 层清空并掉落固体灵魂** |
+| 固体灵魂(创生物) | 盔甲架占位、免伤;每角色同时最多 1 个;掉落 2 秒后仅原主**走近拾取**(1.5 格);场上存在魔瘴之泉时朝 10 格内最近者每秒 3 格移动;**8 秒未拾回 → 原主 20 点真实伤害 + 魔魇噬魂** |
+| 魔魇噬魂 `snd5:nightmare_devour` | 12 秒,**不可清除**;获得时所有技能进入冷却(取与效果等长,设计未给具体数值);每秒 2 点真实伤害;移速 -20%、受伤 +5 |
+
+框架侧为控制新增的通用能力(其余职业直接复用):`SummonOptions.maxHp` / `invulnerable` / `kind`(盔甲架占位实体的脚本托管血量、免伤与语义类型;listeners `entityHurt` 对托管实体取消原版伤害并转发 `handleSummonHurt` 累计,满血破坏发 `summon.destroyed` reason "broken")、`SummonSystem.getByKind/countByKind`(跨创生物联动查询)、**channel 吟唱按真实经过 tick 结算**(此前每次会话 tick 只按 1 tick 扣魔/计数,5t 网格下每秒仅扣 0.5 魔力;现按 elapsed 折算并增加吟唱者死亡守卫)。
+
 ## 群法实现细节(首个自定义物品职业)
 
 内容文件:[professions/magus.ts](src/content/professions/magus.ts)、[skills/magus.ts](src/content/skills/magus.ts)、[statuses/magus.ts](src/content/statuses/magus.ts);物品定义 [items/](items/)(`snd5:magus_weapon` / `snd5:magus_skill_1` / `snd5:magus_skill_2`,贴图为原版材质名占位:blaze_rod / lightning_rod / fire_charge)。
@@ -177,18 +203,14 @@ Bearcade 小游戏包(7 职业 PvP:剑与消亡V · 上密会战)。房间/模�
 
 **可见性** `visibility`:`"self"`(默认,仅施法者,`Player.spawnParticle` 逐玩家渲染)/ `"team"` / `"all"`;`Player.spawnParticle` 不可用时自动回退全员渲染并告警。渲染为沿轮廓撒点(vanilla 粒子,默认 `minecraft:endrod`,`effect` 可换自定义粒子),纯表现层,任何失败只降级不影响结算。
 
-示例(控制固有Ⅱ:吟唱中圆心每秒 2 格朝准星移动,半径 6,最远 8 格):
+示例(控制固有Ⅱ:吟唱中圆心每秒 2 格朝准星地面点移动,半径 6,最远 8 格;圆心存于 `ctx.store` 跨拍追踪,判定与指示器共用同一点):
 
 ```ts
 indicator(ctx) {
-  const distance = Math.min(8, ctx.castElapsedTicks / 20 * 2);
-  const view = ctx.player.getViewDirection();
-  const hit = ctx.primitives.raycastBlock(ctx.player.location, view, distance + 6);
-  const center: Vec3 = hit
-    ? { x: hit.x, y: hit.y, z: hit.z }
-    : { x: ctx.player.location.x + view.x * distance, y: ctx.player.location.y, z: ctx.player.location.z + view.z * distance };
-  return { kind: "circle", center, radius: 6 };
+  return { kind: "circle", center: channelCenter(ctx), radius: NIGHTMARE_RADIUS };
 },
+// onChannelTick 内按 (channelTicks - movedAtTicks) × 每tick步长 把圆心朝
+// viewGroundCenter(ctx, 8) 移动,伤害脉冲按 channelTicks 每 20 tick 一拍
 ```
 
 > 已接入验证:战士突进劈砍(落点扇形闪烁,self)、秘典地震(震圈闪烁,all)、增益 spyglass 蓄力重击(跟随准星的圆形,charge 声明式)、增益涤雨/水仙庇护(team 可见)。

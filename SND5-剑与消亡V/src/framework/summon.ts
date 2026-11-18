@@ -18,12 +18,22 @@ export const OWNER_PROP = "snd5:owner";
 export const TYPE_PROP = "snd5:type";
 /** 部署点剩余部署次数(秘典信标;重生时消耗) */
 export const DEPLOY_USES_PROP = "snd5:uses";
+/** 语义类型标记(魔瘴之泉/固体灵魂等盔甲架占位实体的区分键) */
+export const KIND_PROP = "snd5:kind";
+/** 脚本托管血量(魔瘴之泉 60:原版伤害取消,累计到此值即被破坏) */
+export const HP_PROP = "snd5:hp";
 
 export interface SummonInstance {
   entity: Entity;
   id: string;
   typeId: string;
   ownerId?: string;
+  /** 语义类型(内容层区分同类占位实体;如 snd5:miasma_spring) */
+  kind?: string;
+  /** 脚本托管血量上限(设置后原版伤害取消,由 handleSummonHurt 累计) */
+  maxHp?: number;
+  /** 免伤(固体灵魂:不应被击杀绕过拾取惩罚) */
+  invulnerable?: boolean;
   spawnTick: number;
   /** undefined = 永驻(寻光信标) */
   expireTick?: number;
@@ -39,6 +49,17 @@ export interface SummonInstance {
 
 export interface SummonOptions {
   ownerId?: string;
+  /** 语义类型标记(getByKind 查询/跨创生物联动用) */
+  kind?: string;
+  /**
+   * 脚本托管血量:设置后 listeners 取消该实体的原版伤害并转发累计,
+   * 满 maxHp 即被破坏(summon.destroyed reason "broken")。
+   * 盔甲架占位实体的「固有生命值 N」由此表达;自定义实体(minecraft:health)
+   * 落地后可弃用本机制。
+   */
+  maxHp?: number;
+  /** 免伤:原版伤害一律取消(不累计) */
+  invulnerable?: boolean;
   /** 存活时长 tick;不传 = 永驻 */
   lifetimeTicks?: number;
   /** onTick 调用间隔(默认 5) */
@@ -171,6 +192,41 @@ export class SummonSystem {
     ).length;
   }
 
+  /** 按语义类型查询(固体灵魂寻找最近的魔瘴之泉等跨创生物联动) */
+  getByKind(kind: string): SummonInstance[] {
+    return [...this.active.values()].filter((inst) => inst.kind === kind);
+  }
+
+  countByKind(kind: string): number {
+    return this.getByKind(kind).length;
+  }
+
+  /**
+   * 该创生物是否托管伤害(listeners entityHurt 据此取消原版结算):
+   * 脚本托管血量(maxHp)或声明免伤(invulnerable)的占位实体。
+   */
+  isDamageShielded(entityId: string): boolean {
+    const instance = this.active.get(entityId);
+    return !!instance && (instance.invulnerable === true || instance.maxHp !== undefined);
+  }
+
+  /**
+   * 托管血量结算(listeners 从 entityHurt 转发,原版伤害已被取消):
+   * 累计到 maxHp 即破坏(魔瘴之泉「固有生命值 60、可被破坏」)。
+   */
+  handleSummonHurt(entityId: string, amount: number): void {
+    const instance = this.active.get(entityId);
+    if (!instance || instance.maxHp === undefined || amount <= 0) return;
+    if (!instance.entity.isValid) return;
+    const current = instance.entity.getDynamicProperty(HP_PROP);
+    const hp = (typeof current === "number" ? current : instance.maxHp) - amount;
+    if (hp <= 0) {
+      this.destroy(instance, "broken");
+    } else {
+      instance.entity.setDynamicProperty(HP_PROP, hp);
+    }
+  }
+
   // ── 周期与清理 ────────────────────────────────────────────────
 
   tick(nowTick: number): void {
@@ -225,7 +281,8 @@ export class SummonSystem {
       for (const entity of this.session.dimension.getEntities({ tags: [SUMMON_TAG] })) {
         this.removeEntity(entity);
       }
-    } catch {
+    } catch (e) {
+      console.warn("[SND5] 清扫创生物实体失败", e);
       // 维度可能已卸载
     }
   }
@@ -255,6 +312,8 @@ export class SummonSystem {
       entity.addTag(SUMMON_TAG);
       if (options.ownerId) entity.setDynamicProperty(OWNER_PROP, options.ownerId);
       entity.setDynamicProperty(TYPE_PROP, typeId);
+      if (options.kind) entity.setDynamicProperty(KIND_PROP, options.kind);
+      if (options.maxHp !== undefined) entity.setDynamicProperty(HP_PROP, options.maxHp);
       if (options.deployUses !== undefined) {
         entity.setDynamicProperty(DEPLOY_USES_PROP, options.deployUses);
       }
@@ -274,6 +333,9 @@ export class SummonSystem {
         id: entity.id,
         typeId,
         ownerId: options.ownerId,
+        kind: options.kind,
+        maxHp: options.maxHp,
+        invulnerable: options.invulnerable,
         spawnTick: now,
         expireTick: options.lifetimeTicks !== undefined ? now + options.lifetimeTicks : undefined,
         tickIntervalTicks: options.tickIntervalTicks,
@@ -309,7 +371,8 @@ export class SummonSystem {
   private removeEntity(entity: Entity): void {
     try {
       entity.remove();
-    } catch {
+    } catch (e) {
+      console.warn(`[SND5] 移除创生物实体失败 ${entity.id}`, e);
       // 已被移除
     }
   }

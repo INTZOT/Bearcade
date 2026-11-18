@@ -13,6 +13,7 @@ import { skillItemBindings } from "./framework/skill/system";
 import { customItemSkillId, isCustomSkillItem } from "./framework/skill/customItems";
 import { skillRegistry } from "./framework/registry";
 import { STATION_ID_PROP, STATION_TAG } from "./framework/supply";
+import { SUMMON_TAG } from "./framework/summon";
 import { isFeedbackBypass } from "./framework/vanilla";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { tickSnd5Sessions } from "./game";
@@ -95,7 +96,28 @@ function registerDamageInterception(): void {
       event.cancel = true;
       return;
     }
-    // 只拦玩家:创生物(魔瘴之泉 60HP 等)走原版实体血量
+    // 创生物:托管血量(maxHp)/免伤(invulnerable)的原版伤害取消并转发累计
+    // (魔瘴之泉「固有生命值 60、可被破坏」);未托管的召唤物走原版耐久
+    if (hurt.hasTag(SUMMON_TAG)) {
+      const summonSession = sessionOfDimension(hurt.dimension.id);
+      if (summonSession?.summons.isDamageShielded(hurt.id)) {
+        event.cancel = true;
+        const entityId = hurt.id;
+        const amount = event.damage;
+        if (amount > 0) {
+          system.run(() => {
+            try {
+              summonSession.summons.handleSummonHurt(entityId, amount);
+            } catch (error) {
+              console.warn("[SND5] 创生物托管血量结算异常", error);
+            }
+          });
+        }
+        return;
+      }
+      return;
+    }
+    // 只拦玩家:其余非玩家实体(未托管的临时载体)走原版实体血量
     if (!(hurt instanceof Player)) return;
     // 受击反馈伤害(vanilla.ts 三步法):放行以触发原版红闪/音效/
     // 动画/击退;载体已临时抬满,该伤害绝不致死

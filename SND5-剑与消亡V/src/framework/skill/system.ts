@@ -524,14 +524,22 @@ export class SkillSystem {
   }
 
   private tickChannel(cast: ActiveCast, nowTick: number): void {
-    if (nowTick - cast.lastActionTick < 1) return;
+    const elapsed = nowTick - cast.lastActionTick;
+    if (elapsed < 1) return;
     cast.lastActionTick = nowTick;
-    cast.ctx.channelTicks += 1;
-    // 吟唱魔力按 tick 折算(每秒 2 点 → 每 tick 0.1),扣不动即停止
+    // 吟唱计数按真实经过 tick 累积(会话 5t 网格下每拍推进 elapsed,
+    // 与 castElapsedTicks 同刻度,内容层按秒结算的节奏判定才准确)
+    cast.ctx.channelTicks += elapsed;
+    // 施法者死亡立即停止(死亡清状态不经过 interruptCast 的 channel 分支)
+    if (this.session.isDead(cast.ctx.casterId)) {
+      this.stopChannel(cast, false);
+      return;
+    }
+    // 吟唱魔力按真实经过 tick 折算(每秒 2 点 → 每 tick 0.1 × elapsed),扣不动即停止
     const perSecondCost = this.resolveManaCost(cast.def, cast.ctx);
     if (perSecondCost > 0) {
-      const perTickCost = perSecondCost / 20;
-      if (!this.session.attributes.spendMana(cast.ctx.casterId, perTickCost)) {
+      const cost = (perSecondCost / 20) * elapsed;
+      if (!this.session.attributes.spendMana(cast.ctx.casterId, cost)) {
         this.stopChannel(cast, true);
         return;
       }

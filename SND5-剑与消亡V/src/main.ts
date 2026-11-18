@@ -2,6 +2,7 @@ import { system, world } from "@minecraft/server";
 import { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { makeSnd5Hooks } from "./game";
 import { initSnd5Gameplay } from "./listeners";
+import { registerSnd5ItemComponents } from "./framework";
 import {
   DISPLAY_NAME,
   GAME_ID,
@@ -50,6 +51,8 @@ runtime = new MinigameRuntime(
 
 system.beforeEvents.startup.subscribe((event) => {
   runtime.initStartup(event);
+  // SND5 自定义物品组件(群法技能物品/武器的释放入口)
+  registerSnd5ItemComponents(event);
 });
 
 world.afterEvents.worldLoad.subscribe(() => {

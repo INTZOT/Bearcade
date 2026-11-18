@@ -282,14 +282,14 @@ function buildInjects(_runtime: MinigameRuntime, roomId: number): Snd5Injects {
 
 // ── 会话 tick(由 listeners.ts 的单一 interval 驱动) ─────────────
 
-export function tickSnd5Sessions(getRuntime: () => MinigameRuntime): void {
+export function tickSnd5Sessions(_getRuntime: () => MinigameRuntime): void {
   for (const [roomId, session] of [...sessions]) {
     try {
-      if (!getRuntime().isRunning(roomId)) {
-        session.dispose();
-        sessions.delete(roomId);
-        continue;
-      }
+      // if (!_getRuntime().isRunning(roomId)) {
+      //   session.dispose();
+      //   sessions.delete(roomId);
+      //   continue;
+      // }
       session.tick(system.currentTick);
     } catch (error) {
       console.warn(`[SND5] 房间 ${roomId} tick 异常`, error);
@@ -326,6 +326,7 @@ export function makeSnd5Hooks(getRuntime: () => MinigameRuntime): MinigameHooks 
       }
     },
 
+    // todo 房间重置前回调与tickSnd5Sessions存在竞争条件
     onBeforeReset(roomId) {
       // 引擎层会重建场地;会话与 HUD 在此全量回收
       const session = sessions.get(roomId);

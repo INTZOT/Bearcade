@@ -30,6 +30,7 @@ export type {
   AggregatedMods,
   StatusContext,
   StatusDefinition,
+  StatusAfterDamageContext,
   StatusDamageContext,
   StatusFlags,
   StatusInstance,
