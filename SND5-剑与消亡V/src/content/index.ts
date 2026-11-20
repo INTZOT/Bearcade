@@ -8,10 +8,12 @@ import "./skills/warrior";
 import "./skills/support";
 import "./skills/controller";
 import "./skills/magus";
+import "./skills/assassin";
 import "./statuses/warrior";
 import "./statuses/support";
 import "./statuses/controller";
 import "./statuses/magus";
+import "./statuses/assassin";
 import "./codex";
 import "./consumables";
 
@@ -21,6 +23,8 @@ export { warriorProfession } from "./professions/warrior";
 export { supportProfession } from "./professions/support";
 export { controllerProfession } from "./professions/controller";
 export { magusProfession } from "./professions/magus";
+export { assassinProfession } from "./professions/assassin";
+export { tickGrapple } from "./skills/assassin";
 export {
   getSelectedCodex,
   getSelectedProfessionId,

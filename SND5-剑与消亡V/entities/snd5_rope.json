@@ -1,0 +1,55 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "snd5:rope",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false,
+      "properties": {
+        "snd5:hook_x": {
+          "type": "float",
+          "range": [-30000000.0, 30000000.0],
+          "default": 0.0,
+          "client_sync": true
+        },
+        "snd5:hook_y": {
+          "type": "float",
+          "range": [-30000000.0, 30000000.0],
+          "default": 0.0,
+          "client_sync": true
+        },
+        "snd5:hook_z": {
+          "type": "float",
+          "range": [-30000000.0, 30000000.0],
+          "default": 0.0,
+          "client_sync": true
+        }
+      }
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": ["snd5_rope"]
+      },
+      "minecraft:collision_box": {
+        "width": 0.0,
+        "height": 0.0
+      },
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": false
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:persistent": {},
+      "minecraft:damage_sensor": {
+        "triggers": {
+          "cause": "all",
+          "deals_damage": "no"
+        }
+      }
+    }
+  }
+}

@@ -24,6 +24,7 @@ import {
   handleSelectorUse,
   initProfessionSelection,
   SELECTOR_ITEM_TYPE,
+  tickGrapple,
 } from "./content";
 
 let initialized = false;
@@ -51,6 +52,18 @@ export function initSnd5Gameplay(getRuntime: () => MinigameRuntime): void {
   system.runInterval(() => {
     tickSnd5Sessions(getRuntime);
   }, SESSION_TICK_INTERVAL);
+
+  // 抓钩摆荡物理:全局 1 tick 循环(与 Grappling Hooks Add-On 同粒度;
+  // 仍是全局单一循环 —— 非每会话一个 interval;无活跃钩爪的会话 O(1) 跳过)
+  system.runInterval(() => {
+    for (const session of sessions.values()) {
+      try {
+        tickGrapple(session);
+      } catch (error) {
+        console.warn("[SND5] 抓钩物理 tick 异常", error);
+      }
+    }
+  }, 1);
 }
 
 // ── 会话定位 ──────────────────────────────────────────────────

@@ -1,9 +1,10 @@
 // ============================================================
-// 职业注册入口:战士/增益/控制/群法 + 其余 3 职业占位
+// 职业注册入口:刺客/战士/增益/控制/群法 + 其余 2 职业占位
 // ESM import 提升保证先注册的职业排序靠前(可读性更好,
 // PDF 顺序为 刺客/战士/坦克/增益/控制/群法/单法,占位阶段以可用性区分)。
 // ============================================================
 import { professionRegistry, type ProfessionDefinition } from "./registry";
+import "./assassin";
 import "./warrior";
 import "./support";
 import "./controller";
@@ -11,20 +12,11 @@ import "./magus";
 
 /**
  * 未实装职业占位(面板取自 PDF,选择界面显示「开发中」)。
- * 增益(professions/support.ts)、控制(professions/controller.ts)与
- * 群法(professions/magus.ts)已实装,不在此列。
+ * 刺客(professions/assassin.ts)、增益(professions/support.ts)、
+ * 控制(professions/controller.ts)与群法(professions/magus.ts)
+ * 已实装,不在此列。
  */
 const PLACEHOLDER_PROFESSIONS: ProfessionDefinition[] = [
-  {
-    id: "snd5:assassin",
-    displayName: "刺客",
-    tagline: "高移速 · DOT · 破甲",
-    base: { hp: 70, armor: 30, mana: 70 },
-    available: false,
-    weapon: { itemTypeId: "minecraft:iron_sword", name: "横刀·离心", lore: [] },
-    skills: [],
-    passiveIds: [],
-  },
   {
     id: "snd5:tank",
     displayName: "坦克",

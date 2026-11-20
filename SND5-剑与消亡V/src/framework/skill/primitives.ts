@@ -247,6 +247,35 @@ export class Primitives {
     }
   }
 
+  /**
+   * 逼近设定实体速度(抓钩摆荡物理用;来源:Grappling Hooks Add-On
+   * motion.js setVelocity)—— 原版 knockback 每拍按 0.49 衰减(垂直另含
+   * 0.0784 重力项),先折算当前速度再以差值施加;水平 ×2.67 为旧签名
+   * (directionX, directionZ, magnitude, vertical) magnitude 项的等效换算。
+   * 每拍重设即可闭环逼近目标速度;手感偏差优先调 2.67 系数。
+   * @param velocity 目标速度(格/tick;技能层传 velocity × dt)
+   */
+  setVelocity(playerId: string, velocity: Vector3): void {
+    const player = this.getPlayer(playerId);
+    if (!player?.isValid) return;
+    try {
+      const current = player.getVelocity();
+      const damped = {
+        x: current.x * 0.49,
+        y: (current.y - 0.0784) * 0.49,
+        z: current.z * 0.49,
+      };
+      const diff = {
+        x: velocity.x - damped.x,
+        y: damped.y > 0 ? velocity.y : velocity.y - damped.y,
+        z: velocity.z - damped.z,
+      };
+      player.applyKnockback({ x: diff.x * 2.67, z: diff.z * 2.67 }, diff.y);
+    } catch {
+      // 忽略
+    }
+  }
+
   /** 击飞(焙烧反应/地震秘典) */
   launch(targetId: string, verticalStrength: number): void {
     this.knockback(targetId, { x: 0, z: 0 }, 0, verticalStrength);

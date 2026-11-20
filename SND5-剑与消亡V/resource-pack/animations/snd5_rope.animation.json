@@ -1,0 +1,14 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.snd5_rope.stretch": {
+      "loop": true,
+      "bones": {
+        "rope": {
+          "rotation": ["v.rot_x", "v.rot_y", "v.rot_z"],
+          "scale": ["v.scale_x", "v.scale_y", "v.scale_z"]
+        }
+      }
+    }
+  }
+}

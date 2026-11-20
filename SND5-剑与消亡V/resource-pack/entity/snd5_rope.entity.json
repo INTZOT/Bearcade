@@ -1,0 +1,41 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "snd5:rope",
+      "min_engine_version": "1.21.90",
+      "materials": {
+        "default": "entity"
+      },
+      "textures": {
+        "default": "textures/entity/snd5_rope"
+      },
+      "geometry": {
+        "default": "geometry.snd5_rope"
+      },
+      "animations": {
+        "stretch": "animation.snd5_rope.stretch"
+      },
+      "scripts": {
+        "pre_animation": [
+          "t.bx = q.property('snd5:hook_x');",
+          "t.by = q.property('snd5:hook_y');",
+          "t.bz = q.property('snd5:hook_z');",
+          "t.vx = t.bx - q.position(0);",
+          "t.vy = t.by - q.position(1);",
+          "t.vz = t.bz - q.position(2);",
+          "t.horiz = math.sqrt(t.vx * t.vx + t.vz * t.vz);",
+          "v.rot_x = -math.atan2(t.vy, t.horiz);",
+          "v.rot_y = -math.atan2(t.vx, t.vz);",
+          "v.rot_z = 0;",
+          "v.scale_x = 0.1;",
+          "v.scale_y = 0.1;",
+          "v.scale_z = math.sqrt(t.vx * t.vx + t.vy * t.vy + t.vz * t.vz);",
+          "v.scale_z == 0 ? { v.scale_x = 0; v.scale_y = 0; };"
+        ],
+        "animate": ["stretch"]
+      },
+      "render_controllers": ["controller.render.default"]
+    }
+  }
+}
