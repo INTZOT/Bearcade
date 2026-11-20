@@ -137,11 +137,18 @@ export class SummonSystem {
     });
   }
 
-  /** 引爆范围内创生物(坦克引爆凝固熔岩);返回销毁数量 */
-  explode(center: Vec3, radius: number, typeId?: string): number {
+  /**
+   * 引爆范围内创生物(坦克引爆凝固熔岩);返回销毁数量。
+   * filter:字符串 = 按 typeId 过滤;对象 = 按语义类型(kind)过滤 ——
+   * 盔甲架占位下全部创生物 typeId 相同,跨类型筛选必须走 kind。
+   */
+  explode(center: Vec3, radius: number, filter?: string | { kind?: string }): number {
+    const typeId = typeof filter === "string" ? filter : undefined;
+    const kind = typeof filter === "object" ? filter?.kind : undefined;
     let destroyed = 0;
     for (const instance of [...this.active.values()]) {
       if (typeId && instance.typeId !== typeId) continue;
+      if (kind && instance.kind !== kind) continue;
       if (!instance.entity.isValid) {
         this.active.delete(instance.id);
         continue;

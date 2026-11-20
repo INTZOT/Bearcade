@@ -5,11 +5,13 @@
 // ============================================================
 import "./professions";
 import "./skills/warrior";
+import "./skills/tank";
 import "./skills/support";
 import "./skills/controller";
 import "./skills/magus";
 import "./skills/assassin";
 import "./statuses/warrior";
+import "./statuses/tank";
 import "./statuses/support";
 import "./statuses/controller";
 import "./statuses/magus";
@@ -20,6 +22,7 @@ import "./consumables";
 export { professionRegistry } from "./professions/registry";
 export type { ProfessionDefinition, ProfessionSkillEntry } from "./professions/registry";
 export { warriorProfession } from "./professions/warrior";
+export { tankProfession } from "./professions/tank";
 export { supportProfession } from "./professions/support";
 export { controllerProfession } from "./professions/controller";
 export { magusProfession } from "./professions/magus";

@@ -53,6 +53,13 @@ export interface ChargeConfig {
   maxTicks: number;
   /** onChargeTick 调用间隔(默认每 tick) */
   tickIntervalTicks?: number;
+  /**
+   * 松手取消型蓄力:蓄满前松手则整个蓄力作废(进度清零、退还预扣、
+   * 不进冷却,打断同款处理),而非强制继续蓄力;蓄满自动施放不受影响。
+   * 与 minTicks 可组合:未到 minTicks 前松手仍强制继续(焚天斩不设
+   * minTicks,任意松手即取消)。
+   */
+  cancelOnRelease?: boolean;
   onChargeTick?(ctx: CastContext): void;
 }
 

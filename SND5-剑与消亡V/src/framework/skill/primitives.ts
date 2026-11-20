@@ -300,9 +300,9 @@ export class Primitives {
     return this.session.summons.spawnSummon(typeId, origin, options);
   }
 
-  /** 引爆范围内创生物(坦克凝固熔岩) */
-  explodeSummons(center: Vec3, radius: number, typeId?: string): number {
-    return this.session.summons.explode(center, radius, typeId);
+  /** 引爆范围内创生物(坦克凝固熔岩;filter = typeId 字符串或 { kind }) */
+  explodeSummons(center: Vec3, radius: number, filter?: string | { kind?: string }): number {
+    return this.session.summons.explode(center, radius, filter);
   }
 
   getEntity(entityId: string): Entity | undefined {

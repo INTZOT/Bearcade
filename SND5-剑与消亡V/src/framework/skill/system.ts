@@ -514,11 +514,27 @@ export class SkillSystem {
     if (cast.ctx.chargeTicks >= config.maxTicks) this.finishCharge(cast, true);
   }
 
-  /** 蓄力释放;minTicks 之前松手无效(坦克重击 10% 强制蓄力) */
+  /**
+   * 蓄力释放;未蓄满时松手:
+   * - 未到 minTicks:强制继续蓄力(坦克重击 10% 前松手无效);
+   * - 已到 minTicks 且声明 cancelOnRelease:整个蓄力作废(进度清零、
+   *   退还预扣、不进冷却,打断同款处理);
+   * - 其余(如群法重击 min = max):强制继续蓄力,直到蓄满自动施放。
+   */
   private finishCharge(cast: ActiveCast, forced: boolean): void {
     const config = cast.def.chargeConfig;
     const minTicks = config?.minTicks ?? 0;
     if (!forced && cast.ctx.chargeTicks < minTicks) return; // 强制继续蓄力
+    if (!forced && config?.cancelOnRelease) {
+      // 松手取消:蓄力清零,退还预扣资源,不进冷却
+      this.activeCasts.delete(cast.ctx.casterId);
+      this.refundPrededucted(cast.ctx);
+      const player = cast.ctx.player;
+      if (player.isValid) {
+        this.session.hud.toast(player, "§7蓄力中断");
+      }
+      return;
+    }
     this.activeCasts.delete(cast.ctx.casterId);
     this.executeCast(cast.def, cast.ctx);
   }
