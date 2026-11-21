@@ -5,8 +5,9 @@
 // 血量/受击/死亡,魔瘴之泉「可被破坏、固有生命值 60」因此成立。
 //
 // 飞行与命中由实体 JSON 的 minecraft:projectile 负责,脚本只负责
-// 发射/标记/回调;所有脚本实体打 snd5:summon tag,会话销毁统一
-// tag 扫除(对局残留零容忍,对齐 CTF entity_need_remove 先例)。
+// 发射/标记/回调;所有脚本实体打 snd5:summon tag,会话销毁与
+// 开局前首名玩家进入均按 tag 扫除(对局残留零容忍,
+// 对齐 CTF entity_need_remove 先例)。
 // ============================================================
 import { system, type Dimension, type Entity, type Vector3 } from "@minecraft/server";
 import type { Vec3 } from "../../../shared/minigame-core/types";
@@ -22,6 +23,30 @@ export const DEPLOY_USES_PROP = "snd5:uses";
 export const KIND_PROP = "snd5:kind";
 /** 脚本托管血量(魔瘴之泉 60:原版伤害取消,累计到此值即被破坏) */
 export const HP_PROP = "snd5:hp";
+
+/**
+ * 按 snd5:summon tag 扫除维度内全部 SND5 脚本实体,返回移除数量。
+ * 两处共用:① 会话 dispose(clearAll);② 房间首名玩家进入时的
+ * 上一局残留清扫(CTF cleanEntity 先例)——服务器崩溃重启后
+ * onBeforeReset 不会执行,实体又不随模板重建消失,只能进房时扫。
+ */
+export function sweepSummonEntities(dimension: Dimension): number {
+  let removed = 0;
+  try {
+    for (const entity of dimension.getEntities({ tags: [SUMMON_TAG] })) {
+      try {
+        entity.remove();
+        removed += 1;
+      } catch {
+        // 实体已被移除
+      }
+    }
+  } catch (e) {
+    console.warn("[SND5] 扫除创生物实体失败", e);
+    // 维度可能已卸载
+  }
+  return removed;
+}
 
 export interface SummonInstance {
   entity: Entity;
@@ -284,14 +309,7 @@ export class SummonSystem {
       if (instance.entity.isValid) this.removeEntity(instance.entity);
       this.active.delete(instance.id);
     }
-    try {
-      for (const entity of this.session.dimension.getEntities({ tags: [SUMMON_TAG] })) {
-        this.removeEntity(entity);
-      }
-    } catch (e) {
-      console.warn("[SND5] 清扫创生物实体失败", e);
-      // 维度可能已卸载
-    }
+    sweepSummonEntities(this.session.dimension);
   }
 
   dispose(): void {

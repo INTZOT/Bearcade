@@ -1,8 +1,8 @@
 // ============================================================
 // 原生事件适配层(架构文档 engine/event_bridge 的收缩形态)
 // 引擎层职责由 shared/minigame-core + Core 承担(意见②),本文件只做
-// 三件事:原版伤害拦截、输入事件路由(SkillSystem/SupplySystem)、
-// 会话 tick 循环驱动。
+// 四件事:原版伤害拦截、输入事件路由(SkillSystem/SupplySystem)、
+// 会话 tick 循环驱动、房间首名玩家进入的残留实体清扫。
 //
 // restricted-execution 规则:before 事件里只同步取消/改内存,
 // 一切原生调用(传送/表单/生成实体)经 system.run 延后。
@@ -13,7 +13,7 @@ import { skillItemBindings } from "./framework/skill/system";
 import { customItemSkillId, isCustomSkillItem } from "./framework/skill/customItems";
 import { skillRegistry } from "./framework/registry";
 import { STATION_ID_PROP, STATION_TAG } from "./framework/supply";
-import { SUMMON_TAG } from "./framework/summon";
+import { SUMMON_TAG, sweepSummonEntities } from "./framework/summon";
 import { isFeedbackBypass } from "./framework/vanilla";
 import type { MinigameRuntime } from "../../shared/minigame-core/runtime";
 import { tickSnd5Sessions } from "./game";
@@ -51,6 +51,7 @@ export function initSnd5Gameplay(getRuntime: () => MinigameRuntime): void {
   // 会话 tick 循环:单一 interval 迭代全部会话(禁每会话一个 interval)
   system.runInterval(() => {
     tickSnd5Sessions(getRuntime);
+    tickRoomEntrySweep(getRuntime);
   }, SESSION_TICK_INTERVAL);
 
   // 抓钩摆荡物理:全局 1 tick 循环(与 Grappling Hooks Add-On 同粒度;
@@ -300,4 +301,46 @@ function registerLifecycleGuards(): void {
       session.handleDeath(dead.id, undefined, "vanilla");
     });
   });
+}
+
+// ── 6. 房间首名玩家进入清扫(对齐 CTF cleanEntity 先例) ─────────
+
+/**
+ * 本占用周期已清扫的房间。房间从空到有人时扫一次;房间清空后
+ * 复位,下一批玩家进入重新触发("首次有玩家进入"语义)。
+ */
+const sweptRooms = new Set<number>();
+
+/**
+ * 开局前残留实体清扫:上一局若因崩溃/重启未走 onBeforeReset,
+ * 创生物与掉落物会残留(实体不随模板重建消失),由本处兜底。
+ * 仅作用于无会话且 idle/pending 的房间——对局中的实体归会话
+ * SummonSystem 管理(dispose 时 clearAll),结算中由引擎流程负责。
+ */
+function tickRoomEntrySweep(getRuntime: () => MinigameRuntime): void {
+  const runtime = getRuntime();
+  for (let roomId = 1; roomId <= runtime.config.roomCount; roomId++) {
+    if (sessions.has(roomId)) continue;
+    const phase = runtime.getPhase(roomId);
+    if (phase !== "idle" && phase !== "pending") continue;
+    if (runtime.roomPlayers(roomId).length === 0) {
+      // 房间清空 → 复位"首次"标记
+      sweptRooms.delete(roomId);
+      continue;
+    }
+    if (sweptRooms.has(roomId)) continue;
+    sweptRooms.add(roomId);
+    const dim = runtime.roomDim(roomId);
+    const removed = sweepSummonEntities(dim);
+    // 掉落物残留在 SND5 无正当来源(脚本死亡不掉落,只剩玩家 Q 键丢弃),
+    // 一并扫除;对局中不得清,故只挂在首进窗口
+    try {
+      for (const item of dim.getEntities({ type: "minecraft:item" })) item.remove();
+    } catch (error) {
+      console.warn("[SND5] 清扫掉落物残留失败", error);
+    }
+    if (removed > 0) {
+      console.warn(`[SND5] 房间 ${roomId} 有玩家进入,清扫上一局残留实体 ${removed} 个`);
+    }
+  }
 }
