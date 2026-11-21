@@ -399,7 +399,7 @@ skillRegistry.register({
     return {
       kind: "line",
       origin: ctx.player.location,
-      direction: { x: ctx.direction.x, y: ctx.direction.y, z: ctx.direction.z },
+      direction: { x: ctx.direction.x, y: 0, z: ctx.direction.z },
       length: Math.max(1, range),
       width: HEAVY_WIDTH,
     };
@@ -460,7 +460,7 @@ skillRegistry.register({
       {
         kind: "line",
         origin: center,
-        direction: { x: dir.x, y: dir.y, z: dir.z },
+        direction: { x: dir.x, y: 0, z: dir.z },
         length: Math.max(1, range),
         width: HEAVY_WIDTH,
       },
