@@ -31,6 +31,7 @@ import {
   getSelectedCodex,
   getSelectedProfessionId,
   professionRegistry,
+  resolveBeaconRespawn,
   type CodexSpellMeta,
   type ProfessionDefinition,
 } from "./content";
@@ -218,6 +219,12 @@ function buildInjects(_runtime: MinigameRuntime, roomId: number): Snd5Injects {
       const teamId = teamProvider.getTeam(playerId) ?? "red";
       const index = teamId === "blue" ? 1 : 0;
       return START_POSITIONS[index] ?? START_POSITIONS[0];
+    },
+
+    // 自定义重生决策(单法寻光信标):存在信标记录时在信标处部署/回默认点
+    resolveRespawn: (playerId) => {
+      const session = sessions.get(roomId);
+      return session ? resolveBeaconRespawn(session, playerId) : undefined;
     },
 
     // 职业装载:面板 + 技能装备 + 秘典槽位 + 被动挂载(会话 applyLoadout 消费)

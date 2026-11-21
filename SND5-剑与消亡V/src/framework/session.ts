@@ -259,13 +259,17 @@ export class MatchSession {
     this.applyLoadout(state);
     try {
       state.player.setGameMode(GameMode.Survival);
-      // 部署点优先(秘典信标:本队、限用次数由 summon 消耗),无则回默认重生点
-      const deployLocation = this.summons.consumeDeployPoint(state.teamId);
+      // 自定义重生决策优先(单法寻光信标:在信标处部署保留死亡前状态),
+      // 其后为部署点(秘典信标:本队、限用次数由 summon 消耗),无则回默认重生点
+      const custom = this.injects.resolveRespawn?.(playerId);
+      const deployLocation =
+        custom?.location ?? this.summons.consumeDeployPoint(state.teamId);
       this.runtime.teleportPlayer(
         this.roomId,
         state.player,
         deployLocation ?? this.injects.getRespawnLocation(playerId),
       );
+      custom?.onDeployed?.(playerId);
     } catch {
       // 忽略
     }

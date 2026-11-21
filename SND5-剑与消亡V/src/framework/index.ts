@@ -14,6 +14,7 @@ export type {
   DamageElement,
   DamageTag,
   PlayerLoadout,
+  RespawnDecision,
   ResourceTriple,
   Snd5ContentBundle,
   Snd5RuntimeConfig,

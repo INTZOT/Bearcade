@@ -10,12 +10,14 @@ import "./skills/support";
 import "./skills/controller";
 import "./skills/magus";
 import "./skills/assassin";
+import "./skills/ranger";
 import "./statuses/warrior";
 import "./statuses/tank";
 import "./statuses/support";
 import "./statuses/controller";
 import "./statuses/magus";
 import "./statuses/assassin";
+import "./statuses/ranger";
 import "./codex";
 import "./consumables";
 
@@ -28,6 +30,8 @@ export { controllerProfession } from "./professions/controller";
 export { magusProfession } from "./professions/magus";
 export { assassinProfession } from "./professions/assassin";
 export { tickGrapple } from "./skills/assassin";
+export { rangerProfession } from "./professions/ranger";
+export { resolveBeaconRespawn } from "./skills/ranger";
 export {
   getSelectedCodex,
   getSelectedProfessionId,

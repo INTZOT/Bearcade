@@ -53,11 +53,26 @@ export interface PlayerLoadout {
   passiveIds?: string[];
 }
 
+/**
+ * 自定义重生决策(单法寻光信标等「可选部署点」):
+ * respawn 时优先询问本钩子,返回 undefined 才走部署点/默认重生点。
+ */
+export interface RespawnDecision {
+  location: Vec3;
+  /** 落位后回调(信标恢复死亡前快照/免伤/被动冷却在此结算) */
+  onDeployed?(playerId: string): void;
+}
+
 /** 对局注入点:框架层不认识任何职业,队伍/出生点/装载全部由内容层提供 */
 export interface SessionInjects {
   teams: TeamProvider;
   /** 重生点(含开局首次落位) */
   getRespawnLocation(playerId: string): Vec3;
+  /**
+   * 自定义重生决策(优先级最高):返回 undefined 时回退
+   * 部署点(summons.consumeDeployPoint)→ getRespawnLocation。
+   */
+  resolveRespawn?(playerId: string): RespawnDecision | undefined;
   /** 职业装载(返回 undefined 时使用默认面板) */
   loadoutFor?(playerId: string): PlayerLoadout | undefined;
   /** 会话开始(发武器/消耗品等,内容层实现) */
